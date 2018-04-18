@@ -85,7 +85,8 @@ def prep_data( df ):
     gc.collect()
     return df
 
-# train_df = prep_data(train_df)
+train_df = prep_data(train_df)
+print(train_df.head(10))
 
 
 
