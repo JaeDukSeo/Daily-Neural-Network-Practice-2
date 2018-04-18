@@ -11,7 +11,10 @@ MAX_ROUNDS = 1000
 EARLY_STOP = 50
 OPT_ROUNDS = 650
 skiprows = range(1,109903891)
-nrows = 75000000
+nrows = 100000
+#       109903891
+#       100000
+#       75000000
 output_filename = 'submission.csv'
 
 path = '../Dataset/kaggleAD/'
@@ -26,12 +29,12 @@ dtypes = {
         'click_id'      : 'uint32'
         }
 
-
-
 train_cols = ['ip','app','device','os', 'channel', 'click_time', 'is_attributed']
-train_df = pd.read_csv(path+"train.csv", skiprows=skiprows, nrows=nrows,dtype=dtypes, usecols=train_cols)
+train_df = pd.read_csv(path+"train_sample.csv", nrows=nrows,dtype=dtypes, usecols=train_cols,header=0)
 
 len_train = len(train_df)
+print(len_train)
+
 gc.collect()
 
 most_freq_hours_in_test_data = [4, 5, 9, 10, 13, 14]
