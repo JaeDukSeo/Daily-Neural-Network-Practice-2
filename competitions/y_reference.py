@@ -23,6 +23,7 @@ import gc
 import matplotlib.pyplot as plt
 import os
 
+# ------------------
 def do_count( df, group_cols, agg_name, agg_type='uint32', show_max=False, show_agg=True ):
     if show_agg:
         print( "Aggregating by ", group_cols , '...' )
@@ -34,7 +35,6 @@ def do_count( df, group_cols, agg_name, agg_type='uint32', show_max=False, show_
     df[agg_name] = df[agg_name].astype(agg_type)
     gc.collect()
     return( df )
-
 def do_countuniq( df, group_cols, counted, agg_name, agg_type='uint32', show_max=False, show_agg=True ):
     if show_agg:
         print( "Counting unqiue ", counted, " by ", group_cols , '...' )
@@ -46,7 +46,6 @@ def do_countuniq( df, group_cols, counted, agg_name, agg_type='uint32', show_max
     df[agg_name] = df[agg_name].astype(agg_type)
     gc.collect()
     return( df )
-    
 def do_cumcount( df, group_cols, counted, agg_name, agg_type='uint32', show_max=False, show_agg=True ):
     if show_agg:
         print( "Cumulative count by ", group_cols , '...' )
@@ -58,7 +57,6 @@ def do_cumcount( df, group_cols, counted, agg_name, agg_type='uint32', show_max=
     df[agg_name] = df[agg_name].astype(agg_type)
     gc.collect()
     return( df )
-
 def do_mean( df, group_cols, counted, agg_name, agg_type='float32', show_max=False, show_agg=True ):
     if show_agg:
         print( "Calculating mean of ", counted, " by ", group_cols , '...' )
@@ -70,7 +68,6 @@ def do_mean( df, group_cols, counted, agg_name, agg_type='float32', show_max=Fal
     df[agg_name] = df[agg_name].astype(agg_type)
     gc.collect()
     return( df )
-
 def do_var( df, group_cols, counted, agg_name, agg_type='float32', show_max=False, show_agg=True ):
     if show_agg:
         print( "Calculating variance of ", counted, " by ", group_cols , '...' )
@@ -82,11 +79,16 @@ def do_var( df, group_cols, counted, agg_name, agg_type='float32', show_max=Fals
     df[agg_name] = df[agg_name].astype(agg_type)
     gc.collect()
     return( df )
+# ------------------
+
+
 
 debug=0 
 if debug:
     print('*** debug parameter set: this is a test run for debugging purposes ***')
 
+
+# -------
 def lgb_modelfit_nocv(params, dtrain, dvalid, predictors, target='target', objective='binary', metrics='auc',
                  feval=None, early_stopping_rounds=20, num_boost_round=3000, verbose_eval=10, categorical_features=None):
     lgb_params = {
@@ -142,7 +144,9 @@ def lgb_modelfit_nocv(params, dtrain, dvalid, predictors, target='target', objec
     print(metrics+":", evals_results['valid'][metrics][bst1.best_iteration-1])
 
     return (bst1,bst1.best_iteration)
+# --------
 
+# --------
 def DO(frm,to,fileno):
     dtypes = {
             'ip'            : 'uint32',
@@ -302,6 +306,8 @@ def DO(frm,to,fileno):
         sub.to_csv('sub_it%d.csv'%(fileno),index=False,float_format='%.9f')
     print("done...")
     return sub
+# --------
+
 
 nrows=184903891-1
 nchunk=25000000
@@ -314,7 +320,7 @@ if debug:
     val_size=10000
 
 to=frm+nchunk
-sub=DO(frm,to,0)
+# sub=DO(frm,to,0)
 
 
 
