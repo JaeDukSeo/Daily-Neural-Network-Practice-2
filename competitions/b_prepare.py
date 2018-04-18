@@ -18,7 +18,7 @@ import pandas as pd
 import time,sys
 import numpy as np
 from sklearn.model_selection import train_test_split
-import lightgbm as lgb
+# import lightgbm as lgb
 import gc
 import matplotlib.pyplot as plt
 import os
@@ -146,6 +146,8 @@ def lgb_modelfit_nocv(params, dtrain, dvalid, predictors, target='target', objec
     return (bst1,bst1.best_iteration)
 # --------
 
+path = '../Dataset/kaggleAD/train.csv'
+
 # --------
 def DO(frm,to,fileno):
     dtypes = {
@@ -159,13 +161,13 @@ def DO(frm,to,fileno):
             }
 
     print('loading train data...',frm,to)
-    train_df = pd.read_csv("../input/train.csv", parse_dates=['click_time'], skiprows=range(1,frm), nrows=to-frm, dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'is_attributed'])
+    train_df = pd.read_csv('../Dataset/kaggleAD/train.csv', parse_dates=['click_time'], skiprows=range(1,frm), nrows=to-frm, dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'is_attributed'])
 
     print('loading test data...')
     if debug:
         test_df = pd.read_csv("../input/test.csv", nrows=100000, parse_dates=['click_time'], dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'click_id'])
     else:
-        test_df = pd.read_csv("../input/test.csv", parse_dates=['click_time'], dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'click_id'])
+        test_df = pd.read_csv('../Dataset/kaggleAD/test.csv', parse_dates=['click_time'], dtype=dtypes, usecols=['ip','app','device','os', 'channel', 'click_time', 'click_id'])
 
     len_train = len(train_df)
     train_df=train_df.append(test_df)
@@ -321,7 +323,7 @@ if debug:
     val_size=10000
 
 to=frm+nchunk
-# sub=DO(frm,to,0)
+sub=DO(frm,to,0)
 
 
 
