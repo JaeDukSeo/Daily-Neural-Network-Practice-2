@@ -8,11 +8,12 @@
    
    
 <p align="center">
-    <img width="500" height="auto" src="/images/images.png" alt="PHP Censor" />
+    <img width="500" height="auto" src="/image/images.png" alt="PHP Censor" />
 </p>
    
    
 **Daily-Neural-Network-Practice-2** This is my repo for daily practice of coding as well as machine learning (Season 2)
+The cover image is from this [website](https://www.pexels.com/photo/selective-focus-photography-of-sparkler-955792/). 
 ([PHPCI](https://www.phptesting.org) fork).
 
 **Twitter**: [@php_censor](https://twitter.com/php_censor).
