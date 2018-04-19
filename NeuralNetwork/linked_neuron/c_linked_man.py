@@ -68,7 +68,6 @@ class CNN():
         return self.out
 
     def backprop(self,gradient):
-        
         half_shape = gradient.shape[3].value//2
         gradient = tf_repeat(gradient,[1,2,2,1])
         
@@ -112,8 +111,8 @@ learning_rate = 0.0003
 beta1,beta2 = 0.9,0.999
 adam_e = 1e-8
 
-proportion_rate = 5
-decay_rate = 0.008
+proportion_rate = 1
+decay_rate = 0.05
 
 # define class
 l1 = CNN(5,1,2)
@@ -140,8 +139,6 @@ final = tf_softmax(final_soft)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft,labels=y))
 correct_prediction = tf.equal(tf.argmax(final, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # -- back prop -- 
 grad5,grad5u = l5.backprop(tf.reshape(final-y,[batch_size,1,1,10] ) )
