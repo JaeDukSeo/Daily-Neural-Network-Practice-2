@@ -7,12 +7,14 @@ from scipy.misc import imresize
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
 from tensorflow.examples.tutorials.mnist import input_data
+from skimage.transform import resize
+
 np.random.seed(6789)
 tf.set_random_seed(678)
 
 def tf_relu(x): return tf.nn.relu(x)
 def d_tf_relu(x): return tf.cast(tf.greater(x,0.0),tf.float32)
-
+def tf_softmax(x): return tf.nn.softmax(x)
 
 # data
 mnist = input_data.read_data_sets('../Dataset/MNIST/', one_hot=True)
@@ -28,6 +30,23 @@ for i in range(len(training_images)):
 for i in range(len(testing_images)):
     testing_images[i,:,:,:] = np.expand_dims(resize(np.squeeze(y_data[i,:,:,0]),(32,32)),axis=3)
 
+# code from: https://github.com/tensorflow/tensorflow/issues/8246
+def tf_repeat(tensor, repeats):
+    """
+    Args:
+
+    input: A Tensor. 1-D or higher.
+    repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
+
+    Returns:
+    
+    A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
+    """
+    expanded_tensor = tf.expand_dims(tensor, -1)
+    multiples = [1] + repeats
+    tiled_tensor = tf.tile(expanded_tensor, multiples = multiples)
+    repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
+    return repeated_tesnor
 
 # class
 class CNN():
@@ -35,18 +54,22 @@ class CNN():
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out]))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
-    
+
     def feedforward(self,input):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')
         self.layerAa = tf_relu(self.layer) 
         self.layerAb = tf_relu(-1.0 * self.layer)
+        # self.out = tf.nn.avg_pool(self.layerAa +self.layerAb, [ 1, 2, 2, 1 ], [1, 2, 2, 1 ], 'VALID')
         self.out = tf.nn.avg_pool(tf.concat([self.layerAa ,self.layerAb],-1), [ 1, 2, 2, 1 ], [1, 2, 2, 1 ], 'VALID')
         return self.out
 
     def backprop(self,gradient):
+        
+        half_shape = gradient.shape[3].value//2
+        gradient = tf_repeat(gradient,[1,2,2,1])
+        
         grad_part_1 = gradient 
-        half_shape = gradient.shape[3]//2
         grad_part_2a = d_tf_relu(gradient[:,:,:,:half_shape]) 
         grad_part_2b = d_tf_relu(gradient[:,:,:,half_shape:])
         grad_part_3 = self.input
@@ -60,7 +83,7 @@ class CNN():
         )
 
         grad_pass = tf.nn.conv2d_backprop_input(
-            input_sizes = grad_part_3.shape,
+            input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
             filter= self.w,out_backprop = grad_middle,
             strides=[1,1,1,1],padding='SAME'
         )
@@ -79,35 +102,35 @@ class CNN():
 num_epoch = 100
 batch_size = 100
 print_size = 1
-learning_rate = 0.002
+learning_rate = 0.003
 
-beta_1,beta_2 = 0.9,0.9999
+beta1,beta2 = 0.9,0.999
 adam_e = 1e-9
 
 # define class
 l1 = CNN(5,1,4)
-l2 = CNN(3,8,16)
+l2 = CNN(1,8,16)
 l3 = CNN(3,32,8)
-l4 = CNN(1,16,5)
+l4 = CNN(2,16,4)
+l5 = CNN(1,8,5)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
-
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 layer4 = l4.feedforward(layer3)
+layer5 = l5.feedforward(layer4)
+final_soft = tf.reshape(layer5,[batch_size,-1])
+final = tf_softmax(final_soft)
 
-final_soft = tf.reshape(layer4,[batch_size,-1])
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft,labels=y))
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# -- auto train --
+# -- auto  -- 
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
-# -- back prop -- 
 
 # session
 with tf.Session() as sess:
@@ -130,7 +153,6 @@ with tf.Session() as sess:
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
-
         for test_batch_index in range(0,len(testing_images),batch_size):
             current_batch = testing_images[test_batch_index:test_batch_index+batch_size,:,:,:]
             current_batch_label = testing_labels[test_batch_index:test_batch_index+batch_size,:]
@@ -144,6 +166,8 @@ with tf.Session() as sess:
             print('Train Current cost: ', train_cota/(len(training_images)/batch_size),' Current Acc: ', train_acca/(len(training_images)/batch_size),end='\n')
             print('Test Current cost: ', test_cota/(len(testing_images)/batch_size),' Current Acc: ', test_acca/(len(testing_images)/batch_size),end='\n')
             print("----------\n")
+
+        training_images,training_labels = shuffle(training_images,training_labels )
 
         train_acc.append(train_acca/(len(training_images)/batch_size))
         train_cot.append(train_cota/(len(training_images)/batch_size))
@@ -175,5 +199,6 @@ with tf.Session() as sess:
     plt.plot(range(len(test_cot)),test_cot)
     plt.title("Test Average Cost Over Time")
     plt.show()
+
 
 # -- end code --
