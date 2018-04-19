@@ -16,11 +16,9 @@ def d_tf_relu(x): return tf.cast(tf.greater(x,0.0),tf.float32)
 
 # data
 mnist = input_data.read_data_sets('../Dataset/MNIST/', one_hot=True)
-
-x_data, training_labels, y_data, testing_images = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+x_data, training_labels, y_data, testing_labels = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 training_images = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 testing_images = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-
 
 # class
 class CNN():
@@ -71,19 +69,18 @@ class CNN():
 
 # hyper
 num_epoch = 100
-batch_size = 200
-print_size = 2
-learning_rate = 0.001
+batch_size = 100
+print_size = 1
+learning_rate = 0.002
 
 beta_1,beta_2 = 0.9,0.9999
 adam_e = 1e-9
 
 # define class
-l1 = CNN(5,3,4)
+l1 = CNN(5,1,4)
 l2 = CNN(3,8,16)
 l3 = CNN(3,32,8)
-l4 = CNN(1,16,4)
-l5 = CNN(1,8,5)
+l4 = CNN(1,16,5)
 
 # graph
 x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32)
@@ -93,9 +90,8 @@ layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 layer4 = l4.feedforward(layer3)
-layer5 = l5.feedforward(layer4)
 
-final_soft = tf.reshape(layer5,[batch_size,-1])
+final_soft = tf.reshape(layer4,[batch_size,-1])
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft,labels=y))
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -109,11 +105,12 @@ auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-    total_cost_track = 0
-    cost_over_time = []
-    avg_over_time = []
-    avg_accuracy = 0
-    avg_cost = 0
+    
+    train_cota,train_acca = 0,0
+    train_cot,train_acc = [],[]
+    
+    test_cota,test_acca = 0,0
+    test_cot,test_acc = [],[]
 
     for iter in range(num_epoch):
 
@@ -122,29 +119,33 @@ with tf.Session() as sess:
             current_batch_label = training_labels[batch_size_index:batch_size_index+batch_size,:]
             sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
-            total_cost_track = total_cost_track + sess_result[0]
+            train_cota = train_cota + sess_result[0]
+            train_acca = train_acca + sess_result[1]
+            
 
         for test_batch_index in range(0,len(testing_images),batch_size):
             current_batch = testing_images[test_batch_index:test_batch_index+batch_size,:,:,:]
             current_batch_label = testing_labels[test_batch_index:test_batch_index+batch_size,:]
             sess_result = sess.run([cost,accuracy,final_soft],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
-            avg_accuracy = sess_result[1] + avg_accuracy
-            avg_cost     = sess_result[0] + avg_cost
+            test_acca = sess_result[1] + test_acca
+            test_cota = sess_result[0] + test_cota
 
         if iter % print_size==0:
             print("\n----------")
-            print("Current Total Cost: ", total_cost_track/(len(training_images)/batch_size))
-            print('Test Current cost: ', avg_cost/(len(testing_images)/batch_size),' Current Acc: ', avg_accuracy/(len(testing_images)/batch_size),end='\n')
+            print('Train Current cost: ', train_cota/(len(training_images)/batch_size),' Current Acc: ', train_acca/(len(training_images)/batch_size),end='\n')
+            print('Test Current cost: ', test_cota/(len(testing_images)/batch_size),' Current Acc: ', test_acca/(len(testing_images)/batch_size),end='\n')
             print("----------\n")
-            avg_accuracy = 0
-            avg_cost = 0
 
-        avg_over_time.append(avg_accuracy/(len(testing_images)/batch_size))
-        cost_over_time.append(avg_cost/(len(testing_images)/batch_size))
-        total_cost_track = 0
-        avg_accuracy = 0
-        avg_cost = 0
+        train_acc.append(train_acca/(len(training_images)/batch_size))
+        train_cot.append(train_cota/(len(training_images)/batch_size))
+
+        test_acc.append(test_acca/(len(testing_images)/batch_size))
+        test_cot.append(test_cota/(len(testing_images)/batch_size))
+
+        test_cota,test_acca = 0,0
+        train_cota,train_acca = 0,0
+
 
     # training done
     plt.figure()
