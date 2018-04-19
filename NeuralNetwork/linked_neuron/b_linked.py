@@ -17,8 +17,17 @@ def d_tf_relu(x): return tf.cast(tf.greater(x,0.0),tf.float32)
 # data
 mnist = input_data.read_data_sets('../Dataset/MNIST/', one_hot=True)
 x_data, training_labels, y_data, testing_labels = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-training_images = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-testing_images = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+
+training_images = np.zeros((x_data.shape[0],32,32,1)).astype(np.float32)
+testing_images = np.zeros((y_data.shape[0],32,32,1)).astype(np.float32)
+
+for i in range(len(training_images)):
+    training_images[i,:,:,:] = np.expand_dims(resize(np.squeeze(x_data[i,:,:,0]),(32,32)),axis=3)
+for i in range(len(testing_images)):
+    testing_images[i,:,:,:] = np.expand_dims(resize(np.squeeze(y_data[i,:,:,0]),(32,32)),axis=3)
+
 
 # class
 class CNN():
@@ -42,8 +51,7 @@ class CNN():
         grad_part_2b = d_tf_relu(gradient[:,:,:,half_shape:])
         grad_part_3 = self.input
 
-        grad_middle = tf.multiply(grad_part_1[:,:,:,:half_shape] * grad_part_2a
-                                + grad_part_1[:,:,:,half_shape:] * grad_part_2b)
+        grad_middle = grad_part_1[:,:,:,:half_shape] * grad_part_2a + grad_part_1[:,:,:,half_shape:] * grad_part_2b
 
         grad = tf.nn.conv2d_backprop_filter(
             input = grad_part_3,
@@ -83,7 +91,7 @@ l3 = CNN(3,32,8)
 l4 = CNN(1,16,5)
 
 # graph
-x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32)
+x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 layer1 = l1.feedforward(x)
@@ -96,12 +104,10 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_so
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+# -- auto train --
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
 # -- back prop -- 
-grad4,grad4u = l4.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ) )
-grad3,grad3u = l3.backprop(grad4)
-grad2,grad2u = l2.backprop(grad3)
-grad1,grad1u = l1.backprop(grad2)
-weight_update = grad1u + grad2u + grad3u + grad4u
 
 # session
 with tf.Session() as sess:
@@ -119,7 +125,7 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(training_images),batch_size):
             current_batch = training_images[batch_size_index:batch_size_index+batch_size,:,:,:]
             current_batch_label = training_labels[batch_size_index:batch_size_index+batch_size,:]
-            sess_result = sess.run([cost,accuracy,weight_update],feed_dict={x:current_batch,y:current_batch_label})
+            sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -151,14 +157,23 @@ with tf.Session() as sess:
 
     # training done
     plt.figure()
-    plt.plot(range(len(avg_over_time)),avg_over_time)
-    plt.title("Average Accuracy Over Time")
+    plt.plot(range(len(train_acc)),train_acc)
+    plt.title("Train Average Accuracy Over Time")
     plt.show()
 
     plt.figure()
-    plt.plot(range(len(cost_over_time)),cost_over_time)
-    plt.title("Average Cost Over Time")
+    plt.plot(range(len(train_cot)),train_cot)
+    plt.title("Train Average Cost Over Time")
     plt.show()
 
+    plt.figure()
+    plt.plot(range(len(test_acc)),test_acc)
+    plt.title("Test Average Accuracy Over Time")
+    plt.show()
+
+    plt.figure()
+    plt.plot(range(len(test_cot)),test_cot)
+    plt.title("Test Average Cost Over Time")
+    plt.show()
 
 # -- end code --
