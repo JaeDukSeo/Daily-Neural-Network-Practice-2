@@ -12,10 +12,8 @@ from skimage.transform import resize
 np.random.seed(514)
 tf.set_random_seed(678)
 
-# def tf_relu(x): return tf.nn.relu(x)
-# def d_tf_relu(x): return tf.cast(tf.greater(x,0),dtype=tf.float32)
-def tf_relu(x): return tf.nn.relu(x) + tf.cast(tf.less_equal(x,0),dtype=tf.float32) * x * 0.04
-def d_tf_relu(x): return tf.cast(tf.greater(x,0),dtype=tf.float32) + tf.cast(tf.less_equal(x,0),dtype=tf.float32) * x * 0.04
+def tf_leaky_relu(x): return tf.nn.leaky_relu(x)
+def d_leaky_tf_relu(x): return tf.cast(tf.greater(x,0),dtype=tf.float32) + tf.cast(tf.less_equal(x,0),dtype=tf.float32) * 0.2
 def tf_softmax(x): return tf.nn.softmax(x)
 
 # data
@@ -64,8 +62,8 @@ class CNN():
     def feedforward(self,input):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')
-        self.layerAa = tf_relu(self.layer) 
-        self.layerAb = tf_relu(-1.0 * self.layer)
+        self.layerAa = tf_leaky_relu(self.layer) 
+        self.layerAb = tf_leaky_relu(-1.0 * self.layer)
         self.out = tf.nn.avg_pool(tf.concat([self.layerAa ,self.layerAb],3), [ 1, 2, 2, 1 ], [1, 2, 2, 1 ], 'VALID')
         return self.out
 
@@ -75,8 +73,8 @@ class CNN():
         gradient = tf_repeat(gradient,[1,2,2,1])
         
         grad_part_1 = gradient 
-        grad_part_2a = d_tf_relu(self.layer) 
-        grad_part_2b = d_tf_relu(-1.0 * self.layer) 
+        grad_part_2a = d_leaky_tf_relu(self.layer) 
+        grad_part_2b = d_leaky_tf_relu(-1.0 * self.layer) 
         grad_part_3 = self.input
 
         grad_middle = grad_part_1[:,:,:,:half_shape] * grad_part_2b + grad_part_1[:,:,:,half_shape:] * grad_part_2a
