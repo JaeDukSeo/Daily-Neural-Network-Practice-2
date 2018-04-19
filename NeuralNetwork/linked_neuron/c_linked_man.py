@@ -9,11 +9,13 @@ from sklearn.preprocessing import OneHotEncoder
 from tensorflow.examples.tutorials.mnist import input_data
 from skimage.transform import resize
 
-np.random.seed(6789)
+np.random.seed(514)
 tf.set_random_seed(678)
 
-def tf_relu(x): return tf.nn.relu(x)
-def d_tf_relu(x): return tf.cast(tf.greater(x,0.0),tf.float32)
+# def tf_relu(x): return tf.nn.relu(x)
+# def d_tf_relu(x): return tf.cast(tf.greater(x,0),dtype=tf.float32)
+def tf_relu(x): return tf.nn.relu(x) + tf.cast(tf.less_equal(x,0),dtype=tf.float32) * x * 0.04
+def d_tf_relu(x): return tf.cast(tf.greater(x,0),dtype=tf.float32) + tf.cast(tf.less_equal(x,0),dtype=tf.float32) * x * 0.04
 def tf_softmax(x): return tf.nn.softmax(x)
 
 # data
@@ -29,6 +31,10 @@ for i in range(len(training_images)):
     training_images[i,:,:,:] = np.expand_dims(resize(np.squeeze(x_data[i,:,:,0]),(32,32)),axis=3)
 for i in range(len(testing_images)):
     testing_images[i,:,:,:] = np.expand_dims(resize(np.squeeze(y_data[i,:,:,0]),(32,32)),axis=3)
+
+# training_images = (training_images - training_images.min(axis=0))/(training_images.max(axis=0)-training_images.min(axis=0))
+# testing_images = (testing_images - testing_images.min(axis=0))/(testing_images.max(axis=0)-testing_images.min(axis=0))
+
 
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
@@ -52,7 +58,7 @@ def tf_repeat(tensor, repeats):
 class CNN():
 
     def __init__(self,k,inc,out):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out]))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.005))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
     def feedforward(self,input):
@@ -60,7 +66,7 @@ class CNN():
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')
         self.layerAa = tf_relu(self.layer) 
         self.layerAb = tf_relu(-1.0 * self.layer)
-        self.out = tf.nn.avg_pool(tf.concat([self.layerAa ,self.layerAb],-1), [ 1, 2, 2, 1 ], [1, 2, 2, 1 ], 'VALID')
+        self.out = tf.nn.avg_pool(tf.concat([self.layerAa ,self.layerAb],3), [ 1, 2, 2, 1 ], [1, 2, 2, 1 ], 'VALID')
         return self.out
 
     def backprop(self,gradient):
@@ -73,7 +79,7 @@ class CNN():
         grad_part_2b = d_tf_relu(-1.0 * self.layer) 
         grad_part_3 = self.input
 
-        grad_middle = grad_part_1[:,:,:,:half_shape] * grad_part_2a + grad_part_1[:,:,:,half_shape:] * grad_part_2b
+        grad_middle = grad_part_1[:,:,:,:half_shape] * grad_part_2b + grad_part_1[:,:,:,half_shape:] * grad_part_2a
 
         grad = tf.nn.conv2d_backprop_filter(
             input = grad_part_3,
@@ -101,22 +107,22 @@ class CNN():
 
 # hyper
 num_epoch = 100
-batch_size = 100
+batch_size = 50
 print_size = 1
-learning_rate = 0.004
+learning_rate = 0.0003
 
 beta1,beta2 = 0.9,0.999
 adam_e = 1e-8
 
-proportion_rate = 1
-decay_rate = 10
+proportion_rate = 5
+decay_rate = 0.008
 
 # define class
-l1 = CNN(5,1,4)
-l2 = CNN(3,8,16)
-l3 = CNN(3,32,8)
-l4 = CNN(3,16,4)
-l5 = CNN(1,8,5)
+l1 = CNN(5,1,2)
+l2 = CNN(3,4,8)
+l3 = CNN(3,16,4)
+l4 = CNN(3,8,2)
+l5 = CNN(1,4,5)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
@@ -137,12 +143,14 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_so
 correct_prediction = tf.equal(tf.argmax(final, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
 # -- back prop -- 
 grad5,grad5u = l5.backprop(tf.reshape(final-y,[batch_size,1,1,10] ) )
 grad4,grad4u = l4.backprop(grad5)
 grad3,grad3u = l3.backprop(grad4 + decay_dilated_rate*( tf_repeat(grad5,[1,2,2,2])   ))
 grad2,grad2u = l2.backprop(grad3 + decay_dilated_rate*( tf_repeat(grad4,[1,2,2,2])   ))
-grad1,grad1u = l1.backprop(grad2 + decay_dilated_rate*( tf_repeat(grad3,[1,2,2,1])[:,:,:,:8]+tf_repeat(grad3,[1,2,2,1])[:,:,:,16:24]   ))
+grad1,grad1u = l1.backprop(grad2 + decay_dilated_rate*( tf_repeat(grad3,[1,2,2,1])[:,:,:,:4]   ))
 weight_update = grad5u + grad4u + grad3u + grad2u + grad1u
 
 # session
@@ -171,7 +179,7 @@ with tf.Session() as sess:
         for test_batch_index in range(0,len(testing_images),batch_size):
             current_batch = testing_images[test_batch_index:test_batch_index+batch_size,:,:,:]
             current_batch_label = testing_labels[test_batch_index:test_batch_index+batch_size,:]
-            sess_result = sess.run([cost,accuracy,final_soft],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,final,final_soft],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
