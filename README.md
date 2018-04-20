@@ -34,11 +34,7 @@ More [screenshots](docs/en/screenshots.md).
 
 ## System requirements
 
-* Unix-like OS (**Windows isn't supported**);
-
-* PHP 5.6+ (with OpenSSL support and enabled functions: `exec()`, `shell_exec()` and `proc_open()`);
-
-* Web-server (Nginx or Apache2);
+* Python 3 
 
 * Database (MySQL/MariaDB or PostgreSQL);
 
@@ -71,7 +67,7 @@ CleanBuild, CopyBuild, Deployer, Env, Git, Grunt, Gulp, PackageBuild, Phar, Phin
 
 ## Installing
 
-* Go to the directory in which you want to install PHP Censor, for example: `/var/www`:
+* If you don't have python installed please install it. 
 
 ```bash
 cd /var/www
