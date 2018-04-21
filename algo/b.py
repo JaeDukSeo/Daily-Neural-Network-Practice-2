@@ -18,8 +18,6 @@ def closepoint(p):
 
             d =  ( (point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2 ) ** 0.5
 
-
-
             if d < dmin:
                 dmin = d    
                 return_p1 = point1 
@@ -27,9 +25,7 @@ def closepoint(p):
 
     return return_p1,return_p2,dmin
             
-        
-
-
+    
 # the answer is true
 arr = [1,4,2,5,26,32]
 print(unique(arr))
