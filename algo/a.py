@@ -19,16 +19,18 @@ def fib(x):
 # print(fib(100))
 
 
-temp = [-1] * 101
+temp = [-1] * 11
 temp[0]  = 0
 temp[1] = 1
+
+
 
 def fibb(x):
     if temp[x] == -1: 
         temp[x] =  fibb(x-1) + fibb(x-2) 
     return temp[x]
 
-print(fibb(100))
+print(fibb(10))
 
 
 
