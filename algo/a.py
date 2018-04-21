@@ -1,5 +1,44 @@
 
 import math
+
+
+
+
+
+
+
+
+
+
+
+def fib(x):
+    if x == 0 : return 0
+    if x ==1 : return 1
+    return fib(x-1) + fib(x-2)
+
+# print(fib(100))
+
+
+temp = [-1] * 101
+temp[0]  = 0
+temp[1] = 1
+
+def fibb(x):
+    if temp[x] == -1: 
+        temp[x] =  fibb(x-1) + fibb(x-2) 
+    return temp[x]
+
+print(fibb(100))
+
+
+
+
+
+
+
+import sys
+sys.exit()
+# --------
 ar = [2,3,4,4]
 val=0
 for i in range(len(ar)):
