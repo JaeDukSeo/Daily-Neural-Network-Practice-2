@@ -29,7 +29,7 @@ def exp2(x,n):
         temp[n]  = exp2(x,n//2) *exp2(x,n-n//2)
     return temp[n] 
 
-n = 1
+n = 127
 temp = [0] * (n+1)
 temp[0],temp[1] = 0,3
 print(exp2(3,n))    
