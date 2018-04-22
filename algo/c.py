@@ -22,8 +22,25 @@ matrix  = np.array([
     [1,0,0,0,1,0],
 ])
 
-p = np.zeros_like(matrix)
+f = np.zeros_like(matrix)
+n,m = matrix.shape
 
+print(matrix)
+print('--------------')
+for j in range(m):
+    f[1,j] = f[1,j] + matrix[1,j]
+print(f)
+print('--------------')
+for i in range(n):
+    f[i,1] = f[i-1,1] + matrix[i,1]
 
+    for j in range(m):
+        
+        if f[i-1,j] > f[i,j-1]:
+            f[i,j] = f[i-1,j] + matrix[i,j]
+        else:
+            f[i,j] = f[i,j-1] + matrix[i,j]
+print('--------------')
+print(f)
 
 # -- end code --
