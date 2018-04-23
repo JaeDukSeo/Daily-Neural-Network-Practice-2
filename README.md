@@ -64,19 +64,6 @@ CleanBuild, CopyBuild, Deployer, Env, Git, Grunt, Gulp, PackageBuild, Phar, Phin
 
 * If you don't have python installed please install it. 
 
-```bash
-cd /var/www
-```
-
-* Create project by Composer:
-
-```bash
-composer create-project php-censor/php-censor php-censor.local --keep-vcs
-```
-
-Or download [latest archive](https://github.com/php-censor/php-censor/releases/latest) from GitHub, unzip it and run 
-`composer install`.
-
 * Create empty database for application (MySQL/MariaDB or PostgreSQL);
 
 * Install Beanstalkd Queue (Optional, if you are going to use queue with Worker):
