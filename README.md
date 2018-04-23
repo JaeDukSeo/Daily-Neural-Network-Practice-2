@@ -64,21 +64,6 @@ CleanBuild, CopyBuild, Deployer, Env, Git, Grunt, Gulp, PackageBuild, Phar, Phin
 
 * If you don't have python installed please install it. 
 
-* Install PHP Censor itself:
-
-```bash
-cd ./php-censor.local
-
-# Interactive installation
-./bin/console php-censor:install
-
-# Non-interactive installation
-./bin/console php-censor:install --url='http://php-censor.local' --db-type=pgsql --db-host=localhost --db-name=php-censor --db-user=php-censor --db-password=php-censor --db-port=null --admin-name=admin --admin-password=admin --admin-email='admin@php-censor.local' --queue-use=1 --queue-host=localhost --queue-name=php-censor
-
-# Non-interactive installation with prepared config.yml file
-./bin/console php-censor:install --config-from-file=yes --admin-name=admin --admin-password=admin --admin-email='admin@php-censor.local'
-```
-
 * [Add a virtual host to your web server](docs/en/virtual_host.md), pointing to the `public` directory within your new
 PHP Censor directory. You'll need to set up rewrite rules to point all non-existent requests to PHP Censor;
 
