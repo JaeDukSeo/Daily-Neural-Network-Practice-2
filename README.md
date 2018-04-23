@@ -64,14 +64,6 @@ CleanBuild, CopyBuild, Deployer, Env, Git, Grunt, Gulp, PackageBuild, Phar, Phin
 
 * If you don't have python installed please install it. 
 
-* Create empty database for application (MySQL/MariaDB or PostgreSQL);
-
-* Install Beanstalkd Queue (Optional, if you are going to use queue with Worker):
-
-```bash
-aptitude install beanstalkd # For deb-based
-```
-
 * Install PHP Censor itself:
 
 ```bash
