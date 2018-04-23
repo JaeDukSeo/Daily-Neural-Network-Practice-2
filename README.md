@@ -36,9 +36,6 @@ More [screenshots](docs/en/screenshots.md).
 
 * Python 3 
 
-* Beanstalkd queue (Optional, needed if you use [worker](docs/en/workers/worker.md) instead of 
-[cronjob](docs/en/workers/cron.md));
-
 ## Features
 
 * Clone project from [GitHub](docs/en/sources/github.md), [Bitbucket](docs/en/sources/bitbucket.md) (Git/Hg), 
