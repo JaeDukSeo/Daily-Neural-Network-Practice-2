@@ -36,8 +36,6 @@ More [screenshots](docs/en/screenshots.md).
 
 * Python 3 
 
-* Database (MySQL/MariaDB or PostgreSQL);
-
 * Beanstalkd queue (Optional, needed if you use [worker](docs/en/workers/worker.md) instead of 
 [cronjob](docs/en/workers/cron.md));
 
