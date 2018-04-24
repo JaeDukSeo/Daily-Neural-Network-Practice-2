@@ -1,4 +1,4 @@
-import numpy as np
+import numpy as np,sys
 
 def unique(x):
     for xx in x:
@@ -26,6 +26,25 @@ def closepoint(p):
     return return_p1,return_p2,dmin
             
     
+temp = np.array([
+    [1,0],
+    [2,0],
+    [3,0],
+    [4,0]
+])
+
+print(closepoint(temp))
+
+temp = np.array([
+    [1,0],
+    [2,0],
+    [3,0],
+    [3,0]
+])
+
+print(closepoint(temp))
+
+
 # the answer is true
 arr = [1,4,2,5,26,32]
 print(unique(arr))
