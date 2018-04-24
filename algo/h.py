@@ -10,8 +10,8 @@ def minjump(start,stop):
     if start == stop: return 0
     if start + 1 == stop: return 1
 
-    if not result_mat[start,stop] == (stop) :
-        return result_mat[start,stop]
+    # condition to exit fast
+    if not result_mat[start,stop] == (stop) :return result_mat[start,stop]
 
     longg = array[start]
     minn = stop - start
@@ -20,12 +20,11 @@ def minjump(start,stop):
 
     while ( i <= longg and start+i <= stop ):
         print("BASIC OPERATION")
-        temp = 1 + minjump(start+i,stop)
+        temp = 1  + minjump(start+i,stop)
         if temp < minn: 
             result_mat[start,stop] = temp
             minn = temp
         i = i + 1
-
 
     return result_mat[start,stop]
 
@@ -37,7 +36,6 @@ result_mat = np.ones((len(array),len(array))) * (len(array)-1)
 print('Length of array :',len(array))
 print("FISRT BASIC OPERATION")
 print('min jump :',minjump(0,len(array)-1))
-print("Dyanmic Matrix : \n",result_mat)
 print('-------------------')
 
 print('-------------------')
@@ -46,7 +44,6 @@ result_mat = np.ones((len(array),len(array))) * (len(array)  -1)
 print('Length of array :',len(array))
 print("FISRT BASIC OPERATION")
 print('min jump :',minjump(0,len(array)-1))
-print("Dyanmic Matrix : \n",result_mat)
 print('-------------------')
 print('================================')
 
@@ -56,7 +53,6 @@ result_mat = np.ones((len(array),len(array))) * (len(array)-1 )
 print('Length of array :',len(array))
 print("FISRT BASIC OPERATION")
 print('min jump :',minjump(0,len(array)-1))
-print("Dyanmic Matrix : \n",result_mat)
 print('-------------------')
 
 print('-------------------')
@@ -65,7 +61,6 @@ result_mat = np.ones((len(array),len(array))) * (len(array) -1)
 print('Length of array :',len(array))
 print("FISRT BASIC OPERATION")
 print('min jump :',minjump(0,len(array)-1))
-print("Dyanmic Matrix : \n",result_mat)
 print('-------------------')
 
 print('-------------------')
@@ -74,7 +69,6 @@ result_mat = np.ones((len(array),len(array))) * (len(array) -1)
 print('Length of array :',len(array))
 print("FISRT BASIC OPERATION")
 print('min jump :',minjump(0,len(array)-1))
-print("Dyanmic Matrix : \n",result_mat)
 print('-------------------')
 
 print('-------------------')
@@ -83,7 +77,6 @@ result_mat = np.ones((len(array),len(array))) * (len(array) -1 )
 print('Length of array :',len(array))
 print("FISRT BASIC OPERATION")
 print('min jump :',minjump(0,len(array)-1))
-print("Dyanmic Matrix : \n",result_mat)
 print('-------------------')
 
 print('-------------------')
@@ -92,10 +85,15 @@ result_mat = np.ones((len(array),len(array))) * (len(array) -1 )
 print('Length of array :',len(array))
 print("FISRT BASIC OPERATION")
 print('min jump :',minjump(0,len(array)-1))
-print("Dyanmic Matrix : \n",result_mat)
 print('-------------------')
 
-
+print('-------------------')
+array = np.array([6,5,4,3,2,1,0])
+result_mat = np.ones((len(array),len(array))) * (len(array) -1 ) 
+print('Length of array :',len(array))
+print("FISRT BASIC OPERATION")
+print('min jump :',minjump(0,len(array)-1))
+print('-------------------')
 
 
 
