@@ -10,15 +10,92 @@ def minjump(start,stop):
     if start + 1 == stop: return 1
     longg = array[start]
     minn = stop - start
-    temp = 0 
-    for i in range(1,longg+1):
-        if start + i <= stop:
-            count = count + 1
-            print("BASIC OPERATION", count)
-            temp = 1 + minjump(start+i,stop)
-            if temp <minn: minn = temp
+    temp = 0
+    i = 1
+    while ( i <= longg and start+i <= stop ):
+        print("BASIC OPERATION")
+        temp = 1 + minjump(start+i,stop)
+        if temp <minn: minn = temp
+        i = i + 1
     return minn
 
+
+
+print('-------------------')
+array = np.array([3,5,2,1,1])
+print('Length of array :',len(array))
+print("FISRT BASIC OPERATION")
+print('min jump :',minjump(0,len(array)-1))
+print('-------------------')
+
+print('-------------------')
+array = np.array([1,1,1,1,1])
+print('Length of array :',len(array))
+print("FISRT BASIC OPERATION")
+print('min jump :',minjump(0,len(array)-1))
+print('-------------------')
+print('================================')
+
+print('-------------------')
+array = np.array([1,0])
+print('Length of array :',len(array))
+print("FISRT BASIC OPERATION")
+print('min jump :',minjump(0,len(array)-1))
+print('-------------------')
+
+print('-------------------')
+array = np.array([2,1,0])
+print('Length of array :',len(array))
+print("FISRT BASIC OPERATION")
+print('min jump :',minjump(0,len(array)-1))
+print('-------------------')
+
+print('-------------------')
+array = np.array([3,2,1,0])
+print('Length of array :',len(array))
+print("FISRT BASIC OPERATION")
+print('min jump :',minjump(0,len(array)-1))
+print('-------------------')
+
+print('-------------------')
+array = np.array([4,3,2,1,0])
+print('Length of array :',len(array))
+print("FISRT BASIC OPERATION")
+print('min jump :',minjump(0,len(array)-1))
+print('-------------------')
+
+print('-------------------')
+array = np.array([5,4,3,2,1,0])
+print('Length of array :',len(array))
+print("FISRT BASIC OPERATION")
+print('min jump :',minjump(0,len(array)-1))
+print('-------------------')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -- garbage
+import sys
+sys.exit()
 print('-------------------')
 array = np.array([2, 3, 5, 8, 9, 2, 6, 7])
 print('Length of array :',len(array))

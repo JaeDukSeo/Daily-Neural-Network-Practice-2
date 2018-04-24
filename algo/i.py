@@ -1,38 +1,53 @@
 import numpy as np
 import sys
 
+n = 10
+temp = [-1] * n
+temp[0] = 0
+temp[1] = 1
+def fibb(y):
+    if temp[y] == - 1:
+        temp[y] = fibb(y-1) + fibb(y-2)
+    return temp[y]
 
-
-price = np.array([
-     1   ,5  , 8 ,  9,  10,  17,  17,  20
-])
-dynamic = np.zeros_like(price)
-dynamic[0] = 0
-dynamic[1] = price[0]
-
-def best2(n):
-    if n==0: return 0
-    max_valu = -9999
-    for i in range(2,n):
-        
-        ress = price[i]
-
-        for ll in range(i,n-i)
-
-        temp = max(price[i] + dynamic[i-1],dynamic[i-2])
-        if temp > max_valu: max_valu = temp
-    return max_valu
-
-
-
-
-size = len(price)
-print(size)
-print("Maximum Obtainable Value is", best2(size))
-
-
+print(fibb(9))
 
 sys.exit()
+
+
+
+
+
+# price = np.array([
+#      1   ,5  , 8 ,  9,  10,  17,  17,  20
+# ])
+# dynamic = np.zeros_like(price)
+# dynamic[0] = 0
+# dynamic[1] = price[0]
+
+# def best2(n):
+#     if n==0: return 0
+#     max_valu = -9999
+#     for i in range(2,n):
+        
+#         ress = price[i]
+
+#         for ll in range(i,n-i)
+
+#         temp = max(price[i] + dynamic[i-1],dynamic[i-2])
+#         if temp > max_valu: max_valu = temp
+#     return max_valu
+
+
+
+
+# size = len(price)
+# print(size)
+# print("Maximum Obtainable Value is", best2(size))
+
+
+
+# sys.exit()
 
 
 
