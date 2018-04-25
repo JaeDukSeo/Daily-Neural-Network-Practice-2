@@ -78,18 +78,6 @@ If you want to install PHP Censor as Docker container, you can use
 ## Updating
 * Pull the latest code from repository by Git (If you want latest `master` branch):
 
-    ```bash
-    git checkout master
-    git pull -r
-    ```
-
-    Or pull latest version:
-
-    ```bash
-    git fetch
-    git checkout <version>
-    ```
-
 * Update the Composer dependencies: `composer install`
 
 * Update the database scheme:
