@@ -76,32 +76,7 @@ If you want to install PHP Censor as Docker container, you can use
 [php-censor/docker-php-censor](https://github.com/php-censor/docker-php-censor) project.
 
 ## Updating
-* Pull the latest code from repository by Git (If you want latest `master` branch):
-
-* Update the Composer dependencies: `composer install`
-
-* Update the database scheme:
-
-    ```bash
-    ./bin/console php-censor-migrations:migrate
-    ```
-
-* Restart Supervisord workers (If you use workers and Supervisord):
-
-    ```bash
-    sudo supervisorctl status
-    sudo supervisorctl restart <worker:worker_00>
-    ...
-    sudo supervisorctl restart <worker:worker_nn>
-    ```
-    
-    Or restart Systemd workers (If you use workers and Systemd):
-    
-    ```bash
-    sudo systemctl restart <worker@1.service>
-    ...
-    sudo systemctl restart <worker@n.service>
-    ```
+* I am going to make thsi repo my main repo
 
 ## Configuring project
 
