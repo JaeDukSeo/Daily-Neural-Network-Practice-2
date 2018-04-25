@@ -91,25 +91,6 @@ PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPU
 * Add project config in PHP Censor project page (And it will cancel file config from project repository);
 
 The project config should look something like this:
-
-```yml
-setup:
-  composer:
-    action: "install"
-test:
-  php_unit:
-    config: "phpunit.xml"
-  php_mess_detector:
-    allow_failures: true
-  php_code_sniffer:
-    standard: "PSR2"
-  php_cpd:
-    allow_failures: true
-complete:
-  email:
-    default_mailto_address: admin@php-censor.local
-```
-
 More details about [configuring project](docs/en/configuring_project.md).
 
 ## Migrations
