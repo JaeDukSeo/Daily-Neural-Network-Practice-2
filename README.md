@@ -76,13 +76,6 @@ If you want to install PHP Censor as Docker container, you can use
 [php-censor/docker-php-censor](https://github.com/php-censor/docker-php-censor) project.
 
 ## Updating
-
-* Go to your PHP Censor directory (to `/var/www/php-censor.local` for example):
-
-    ```bash
-    cd /var/www/php-censor.local
-    ```
-
 * Pull the latest code from repository by Git (If you want latest `master` branch):
 
     ```bash
