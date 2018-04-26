@@ -17,7 +17,7 @@ def d_leaky_tf_relu(x): return tf.cast(tf.greater(x,0),dtype=tf.float32) + tf.ca
 def tf_softmax(x): return tf.nn.softmax(x)
 
 # data
-mnist = input_data.read_data_sets('../Dataset/MNIST/', one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 x_data, training_labels, y_data, testing_labels = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
@@ -162,7 +162,7 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(training_images),batch_size):
             current_batch = training_images[batch_size_index:batch_size_index+batch_size,:,:,:]
             current_batch_label = training_labels[batch_size_index:batch_size_index+batch_size,:]
-            sess_result = sess.run([cost,accuracy,weight_update,correct_prediction,final],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,auto_train,correct_prediction,final],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]

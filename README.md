@@ -79,9 +79,6 @@ If you want to install PHP Censor as Docker container, you can use
 * I am going to make thsi repo my main repo
 
 ## Configuring project
-
-There are several ways to set up the project:
-
 * Add project without any project config (Runs "zero-config" plugins, including: Composer, TechnicalDept, PHPLoc, 
 PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPUnit and Codeception);
 
