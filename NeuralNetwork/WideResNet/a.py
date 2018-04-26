@@ -22,42 +22,18 @@ def unpickle(file):
     return dict
 
 # data
-PathDicom = "../../Dataset/cifar-10-batches-py/"
-lstFilesDCM = []  # create an empty list
-for dirName, subdirList, fileList in os.walk(PathDicom):
-    for filename in fileList:
-        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
-            lstFilesDCM.append(os.path.join(dirName,filename))
+mnist = input_data.read_data_sets('../Dataset/MNIST/', one_hot=True)
+x_data, train_label, y_data, testing_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 
-# Read the data traind and Test
-batch0 = unpickle(lstFilesDCM[0])
-batch1 = unpickle(lstFilesDCM[1])
-batch2 = unpickle(lstFilesDCM[2])
-batch3 = unpickle(lstFilesDCM[3])
-batch4 = unpickle(lstFilesDCM[4])
+train_batch = np.zeros((x_data.shape[0],32,32,1)).astype(np.float32)
+test_batch = np.zeros((y_data.shape[0],32,32,1)).astype(np.float32)
 
-onehot_encoder = OneHotEncoder(sparse=True)
-train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
-train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
-train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
-
-test_batch = unpickle(lstFilesDCM[5])[b'data']
-test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
-test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
-
-# reshape data
-train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
-test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
-
-# rotate data
-train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-
-# Normalize data from 0 to 1 per each channel
-train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].min(axis=0)) / (train_batch[:,:,:,0].max(axis=0) - train_batch[:,:,:,0].min(axis=0))
-train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)) / (train_batch[:,:,:,1].max(axis=0) - train_batch[:,:,:,1].min(axis=0))
-train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
-test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
+for i in range(len(train_batch)):
+    train_batch[i,:,:,:] = np.expand_dims(resize(np.squeeze(x_data[i,:,:,0]),(32,32)),axis=3)
+for i in range(len(test_batch)):
+    test_batch[i,:,:,:] = np.expand_dims(resize(np.squeeze(y_data[i,:,:,0]),(32,32)),axis=3)
 
 # class
 class cnn():
@@ -112,11 +88,11 @@ class cnn():
 num_epoch = 100
 batch_size = 100
 print_size = 2
-learning_rate = 0.00001
+learning_rate = 0.001
 beta1,beta2,adame = 0.9,0.999, 1e-8
 
 # class
-l1 = cnn(3,3,32)
+l1 = cnn(3,1,32)
 
 l2_1 = cnn(3,32,32)
 l2_2 = cnn(3,32,64)
@@ -130,25 +106,25 @@ l4_3 = cnn(3,128,128)
 l4_4 = cnn(3,128,10)
 
 # graph
-x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
+x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
-layer1Input = tf.nn.avg_pool(x,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer1Input = tf.nn.max_pool(x,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer1 = l1.feedforward(layer1Input,resadd=False)
 
-layer2Input = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer2Input = tf.nn.max_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer2_1 = l2_1.feedforward(layer2Input)
 layer2_2 = l2_2.feedforward(layer2_1,resadd=False)
 
-layer3Input = tf.nn.avg_pool(layer2_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer3Input = tf.nn.max_pool(layer2_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer3_1 = l3_1.feedforward(layer3Input)
 layer3_2 = l3_2.feedforward(layer3_1,resadd=False)
 
-layer4Input = tf.nn.avg_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4Input = tf.nn.max_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4_1 = l4_1.feedforward(layer4Input)
 layer4_2 = l4_2.feedforward(layer4_1)
 
-layer4Input2 = tf.nn.avg_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4Input2 = tf.nn.max_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4_3 = l4_3.feedforward(layer4Input2)
 layer4_4 = l4_4.feedforward(layer4_3,resadd=False)
 
