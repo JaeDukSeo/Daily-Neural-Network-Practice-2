@@ -39,8 +39,8 @@ for i in range(len(test_batch)):
 class cnn():
     
     def __init__(self,k,inc,out):
-        self.w1 = tf.Variable(tf.random_normal([k,k,inc,out]))
-        self.w2 = tf.Variable(tf.random_normal([k,k,out,out]))
+        self.w1 = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.005))
+        self.w2 = tf.Variable(tf.random_normal([k,k,out,out],stddev=0.005))
         
         self.m,self.v = tf.Variable(tf.zeros_like(self.w1)),tf.Variable(tf.zeros_like(self.w1))
 
@@ -50,9 +50,9 @@ class cnn():
         self.layer1  = tf.nn.conv2d(input,self.w1,strides=[1,1,1,1],padding='SAME')
         self.layerA1  = tf_relu(self.layer1) 
         self.layer2  = tf.nn.conv2d(self.layerA1,self.w2,strides=[1,1,1,1],padding='SAME')
-        self.layerA2  = tf_relu(self.layer2) 
+        # self.layerA2  = tf_relu(self.layer2) 
 
-        if resadd: return self.layerA2 + input
+        if resadd: return tf_relu(self.layer2 + input)
         return self.layerA2 
 
     def backprop(self,gradient):
@@ -93,7 +93,7 @@ class cnn():
 num_epoch = 100
 batch_size = 50
 print_size = 1
-learning_rate = 0.00001
+learning_rate = 0.00004
 beta1,beta2,adame = 0.9,0.999,1e-8
 
 
@@ -133,7 +133,7 @@ y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 layer1 = l1.feedforward(x,resadd=False)
 
-layer2Input = tf.nn.max_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer2Input = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer2_1 = l2_1.feedforward(layer2Input)
 layer2_2 = l2_2.feedforward(layer2_1)
 layer2_3 = l2_3.feedforward(layer2_2)
@@ -142,14 +142,14 @@ layer2_4 = l2_4.feedforward(layer2_3,resadd=False)
 layer3Input = tf.nn.avg_pool(layer2_4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer3_1 = l3_1.feedforward(layer3Input)
 layer3_2 = l3_2.feedforward(layer3_1)
-layer3Input2 = tf.nn.max_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer3Input2 = tf.nn.avg_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer3_3 = l3_3.feedforward(layer3Input2)
 layer3_4 = l3_4.feedforward(layer3_3,resadd=False)
 
 layer4Input = tf.nn.avg_pool(layer3_4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4_1 = l4_1.feedforward(layer4Input)
 layer4_2 = l4_2.feedforward(layer4_1)
-layer4Input2 = tf.nn.max_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4Input2 = tf.nn.avg_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4_3 = l4_3.feedforward(layer4Input2)
 layer4_4 = l4_4.feedforward(layer4_3,resadd=False)
 
