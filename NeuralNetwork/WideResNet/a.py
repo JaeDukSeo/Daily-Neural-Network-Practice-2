@@ -22,7 +22,7 @@ def unpickle(file):
     return dict
 
 # data
-mnist = input_data.read_data_sets('../Dataset/MNIST/', one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 x_data, train_label, y_data, testing_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
