@@ -61,13 +61,42 @@ test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) /
 
 
 # class
-class cnn():
+class cnn0():
+    
+    def __init__(self,k,inc,out):
+        self.w1 = tf.Variable(tf.random_normal([k,k,inc,out]))
+
+    def feedforward(self,input,resadd=True):
+        self.input  = input
+        self.layer1  = tf.nn.conv2d(self.input,self.w1,strides=[1,1,1,1],padding='SAME')
+        self.layer1  = tf.nn.batch_normalization(self.layer1 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
+        self.layer1  = tf_relu(self.layer1) 
+        return self.layer1 
+
+
+class cnn1():
     
     def __init__(self,k,inc,out):
         self.w1 = tf.Variable(tf.random_normal([k,k,inc,out]))
         self.w2 = tf.Variable(tf.random_normal([k,k,out,out]))
-        
-        self.m,self.v = tf.Variable(tf.zeros_like(self.w1)),tf.Variable(tf.zeros_like(self.w1))
+        self.w3 = tf.Variable(tf.random_normal([k,k,inc,out]))
+
+    def feedforward(self,input,resadd=True):
+        self.input  = input
+
+        self.layer1  = tf.nn.conv2d(self.input,self.w1,strides=[1,1,1,1],padding='SAME')
+        self.layer1  = tf.nn.batch_normalization(self.layer1 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
+        self.layer1  = tf_relu(self.layer1) 
+        self.layer1  = tf.nn.conv2d(self.layer1,self.w2,strides=[1,1,1,1],padding='SAME')
+
+        self.layer2 = tf.nn.conv2d(self.input,self.w3,strides=[1,1,1,1],padding='SAME')
+        return self.layer1 + self.layer2 
+
+class cnn2():
+    
+    def __init__(self,k,inc,out):
+        self.w1 = tf.Variable(tf.random_normal([k,k,inc,out]))
+        self.w2 = tf.Variable(tf.random_normal([k,k,out,out]))
 
     def feedforward(self,input,resadd=True):
         self.input  = input
@@ -79,40 +108,8 @@ class cnn():
         self.layer1  = tf.nn.batch_normalization(self.layer1 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
         self.layer1  = tf_relu(self.layer1) 
         self.layer1  = tf.nn.conv2d(self.layer1,self.w2,strides=[1,1,1,1],padding='SAME')
+        return self.layer1 + self.input 
 
-        if resadd: return self.layer1 + self.input
-        return self.layer1
-
-    def backprop(self,gradient):
-        grad_part_1 = gradient 
-        grad_part_2 = d_tf_relu(self.layer) 
-        grad_part_3 = self.input
-
-        grad_middle = grad_part_1 * grad_part_2
-
-        grad = tf.nn.conv2d_backprop_filter(
-            input = grad_part_3,
-            filter_sizes = self.w.shape,out_backprop = grad_middle,
-            strides=[1,1,1,1],padding='SAME'
-        )
-
-        grad_pass = tf.nn.conv2d_backprop_input(
-            input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
-            filter= self.w,out_backprop = grad_middle,
-            strides=[1,1,1,1],padding='SAME'
-        )
-
-        grad_update = []
-        grad_update.append(tf.assign(self.m,tf.add(beta1*self.m, (1-beta1)*grad)))
-        grad_update.append(tf.assign(self.v,tf.add(beta2*self.v, (1-beta2)*grad**2)))
-        
-        m_hat = self.m / (1-beta1)
-        v_hat = self.v / (1-beta2)
-
-        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        grad_update.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat))))
-
-        return grad_pass,grad_update    
 
 # hyper
 num_epoch = 100
@@ -121,64 +118,43 @@ print_size = 1
 learning_rate = 0.0001
 beta1,beta2,adame = 0.9,0.999,1e-8
 
-
-
-
-
-
-
 # class
-l1 = cnn(3,3,16)
+l1_1 = cnn0(3,3,16)
 
-l2_1 = cnn(3,16,32)
-l2_2 = cnn(3,32,32)
-l2_3 = cnn(3,32,32)
-l2_4 = cnn(3,32,32)
+l2_1 = cnn1(3,16,32)
+l2_2 = cnn2(3,32,32)
 
-l3_1 = cnn(3,32,64)
-l3_2 = cnn(3,64,64)
-l3_3 = cnn(3,64,64)
-l3_4 = cnn(3,64,64)
+l3_1 = cnn1(3,32,64)
+l3_2 = cnn2(3,64,64)
 
-l4_1 = cnn(3,64,128)
-l4_2 = cnn(3,128,128)
-l4_3 = cnn(3,128,128)
-l4_4 = cnn(3,128,10)
+l4_1 = cnn1(3,64,128)
+l4_2 = cnn2(3,128,128)
 
-
-
-
-
-
-
+l5_1 = cnn0(3,128,10)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
-layer1 = l1.feedforward(x,resadd=False)
+layer1 = l1_1.feedforward(x)
 
-layer2Input = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer2_1 = l2_1.feedforward(layer2Input,resadd=False)
+layer1 = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer2_1 = l2_1.feedforward(layer1)
 layer2_2 = l2_2.feedforward(layer2_1)
-layer2_3 = l2_3.feedforward(layer2_2)
-layer2_4 = l2_4.feedforward(layer2_3)
 
-layer3Input = tf.nn.avg_pool(layer2_4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer3_1 = l3_1.feedforward(layer3Input,resadd=False)
+layer2_2 = tf.nn.avg_pool(layer2_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer3_1 = l3_1.feedforward(layer2_2)
 layer3_2 = l3_2.feedforward(layer3_1)
-layer3Input2 = tf.nn.avg_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer3_3 = l3_3.feedforward(layer3Input2)
-layer3_4 = l3_4.feedforward(layer3_3)
 
-layer4Input = tf.nn.avg_pool(layer3_4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4_1 = l4_1.feedforward(layer4Input,resadd=False)
+layer3_2 = tf.nn.avg_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4_1 = l4_1.feedforward(layer3_2)
 layer4_2 = l4_2.feedforward(layer4_1)
-layer4Input2 = tf.nn.avg_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4_3 = l4_3.feedforward(layer4Input2)
-layer4_4 = l4_4.feedforward(layer4_3,resadd=False)
 
-final = tf.reshape(layer4_4,[batch_size,-1])
+layer4_2 = tf.nn.avg_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer5_1 = l5_1.feedforward(layer4_2)
+layer5_1 = tf.nn.avg_pool(layer5_1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+
+final = tf.reshape(layer5_1,[batch_size,-1])
 final_soft = tf_soft(final)
 
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final,labels=y))
