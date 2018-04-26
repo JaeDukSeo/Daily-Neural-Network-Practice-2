@@ -22,25 +22,50 @@ def unpickle(file):
     return dict
 
 # data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+PathDicom = "../../Dataset/cifar-10-batches-py/"
+lstFilesDCM = []  # create an empty list
+for dirName, subdirList, fileList in os.walk(PathDicom):
+    for filename in fileList:
+        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
+            lstFilesDCM.append(os.path.join(dirName,filename))
 
-train_batch = np.zeros((x_data.shape[0],32,32,1)).astype(np.float32)
-test_batch = np.zeros((y_data.shape[0],32,32,1)).astype(np.float32)
+# Read the data traind and Test
+batch0 = unpickle(lstFilesDCM[0])
+batch1 = unpickle(lstFilesDCM[1])
+batch2 = unpickle(lstFilesDCM[2])
+batch3 = unpickle(lstFilesDCM[3])
+batch4 = unpickle(lstFilesDCM[4])
 
-for i in range(len(train_batch)):
-    train_batch[i,:,:,:] = np.expand_dims(resize(np.squeeze(x_data[i,:,:,0]),(32,32)),axis=3)
-for i in range(len(test_batch)):
-    test_batch[i,:,:,:] = np.expand_dims(resize(np.squeeze(y_data[i,:,:,0]),(32,32)),axis=3)
+onehot_encoder = OneHotEncoder(sparse=True)
+train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
+train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
+train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
+
+test_batch = unpickle(lstFilesDCM[5])[b'data']
+test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
+test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
+
+# reshape data
+train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
+test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
+
+# rotate data
+train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+
+# Normalize data from 0 to 1 per each channel
+train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].min(axis=0)) / (train_batch[:,:,:,0].max(axis=0) - train_batch[:,:,:,0].min(axis=0))
+train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)) / (train_batch[:,:,:,1].max(axis=0) - train_batch[:,:,:,1].min(axis=0))
+train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
+test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
+
 
 # class
 class cnn():
     
     def __init__(self,k,inc,out):
-        self.w1 = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.005))
-        self.w2 = tf.Variable(tf.random_normal([k,k,out,out],stddev=0.005))
+        self.w1 = tf.Variable(tf.random_normal([k,k,inc,out]))
+        self.w2 = tf.Variable(tf.random_normal([k,k,out,out]))
         
         self.m,self.v = tf.Variable(tf.zeros_like(self.w1)),tf.Variable(tf.zeros_like(self.w1))
 
@@ -48,12 +73,13 @@ class cnn():
         self.input  = input
 
         self.layer1  = tf.nn.conv2d(input,self.w1,strides=[1,1,1,1],padding='SAME')
+        self.layer1  = tf.nn.batch_normalization(self.layer1 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
         self.layerA1  = tf_relu(self.layer1) 
         self.layer2  = tf.nn.conv2d(self.layerA1,self.w2,strides=[1,1,1,1],padding='SAME')
+        self.layer2  = tf.nn.batch_normalization(self.layer2 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
         # self.layerA2  = tf_relu(self.layer2) 
-
         if resadd: return tf_relu(self.layer2 + input)
-        return self.layerA2 
+        return tf_relu(self.layer2)
 
     def backprop(self,gradient):
         grad_part_1 = gradient 
@@ -86,14 +112,11 @@ class cnn():
 
         return grad_pass,grad_update    
 
-
-
-
 # hyper
 num_epoch = 100
 batch_size = 50
 print_size = 1
-learning_rate = 0.00004
+learning_rate = 0.001
 beta1,beta2,adame = 0.9,0.999,1e-8
 
 
@@ -103,22 +126,22 @@ beta1,beta2,adame = 0.9,0.999,1e-8
 
 
 # class
-l1 = cnn(3,1,2)
+l1 = cnn(3,3,4)
 
-l2_1 = cnn(3,2,2)
-l2_2 = cnn(3,2,2)
-l2_3 = cnn(3,2,2)
-l2_4 = cnn(3,2,4)
+l2_1 = cnn(3,4,4)
+l2_2 = cnn(3,4,4)
+l2_3 = cnn(3,4,4)
+l2_4 = cnn(3,4,8)
 
-l3_1 = cnn(3,4,4)
-l3_2 = cnn(3,4,4)
-l3_3 = cnn(3,4,4)
-l3_4 = cnn(3,4,8)
+l3_1 = cnn(3,8,8)
+l3_2 = cnn(3,8,8)
+l3_3 = cnn(3,8,8)
+l3_4 = cnn(3,8,16)
 
-l4_1 = cnn(3,8,8)
-l4_2 = cnn(3,8,8)
-l4_3 = cnn(3,8,8)
-l4_4 = cnn(3,8,10)
+l4_1 = cnn(3,16,16)
+l4_2 = cnn(3,16,16)
+l4_3 = cnn(3,16,16)
+l4_4 = cnn(3,16,10)
 
 
 
@@ -128,7 +151,7 @@ l4_4 = cnn(3,8,10)
 
 
 # graph
-x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
+x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 layer1 = l1.feedforward(x,resadd=False)
