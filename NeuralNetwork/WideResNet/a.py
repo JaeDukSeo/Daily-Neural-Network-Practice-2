@@ -72,14 +72,16 @@ class cnn():
     def feedforward(self,input,resadd=True):
         self.input  = input
 
-        self.layer1  = tf.nn.conv2d(input,self.w1,strides=[1,1,1,1],padding='SAME')
+        self.layer1  = tf.nn.batch_normalization(self.input ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
+        self.layer1  = tf_relu(self.layer1) 
+        self.layer1  = tf.nn.conv2d(self.layer1,self.w1,strides=[1,1,1,1],padding='SAME')
+
         self.layer1  = tf.nn.batch_normalization(self.layer1 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
-        self.layerA1  = tf_relu(self.layer1) 
-        self.layer2  = tf.nn.conv2d(self.layerA1,self.w2,strides=[1,1,1,1],padding='SAME')
-        self.layer2  = tf.nn.batch_normalization(self.layer2 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
-        # self.layerA2  = tf_relu(self.layer2) 
-        if resadd: return tf_relu(self.layer2 + input)
-        return tf_relu(self.layer2)
+        self.layer1  = tf_relu(self.layer1) 
+        self.layer1  = tf.nn.conv2d(self.layer1,self.w2,strides=[1,1,1,1],padding='SAME')
+
+        if resadd: return self.layer1 + self.input
+        return self.layer1
 
     def backprop(self,gradient):
         grad_part_1 = gradient 
@@ -116,7 +118,7 @@ class cnn():
 num_epoch = 100
 batch_size = 50
 print_size = 1
-learning_rate = 0.001
+learning_rate = 0.0001
 beta1,beta2,adame = 0.9,0.999,1e-8
 
 
@@ -126,22 +128,22 @@ beta1,beta2,adame = 0.9,0.999,1e-8
 
 
 # class
-l1 = cnn(3,3,4)
+l1 = cnn(3,3,16)
 
-l2_1 = cnn(3,4,4)
-l2_2 = cnn(3,4,4)
-l2_3 = cnn(3,4,4)
-l2_4 = cnn(3,4,8)
+l2_1 = cnn(3,16,23)
+l2_2 = cnn(3,32,23)
+l2_3 = cnn(3,32,32)
+l2_4 = cnn(3,32,32)
 
-l3_1 = cnn(3,8,8)
-l3_2 = cnn(3,8,8)
-l3_3 = cnn(3,8,8)
-l3_4 = cnn(3,8,16)
+l3_1 = cnn(3,32,64)
+l3_2 = cnn(3,64,64)
+l3_3 = cnn(3,64,64)
+l3_4 = cnn(3,64,64)
 
-l4_1 = cnn(3,16,16)
-l4_2 = cnn(3,16,16)
-l4_3 = cnn(3,16,16)
-l4_4 = cnn(3,16,10)
+l4_1 = cnn(3,64,128)
+l4_2 = cnn(3,128,128)
+l4_3 = cnn(3,128,128)
+l4_4 = cnn(3,128,10)
 
 
 
@@ -157,20 +159,20 @@ y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 layer1 = l1.feedforward(x,resadd=False)
 
 layer2Input = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer2_1 = l2_1.feedforward(layer2Input)
+layer2_1 = l2_1.feedforward(layer2Input,resadd=False)
 layer2_2 = l2_2.feedforward(layer2_1)
 layer2_3 = l2_3.feedforward(layer2_2)
-layer2_4 = l2_4.feedforward(layer2_3,resadd=False)
+layer2_4 = l2_4.feedforward(layer2_3)
 
 layer3Input = tf.nn.avg_pool(layer2_4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer3_1 = l3_1.feedforward(layer3Input)
+layer3_1 = l3_1.feedforward(layer3Input,resadd=False)
 layer3_2 = l3_2.feedforward(layer3_1)
 layer3Input2 = tf.nn.avg_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer3_3 = l3_3.feedforward(layer3Input2)
-layer3_4 = l3_4.feedforward(layer3_3,resadd=False)
+layer3_4 = l3_4.feedforward(layer3_3)
 
 layer4Input = tf.nn.avg_pool(layer3_4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4_1 = l4_1.feedforward(layer4Input)
+layer4_1 = l4_1.feedforward(layer4Input,resadd=False)
 layer4_2 = l4_2.feedforward(layer4_1)
 layer4Input2 = tf.nn.avg_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4_3 = l4_3.feedforward(layer4Input2)
