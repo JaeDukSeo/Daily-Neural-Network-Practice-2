@@ -59,7 +59,6 @@ train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)
 train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
 
-
 # class
 class cnn0():
     
@@ -72,7 +71,6 @@ class cnn0():
         self.layer1  = tf.nn.batch_normalization(self.layer1 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
         self.layer1  = tf_relu(self.layer1) 
         return self.layer1 
-
 
 class cnn1():
     
@@ -110,24 +108,23 @@ class cnn2():
         self.layer1  = tf.nn.conv2d(self.layer1,self.w2,strides=[1,1,1,1],padding='SAME')
         return self.layer1 + self.input 
 
-
 # hyper
 num_epoch = 100
-batch_size = 50
-print_size = 1
-learning_rate = 0.0001
+batch_size = 100
+print_size = 2
+learning_rate = 0.00003
 beta1,beta2,adame = 0.9,0.999,1e-8
 
 # class
-l1_1 = cnn0(3,3,32)
+l1_1 = cnn0(3,3,16)
 
-l2_1 = cnn1(3,32,64)
-l2_2 = cnn2(3,64,64)
+l2_1 = cnn1(3,16,128)
+l2_2 = cnn2(3,128,128)
 
-l3_1 = cnn1(3,64,128)
-l3_2 = cnn2(3,128,128)
+l3_1 = cnn1(3,128,256)
+l3_2 = cnn2(3,256,256)
 
-l4_1 = cnn1(3,128,512)
+l4_1 = cnn1(3,256,512)
 l4_2 = cnn2(3,512,512)
 
 l5_1 = cnn0(3,512,10)
@@ -142,19 +139,19 @@ layer1 = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID'
 layer2_1 = l2_1.feedforward(layer1)
 layer2_2 = l2_2.feedforward(layer2_1)
 
-layer2_2 = tf.nn.avg_pool(layer2_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer3_1 = l3_1.feedforward(layer2_2)
+layer3Input = tf.nn.avg_pool(layer2_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer3_1 = l3_1.feedforward(layer3Input)
 layer3_2 = l3_2.feedforward(layer3_1)
 
-layer3_2 = tf.nn.avg_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4_1 = l4_1.feedforward(layer3_2)
+layer4Input = tf.nn.avg_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4_1 = l4_1.feedforward(layer4Input)
 layer4_2 = l4_2.feedforward(layer4_1)
 
-layer4_2 = tf.nn.avg_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer5_1 = l5_1.feedforward(layer4_2)
-layer5_1 = tf.nn.avg_pool(layer5_1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer5Input = tf.nn.avg_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer5_1 = l5_1.feedforward(layer5Input)
+layer6Input = tf.nn.avg_pool(layer5_1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 
-final = tf.reshape(layer5_1,[batch_size,-1])
+final = tf.reshape(layer6Input,[batch_size,-1])
 final_soft = tf_soft(final)
 
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final,labels=y))
@@ -163,15 +160,6 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # -- auto train ---
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
-
-
-
-
-
-
-
-
 
 # session
 with tf.Session() as sess: 
