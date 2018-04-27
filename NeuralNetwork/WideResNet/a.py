@@ -21,7 +21,7 @@ def unpickle(file):
         dict = pickle.load(fo, encoding='bytes')
     return dict
 
-# data
+# data prep
 PathDicom = "../../Dataset/cifar-10-batches-py/"
 lstFilesDCM = []  # create an empty list
 for dirName, subdirList, fileList in os.walk(PathDicom):

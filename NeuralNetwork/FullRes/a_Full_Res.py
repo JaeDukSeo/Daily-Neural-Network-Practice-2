@@ -4,7 +4,7 @@ import sys, os
 from sklearn.utils import shuffle
 from scipy.ndimage import imread
 from scipy.misc import imresize
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as     
 
 np.random.seed(6789)
 tf.set_random_seed(678)
