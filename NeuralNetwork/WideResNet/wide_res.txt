@@ -1,0 +1,351 @@
+current iter: 0  current batch:  9900  current cost: 601889272068208328704.00000  current acc: 0.08000
+------ Current Iter :  0
+Avg Train Cost:  2.6838156136910833e+18
+Avg Train Acc:  0.15536000014841556
+Avg Test Cost:  5.0706450276291995e+20
+Avg Test Acc:  0.12540000036358834
+-----------
+current iter: 2  current batch:  9900  current cost: 491372942721745420288.00000  current acc: 0.11000
+------ Current Iter :  2
+Avg Train Cost:  4.434572088092236e+17
+Avg Train Acc:  0.28660000061988833
+Avg Test Cost:  4.07047489466771e+20
+Avg Test Acc:  0.14630000039935112
+-----------
+current iter: 4  current batch:  9900  current cost: 453229529755870560256.00000  current acc: 0.10000
+------ Current Iter :  4
+Avg Train Cost:  3.28190344332839e+17
+Avg Train Acc:  0.3257800013124943
+Avg Test Cost:  3.7530882813787085e+20
+Avg Test Acc:  0.14580000035464763
+-----------
+current iter: 6  current batch:  9900  current cost: 365397339151263596544.00000  current acc: 0.09000
+------ Current Iter :  6
+Avg Train Cost:  2.696997051528632e+17
+Avg Train Acc:  0.34728000044822693
+Avg Test Cost:  3.0595529787866074e+20
+Avg Test Acc:  0.15460000079125166
+-----------
+current iter: 8  current batch:  9900  current cost: 345890595499633803264.00000  current acc: 0.09000
+------ Current Iter :  8
+Avg Train Cost:  2.293781263234179e+17
+Avg Train Acc:  0.3633200007677078
+Avg Test Cost:  2.9129719995460223e+20
+Avg Test Acc:  0.14919999986886978
+-----------
+current iter: 10  current batch:  9900  current cost: 302838821889878523904.00000  current acc: 0.12000
+------ Current Iter :  10
+Avg Train Cost:  2.0467531752755168e+17
+Avg Train Acc:  0.37563999989628793
+Avg Test Cost:  2.571035643684057e+20
+Avg Test Acc:  0.15020000018179416
+-----------
+current iter: 12  current batch:  9900  current cost: 263851933971918094336.00000  current acc: 0.15000
+------ Current Iter :  12
+Avg Train Cost:  1.798180346322475e+17
+Avg Train Acc:  0.3874599999785423
+Avg Test Cost:  2.2820105194171656e+20
+Avg Test Acc:  0.16129999972879885
+-----------
+current iter: 14  current batch:  9900  current cost: 248047641795196092416.00000  current acc: 0.18000
+------ Current Iter :  14
+Avg Train Cost:  1.6077859257929277e+17
+Avg Train Acc:  0.40055999886989596
+Avg Test Cost:  2.142937987215016e+20
+Avg Test Acc:  0.15310000047087668
+-----------
+current iter: 16  current batch:  9900  current cost: 232608686546058477568.00000  current acc: 0.23000
+------ Current Iter :  16
+Avg Train Cost:  1.4913000228448634e+17
+Avg Train Acc:  0.40581999856233597
+Avg Test Cost:  2.045981354231775e+20
+Avg Test Acc:  0.1576000003516674
+-----------
+current iter: 18  current batch:  9900  current cost: 217892928473020760064.00000  current acc: 0.23000
+------ Current Iter :  18
+Avg Train Cost:  1.3553834569522531e+17
+Avg Train Acc:  0.41925999802351
+Avg Test Cost:  1.9321037738587357e+20
+Avg Test Acc:  0.16050000078976154
+-----------
+current iter: 20  current batch:  9900  current cost: 203238056955882766336.00000  current acc: 0.23000
+------ Current Iter :  20
+Avg Train Cost:  1.260305090236446e+17
+Avg Train Acc:  0.4193999978899956
+Avg Test Cost:  1.8443503047682402e+20
+Avg Test Acc:  0.15960000067949295
+-----------
+current iter: 22  current batch:  9900  current cost: 194112321551574499328.00000  current acc: 0.23000
+------ Current Iter :  22
+Avg Train Cost:  1.1830007275566032e+17
+Avg Train Acc:  0.42649999740719796
+Avg Test Cost:  1.7408914933902577e+20
+Avg Test Acc:  0.16400000020861627
+-----------
+current iter: 24  current batch:  9900  current cost: 189423740087946969088.00000  current acc: 0.21000
+------ Current Iter :  24
+Avg Train Cost:  1.1140810384290192e+17
+Avg Train Acc:  0.43037999778985975
+Avg Test Cost:  1.7359427560405772e+20
+Avg Test Acc:  0.163700001090765
+-----------
+current iter: 26  current batch:  9900  current cost: 178595362549515943936.00000  current acc: 0.21000
+------ Current Iter :  26
+Avg Train Cost:  1.015896290402532e+17
+Avg Train Acc:  0.4416999977231026
+Avg Test Cost:  1.649694963450814e+20
+Avg Test Acc:  0.16130000047385692
+-----------
+current iter: 28  current batch:  9900  current cost: 171727461078706159616.00000  current acc: 0.22000
+------ Current Iter :  28
+Avg Train Cost:  9.595568437809749e+16
+Avg Train Acc:  0.44663999730348586
+Avg Test Cost:  1.5958791618803506e+20
+Avg Test Acc:  0.15940000087022782
+-----------
+current iter: 30  current batch:  9900  current cost: 173215355397784731648.00000  current acc: 0.19000
+------ Current Iter :  30
+Avg Train Cost:  9.01882813381597e+16
+Avg Train Acc:  0.45051999735832216
+Avg Test Cost:  1.6149526662847018e+20
+Avg Test Acc:  0.1639000006020069
+-----------
+current iter: 32  current batch:  9900  current cost: 164500749381334466560.00000  current acc: 0.19000
+------ Current Iter :  32
+Avg Train Cost:  8.606349917491613e+16
+Avg Train Acc:  0.45559999722242356
+Avg Test Cost:  1.549722705203728e+20
+Avg Test Acc:  0.1621000002324581
+-----------
+current iter: 34  current batch:  9900  current cost: 165826179862292856832.00000  current acc: 0.20000
+------ Current Iter :  34
+Avg Train Cost:  8.008834484742914e+16
+Avg Train Acc:  0.46209999710321426
+Avg Test Cost:  1.5483979960023974e+20
+Avg Test Acc:  0.1593000002205372
+-----------
+current iter: 36  current batch:  9900  current cost: 165207568232227012608.00000  current acc: 0.22000
+------ Current Iter :  36
+Avg Train Cost:  7.705924275445694e+16
+Avg Train Acc:  0.4652799979448318
+Avg Test Cost:  1.5804280917722933e+20
+Avg Test Acc:  0.16310000091791152
+-----------
+current iter: 38  current batch:  9900  current cost: 154654965802228252672.00000  current acc: 0.21000
+------ Current Iter :  38
+Avg Train Cost:  7.284036944557979e+16
+Avg Train Acc:  0.4700599972605705
+Avg Test Cost:  1.4674495539097888e+20
+Avg Test Acc:  0.16259999997913838
+-----------
+current iter: 40  current batch:  9900  current cost: 152570590823127711744.00000  current acc: 0.21000
+------ Current Iter :  40
+Avg Train Cost:  6.9509125534434456e+16
+Avg Train Acc:  0.4723799977898598
+Avg Test Cost:  1.4605773001321516e+20
+Avg Test Acc:  0.1648999996483326
+-----------
+current iter: 42  current batch:  9900  current cost: 141263512310242082816.00000  current acc: 0.23000
+------ Current Iter :  42
+Avg Train Cost:  6.746888200572528e+16
+Avg Train Acc:  0.4723399967551231
+Avg Test Cost:  1.3647524041430829e+20
+Avg Test Acc:  0.16910000056028365
+-----------
+current iter: 44  current batch:  9900  current cost: 139984868248068816896.00000  current acc: 0.20000
+------ Current Iter :  44
+Avg Train Cost:  6.339736266392732e+16
+Avg Train Acc:  0.4787799972295761
+Avg Test Cost:  1.3461227373984929e+20
+Avg Test Acc:  0.1697000004351139
+-----------
+current iter: 46  current batch:  9900  current cost: 135031278093868204032.00000  current acc: 0.22000
+------ Current Iter :  46
+Avg Train Cost:  6.275095254093791e+16
+Avg Train Acc:  0.4780399976372719
+Avg Test Cost:  1.2984786362118334e+20
+Avg Test Acc:  0.16980000019073485
+-----------
+current iter: 48  current batch:  9900  current cost: 133985220323388162048.00000  current acc: 0.22000
+------ Current Iter :  48
+Avg Train Cost:  5.8719569415118e+16
+Avg Train Acc:  0.4817999962568283
+Avg Test Cost:  1.2916591167710829e+20
+Avg Test Acc:  0.16330000024288893
+-----------
+current iter: 50  current batch:  9900  current cost: 131106426202986905600.00000  current acc: 0.22000
+------ Current Iter :  50
+Avg Train Cost:  5.577593414338426e+16
+Avg Train Acc:  0.4875599971413612
+Avg Test Cost:  1.2630221042088013e+20
+Avg Test Acc:  0.1631999997794628
+-----------
+current iter: 52  current batch:  9900  current cost: 130550011746681094144.00000  current acc: 0.22000
+------ Current Iter :  52
+Avg Train Cost:  5.371138348348657e+16
+Avg Train Acc:  0.4886799964308739
+Avg Test Cost:  1.2625899820653365e+20
+Avg Test Acc:  0.15809999980032444
+-----------
+current iter: 54  current batch:  9900  current cost: 126286114450258788352.00000  current acc: 0.20000
+------ Current Iter :  54
+Avg Train Cost:  5.123053945052201e+16
+Avg Train Acc:  0.49399999672174455
+Avg Test Cost:  1.2227961388143e+20
+Avg Test Acc:  0.1646000000834465
+-----------
+current iter: 56  current batch:  9900  current cost: 118460599924307263488.00000  current acc: 0.23000
+------ Current Iter :  56
+Avg Train Cost:  4.964659969838075e+16
+Avg Train Acc:  0.49495999759435655
+Avg Test Cost:  1.1412746901951182e+20
+Avg Test Acc:  0.16770000085234643
+-----------
+current iter: 58  current batch:  9900  current cost: 118330241825718140928.00000  current acc: 0.21000
+------ Current Iter :  58
+Avg Train Cost:  4.812425862919173e+16
+Avg Train Acc:  0.4979599956870079
+Avg Test Cost:  1.150811629754075e+20
+Avg Test Acc:  0.16480000086128713
+-----------
+current iter: 60  current batch:  9900  current cost: 115517128131913711616.00000  current acc: 0.22000
+------ Current Iter :  60
+Avg Train Cost:  4.643426627326732e+16
+Avg Train Acc:  0.5009999961256981
+Avg Test Cost:  1.1175568477954318e+20
+Avg Test Acc:  0.16849999964237214
+-----------
+current iter: 62  current batch:  9900  current cost: 115720951199424315392.00000  current acc: 0.22000
+------ Current Iter :  62
+Avg Train Cost:  4.421366584934453e+16
+Avg Train Acc:  0.5029399965405464
+Avg Test Cost:  1.1035784969867713e+20
+Avg Test Acc:  0.16839999984949827
+-----------
+current iter: 64  current batch:  9900  current cost: 114310612032522551296.00000  current acc: 0.20000
+------ Current Iter :  64
+Avg Train Cost:  4.297420263921392e+16
+Avg Train Acc:  0.5070799969434738
+Avg Test Cost:  1.0800819924350214e+20
+Avg Test Acc:  0.1669999998807907
+-----------
+current iter: 66  current batch:  9900  current cost: 113276816015715467264.00000  current acc: 0.20000
+------ Current Iter :  66
+Avg Train Cost:  4.107944734808552e+16
+Avg Train Acc:  0.5088799965381622
+Avg Test Cost:  1.076737220009113e+20
+Avg Test Acc:  0.1628999999165535
+-----------
+current iter: 68  current batch:  9900  current cost: 112580526088170504192.00000  current acc: 0.21000
+------ Current Iter :  68
+Avg Train Cost:  3.932986745341503e+16
+Avg Train Acc:  0.5146799978017808
+Avg Test Cost:  1.061383872735314e+20
+Avg Test Acc:  0.16449999995529652
+-----------
+current iter: 70  current batch:  9900  current cost: 109951672950995288064.00000  current acc: 0.21000
+------ Current Iter :  70
+Avg Train Cost:  3.8196466716902424e+16
+Avg Train Acc:  0.516579996407032
+Avg Test Cost:  1.0381312425014328e+20
+Avg Test Acc:  0.16110000029206276
+-----------
+current iter: 72  current batch:  9900  current cost: 107717852351447433216.00000  current acc: 0.18000
+------ Current Iter :  72
+Avg Train Cost:  3.677018024194133e+16
+Avg Train Acc:  0.5190799962878228
+Avg Test Cost:  9.943425946705373e+19
+Avg Test Acc:  0.15740000061690806
+-----------
+current iter: 74  current batch:  9900  current cost: 104749417247056855040.00000  current acc: 0.19000
+------ Current Iter :  74
+Avg Train Cost:  3.606601874744436e+16
+Avg Train Acc:  0.5180799964666366
+Avg Test Cost:  9.671880870611395e+19
+Avg Test Acc:  0.1569000005722046
+-----------
+current iter: 76  current batch:  9900  current cost: 105503286399525191680.00000  current acc: 0.17000
+------ Current Iter :  76
+Avg Train Cost:  3.4657105458145264e+16
+Avg Train Acc:  0.5211599966287613
+Avg Test Cost:  9.855666257897501e+19
+Avg Test Acc:  0.1548000004142523
+-----------
+current iter: 78  current batch:  9900  current cost: 103862507187627622400.00000  current acc: 0.17000
+------ Current Iter :  78
+Avg Train Cost:  3.408839849834814e+16
+Avg Train Acc:  0.5217999964356422
+Avg Test Cost:  9.557431852055167e+19
+Avg Test Acc:  0.1560000005364418
+-----------
+current iter: 80  current batch:  9900  current cost: 100949285159137443840.00000  current acc: 0.15000
+------ Current Iter :  80
+Avg Train Cost:  3.322728271112359e+16
+Avg Train Acc:  0.5254799972176551
+Avg Test Cost:  9.210289959546567e+19
+Avg Test Acc:  0.1530000003427267
+-----------
+current iter: 82  current batch:  9900  current cost: 98770413752699322368.00000  current acc: 0.170000
+------ Current Iter :  82
+Avg Train Cost:  3.2111426527320604e+16
+Avg Train Acc:  0.5267599983811379
+Avg Test Cost:  9.19495734466402e+19
+Avg Test Acc:  0.15479999996721744
+-----------
+current iter: 84  current batch:  9900  current cost: 99407681896065269760.00000  current acc: 0.150000
+------ Current Iter :  84
+Avg Train Cost:  3.0913465584023764e+16
+Avg Train Acc:  0.5328599969148636
+Avg Test Cost:  9.125166424633079e+19
+Avg Test Acc:  0.15110000021755696
+-----------
+current iter: 86  current batch:  9900  current cost: 100416127572782350336.00000  current acc: 0.11000
+------ Current Iter :  86
+Avg Train Cost:  3.044476402357869e+16
+Avg Train Acc:  0.5302799987196922
+Avg Test Cost:  9.125166367458474e+19
+Avg Test Acc:  0.14500000029802323
+-----------
+current iter: 88  current batch:  9900  current cost: 95503210552716427264.00000  current acc: 0.140000
+------ Current Iter :  88
+Avg Train Cost:  2.912761216939275e+16
+Avg Train Acc:  0.5363999972343445
+Avg Test Cost:  8.711146341540816e+19
+Avg Test Acc:  0.1498000006377697
+-----------
+current iter: 90  current batch:  9900  current cost: 95075799596674318336.00000  current acc: 0.120000
+------ Current Iter :  90
+Avg Train Cost:  2.811282132059344e+16
+Avg Train Acc:  0.5392199954390526
+Avg Test Cost:  8.65210505642357e+19
+Avg Test Acc:  0.14710000045597554
+-----------
+current iter: 92  current batch:  9900  current cost: 93183109076713734144.00000  current acc: 0.130000
+------ Current Iter :  92
+Avg Train Cost:  2.7463738817412856e+16
+Avg Train Acc:  0.5421999978423119
+Avg Test Cost:  8.616248834351656e+19
+Avg Test Acc:  0.14309999957680702
+-----------
+current iter: 94  current batch:  9900  current cost: 97018152857838288896.00000  current acc: 0.120000
+------ Current Iter :  94
+Avg Train Cost:  2.6278498295936452e+16
+Avg Train Acc:  0.5463799956440926
+Avg Test Cost:  8.769642119357104e+19
+Avg Test Acc:  0.1455000004917383
+-----------
+current iter: 96  current batch:  9900  current cost: 96049465521581588480.00000  current acc: 0.110000
+------ Current Iter :  96
+Avg Train Cost:  2.578752334218448e+16
+Avg Train Acc:  0.5467399968504906
+Avg Test Cost:  8.73819761292485e+19
+Avg Test Acc:  0.14370000023394824
+-----------
+current iter: 98  current batch:  9900  current cost: 90807565826392064000.00000  current acc: 0.130000
+------ Current Iter :  98
+Avg Train Cost:  2.508893067436622e+16
+Avg Train Acc:  0.5484599974155426
+Avg Test Cost:  8.297788749388662e+19
+Avg Test Acc:  0.1421000000834465
+-----------
+current iter: 99  current batch:  9900  current cost: 91357145718419619840.00000  current acc: 0.13000
