@@ -97,12 +97,12 @@ X = shuffle(train_images)
 s_images = X[:50,:,:,:]
 c_images = X[50:,:,:,:]
 
-temp = base64.b64encode(s_images[3,:,:,:])
+temp = base64.b64encode(s_images[9,:,:,:])
 print(len(temp))
 
 print('------------------------')
 hash_object = hashlib.sha512(temp)
-hex_dig = hash_object.hexdigest()
-print(len(hex_dig))
-
+hex_dig = hash_object.hexdigest() 
+print(hex_dig)
+ssss =''.join(format(ord(x), 'b') for x in hex_dig)
 # -- end code --

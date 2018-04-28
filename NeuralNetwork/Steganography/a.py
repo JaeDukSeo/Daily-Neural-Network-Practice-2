@@ -22,7 +22,7 @@ def d_tf_tanh(x): return 1.0 - tf.square(tf_tanh(x))
 # make class 
 class CNNLayer():
     
-    def __init__(self,ker,in_c,out_c,act,d_act,):
+    def __init__(self,ker,in_c,out_c,act,d_act):
         
         self.w = tf.Variable(tf.truncated_normal([ker,ker,in_c,out_c],stddev=0.005))
         self.act,self.d_act = act,d_act
@@ -66,6 +66,21 @@ class CNNLayer():
 
         return grad_pass,update_w
 
+class FNN():
+    
+    def __init__(self,in_c,out_c,act,d_act):
+        self.w = tf.Variable(tf.truncated_normal([in_c,out_c],stddev=0.005))
+        self.act,self.d_act = act,d_act
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+
+    def feedforward(self,input,stride=1):
+        self.input  = input
+        self.layer  = tf.matmul(input,self.w)
+        self.layerA = self.act(self.layer)
+        return self.layerA        
+
+
+# data
 data_location = "../../Dataset/Semanticdataset100/image/"
 train_data = []  # create an empty list
 for dirName, subdirList, fileList in sorted(os.walk(data_location)):
@@ -99,7 +114,6 @@ c_images = X[50:,:,:,:]
 # hyper
 num_epoch = 1000
 num_epoch = 10000
-
 learing_rate = 0.0002
 batch_size = 10
 
@@ -127,6 +141,11 @@ reve_net3 = CNNLayer(5,50,50,tf_Relu,d_tf_Relu)
 reve_net4 = CNNLayer(5,50,50,tf_Relu,d_tf_Relu)
 reve_net5 = CNNLayer(5,50,3,tf_Relu,d_tf_Relu)
 
+fnn_l1 = FNN(128,256,tf_tanh,d_tf_tanh)
+fnn_l2 = FNN(256,256,tf_tanh,d_tf_tanh)
+fnn_l3 = FNN(256,256,tf_tanh,d_tf_tanh)
+fnn_l4 = FNN(256,128,tf_tanh,d_tf_tanh)
+
 # make graph
 Secret = tf.placeholder(shape=[None,150,150,3],dtype=tf.float32)
 Cover = tf.placeholder(shape=[None,150,150,3],dtype=tf.float32)
@@ -152,6 +171,13 @@ reve_layer5 = reve_net5.feedforward(reve_layer4)
 
 cost_1 = tf.reduce_mean(tf.square(hide_layer5 - Cover))
 cost_2 = tf.reduce_mean(tf.square(reve_layer5 - Secret))
+
+# second network
+x = tf.placeholder(shape=[None,128],dtype=tf.float32)
+y = tf.placeholder(shape=[None,128],dtype=tf.float32)
+
+
+
 
 # --- auto train ---
 auto_train = tf.train.AdamOptimizer(learning_rate=learing_rate).minimize(cost_1+cost_2)
