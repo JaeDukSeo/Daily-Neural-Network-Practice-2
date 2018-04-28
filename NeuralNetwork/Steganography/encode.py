@@ -103,6 +103,9 @@ print(len(temp))
 print('------------------------')
 hash_object = hashlib.sha512(temp)
 hex_dig = hash_object.hexdigest() 
+
+print(dir(hash_object))
+
 print(hex_dig)
 ssss =''.join(format(ord(x), 'b') for x in hex_dig)
 # -- end code --

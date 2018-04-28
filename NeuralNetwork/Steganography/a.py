@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from scipy.ndimage import imread
 from scipy.misc import imresize
+import hashlib
 
 np.random.seed(678)
 tf.set_random_seed(678)
@@ -66,20 +67,6 @@ class CNNLayer():
 
         return grad_pass,update_w
 
-class FNN():
-    
-    def __init__(self,in_c,out_c,act,d_act):
-        self.w = tf.Variable(tf.truncated_normal([in_c,out_c],stddev=0.005))
-        self.act,self.d_act = act,d_act
-        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
-
-    def feedforward(self,input,stride=1):
-        self.input  = input
-        self.layer  = tf.matmul(input,self.w)
-        self.layerA = self.act(self.layer)
-        return self.layerA        
-
-
 # data
 data_location = "../../Dataset/Semanticdataset100/image/"
 train_data = []  # create an empty list
@@ -112,10 +99,10 @@ s_images = X[:50,:,:,:]
 c_images = X[50:,:,:,:]
 
 # hyper
-num_epoch = 1000
-num_epoch = 10000
+num_epoch = 3000
 learing_rate = 0.0002
-batch_size = 10
+batch_size = 5
+print_size = 100
 
 networ_beta = 1.0
 
@@ -140,11 +127,6 @@ reve_net2 = CNNLayer(5,50,50,tf_Relu,d_tf_Relu)
 reve_net3 = CNNLayer(5,50,50,tf_Relu,d_tf_Relu)
 reve_net4 = CNNLayer(5,50,50,tf_Relu,d_tf_Relu)
 reve_net5 = CNNLayer(5,50,3,tf_Relu,d_tf_Relu)
-
-fnn_l1 = FNN(128,256,tf_tanh,d_tf_tanh)
-fnn_l2 = FNN(256,256,tf_tanh,d_tf_tanh)
-fnn_l3 = FNN(256,256,tf_tanh,d_tf_tanh)
-fnn_l4 = FNN(256,128,tf_tanh,d_tf_tanh)
 
 # make graph
 Secret = tf.placeholder(shape=[None,150,150,3],dtype=tf.float32)
@@ -172,12 +154,6 @@ reve_layer5 = reve_net5.feedforward(reve_layer4)
 cost_1 = tf.reduce_mean(tf.square(hide_layer5 - Cover))
 cost_2 = tf.reduce_mean(tf.square(reve_layer5 - Secret))
 
-# second network
-x = tf.placeholder(shape=[None,128],dtype=tf.float32)
-y = tf.placeholder(shape=[None,128],dtype=tf.float32)
-
-
-
 
 # --- auto train ---
 auto_train = tf.train.AdamOptimizer(learning_rate=learing_rate).minimize(cost_1+cost_2)
@@ -194,7 +170,7 @@ with tf.Session() as sess :
             sess_results = sess.run([cost_1,cost_2,auto_train],feed_dict={Secret:current_batch_s,Cover:current_batch_c})
             print("Iter: ",iter, ' cost 1: ',sess_results[0],' cost 2: ',sess_results[1],end='\r')
 
-        if iter % 50 == 0 :
+        if iter % print_size == 0 :
             random_data_index = np.random.randint(len(s_images))
             current_batch_s = np.expand_dims(s_images[random_data_index,:,:,:],0)
             current_batch_c = np.expand_dims(c_images[random_data_index,:,:,:],0)
@@ -240,35 +216,42 @@ with tf.Session() as sess :
                 current_batch_c = np.expand_dims(c_images[final,:,:,:],0)
                 sess_results = sess.run([prep_layer5,hide_layer5,reve_layer5],feed_dict={Secret:current_batch_s,Cover:current_batch_c})
 
+                # create hash table 
+                hash_object = hashlib.sha512(np.squeeze(current_batch_s))
+                secrete_hex_digit = hash_object.hexdigest() 
+
+                hash_object = hashlib.sha512(np.squeeze(sess_results[1][0,:,:,:]))
+                prep_hex_digit = hash_object.hexdigest() 
+
                 plt.figure()
                 plt.imshow(np.squeeze(current_batch_s[0,:,:,:]))
                 plt.axis('off')
                 plt.title('epoch_'+str(final)+' Secret')
-                plt.savefig('gif/'+str(iter)+'a_'+str(final)+'Secret image.png')
+                plt.savefig('gif/'+str(final)+'a_'+str(secrete_hex_digit)+'Secret image.png')
 
                 plt.figure()
                 plt.imshow(np.squeeze(current_batch_c[0,:,:,:]))
                 plt.axis('off')
                 plt.title('epoch_'+str(final)+' cover')
-                plt.savefig('gif/'+str(iter)+'b_'+str(final)+'cover image.png')
+                plt.savefig('gif/'+str(final)+'b_'+str(final)+'cover image.png')
 
                 plt.figure()
                 plt.imshow(np.squeeze(sess_results[0][0,:,:,:]))
                 plt.axis('off')
                 plt.title('epoch_'+str(final)+' prep image')
-                plt.savefig('gif/'+str(iter)+'c_'+str(final)+'prep image.png')
+                plt.savefig('gif/'+str(final)+'c_'+str(final)+'prep image.png')
 
                 plt.figure()
                 plt.imshow(np.squeeze(sess_results[1][0,:,:,:]))
                 plt.axis('off')
                 plt.title('epoch_'+str(final)+" Hidden Image ")
-                plt.savefig('gif/'+str(iter)+'d_'+str(final)+'Hidden image.png')
+                plt.savefig('gif/'+str(final)+'d_'+str(prep_hex_digit)+'Hidden image.png')
 
                 plt.figure()
                 plt.axis('off')
                 plt.imshow(np.squeeze(sess_results[2][0,:,:,:]))
                 plt.title('epoch_'+str(final)+" Reveal  Image")
-                plt.savefig('gif/'+str(iter)+'e_'+str(final)+'Reveal image.png')
+                plt.savefig('gif/'+str(final)+'e_'+str(final)+'Reveal image.png')
 
                 plt.close('all')
 # -- end code --
