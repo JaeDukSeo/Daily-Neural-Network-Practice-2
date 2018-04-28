@@ -19,18 +19,6 @@ def d_tf_log(x): return tf_log(x) * (1.0 - tf.log(x))
 def tf_tanh(x): return tf.tanh(x)
 def d_tf_tanh(x): return 1.0 - tf.square(tf_tanh(x))
 
-def unpickle(file):
-    import pickle
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    X = np.asarray(dict[b'data'].T).astype("uint8")
-    Yraw = np.asarray(dict[b'labels'])
-    Y = np.zeros((10,10000))
-    for i in range(10000):
-        Y[Yraw[i],i] = 1
-    names = np.asarray(dict[b'filenames'])
-    return X,Y,names
-
 # make class 
 class CNNLayer():
     
@@ -78,23 +66,33 @@ class CNNLayer():
 
         return grad_pass,update_w
 
-data_location = "./Semantic dataset100/image/"
-data_array = []  # create an empty list
+data_location = "../../Dataset/Semanticdataset100/image/"
+train_data = []  # create an empty list
 for dirName, subdirList, fileList in sorted(os.walk(data_location)):
     for filename in fileList:
-        if ".jpg" in filename.lower():  # check whether the file's DICOM
-            data_array.append(os.path.join(dirName,filename))
+        if ".jpg" in filename.lower() :
+            train_data.append(os.path.join(dirName,filename))
 
-X = np.zeros(shape=(100,80,80,3))
+data_location =  "../../Dataset/Semanticdataset100/ground-truth/"
+train_data_gt = []  # create an empty list
+for dirName, subdirList, fileList in sorted(os.walk(data_location)):
+    for filename in fileList:
+        if ".png" in filename.lower() :
+            train_data_gt.append(os.path.join(dirName,filename))
 
-for file_index in range(len(data_array)):
-    X[file_index,:,:]   = imresize(imread(data_array[file_index],mode='RGB'),(80,80))
+train_images = np.zeros(shape=(100,150,150,3))
+train_labels = np.zeros(shape=(100,150,150,3))
 
-X[:,:,:,0] = (X[:,:,:,0]-X[:,:,:,0].min(axis=0))/(X[:,:,:,0].max(axis=0)-X[:,:,:,0].min(axis=0))
-X[:,:,:,1] = (X[:,:,:,1]-X[:,:,:,1].min(axis=0))/(X[:,:,:,1].max(axis=0)-X[:,:,:,1].min(axis=0))
-X[:,:,:,2] = (X[:,:,:,2]-X[:,:,:,2].min(axis=0))/(X[:,:,:,2].max(axis=0)-X[:,:,:,2].min(axis=0))
+for file_index in range(len(train_data)):
+    train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(150,150))
+    train_labels[file_index,:,:]   = imresize(imread(train_data_gt[file_index],mode='RGB'),(150,150))
 
-X = shuffle(X)
+train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0))
+train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0))
+train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0))
+train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0))
+
+X = shuffle(train_images)
 s_images = X[:50,:,:,:]
 c_images = X[50:,:,:,:]
 
@@ -102,7 +100,7 @@ c_images = X[50:,:,:,:]
 num_epoch = 1000
 num_epoch = 10000
 
-learing_rate = 0.0008
+learing_rate = 0.0002
 batch_size = 10
 
 networ_beta = 1.0
@@ -130,8 +128,8 @@ reve_net4 = CNNLayer(5,50,50,tf_Relu,d_tf_Relu)
 reve_net5 = CNNLayer(5,50,3,tf_Relu,d_tf_Relu)
 
 # make graph
-Secret = tf.placeholder(shape=[None,80,80,3],dtype=tf.float32)
-Cover = tf.placeholder(shape=[None,80,80,3],dtype=tf.float32)
+Secret = tf.placeholder(shape=[None,150,150,3],dtype=tf.float32)
+Cover = tf.placeholder(shape=[None,150,150,3],dtype=tf.float32)
 
 prep_layer1 = prep_net1.feedforward(Secret)
 prep_layer2 = prep_net2.feedforward(prep_layer1)
@@ -152,12 +150,11 @@ reve_layer3 = reve_net3.feedforward(reve_layer2)
 reve_layer4 = reve_net4.feedforward(reve_layer3)
 reve_layer5 = reve_net5.feedforward(reve_layer4)
 
-cost_1 = tf.reduce_mean(tf.square(hide_layer5 - Cover))*0.5
-cost_2 = tf.reduce_mean(tf.square(reve_layer5 - Secret)) *0.5
+cost_1 = tf.reduce_mean(tf.square(hide_layer5 - Cover))
+cost_2 = tf.reduce_mean(tf.square(reve_layer5 - Secret))
 
 # --- auto train ---
 auto_train = tf.train.AdamOptimizer(learning_rate=learing_rate).minimize(cost_1+cost_2)
-
 
 # start the session
 with tf.Session() as sess : 
@@ -171,7 +168,7 @@ with tf.Session() as sess :
             sess_results = sess.run([cost_1,cost_2,auto_train],feed_dict={Secret:current_batch_s,Cover:current_batch_c})
             print("Iter: ",iter, ' cost 1: ',sess_results[0],' cost 2: ',sess_results[1],end='\r')
 
-        if iter % 500 == 0 :
+        if iter % 50 == 0 :
             random_data_index = np.random.randint(len(s_images))
             current_batch_s = np.expand_dims(s_images[random_data_index,:,:,:],0)
             current_batch_c = np.expand_dims(c_images[random_data_index,:,:,:],0)
@@ -181,32 +178,31 @@ with tf.Session() as sess :
             plt.imshow(np.squeeze(current_batch_s[0,:,:,:]))
             plt.axis('off')
             plt.title('epoch_'+str(iter)+' Secret')
-            plt.show()
+            plt.savefig('training/'+str(iter)+'a_'+str(iter)+'Secret image.png')
 
             plt.figure()
             plt.imshow(np.squeeze(current_batch_c[0,:,:,:]))
             plt.axis('off')
             plt.title('epoch_'+str(iter)+' cover')
-            plt.show()
+            plt.savefig('training/'+str(iter)+'b_'+str(iter)+'cover image.png')
 
             plt.figure()
-            plt.imshow(np.squeeze(sess_results[0][0,:,:,:]))
+            plt.imshow(np.squeeze(sess_results[0][0,:,:,:] ))
             plt.axis('off')
             plt.title('epoch_'+str(iter)+' prep image')
-            plt.show()
+            plt.savefig('training/'+str(iter)+'c_'+str(iter)+'prep image.png')
 
             plt.figure()
-            plt.imshow(np.squeeze(sess_results[1][0,:,:,:]))
+            plt.imshow(np.squeeze(sess_results[1][0,:,:,:] ))
             plt.axis('off')
             plt.title('epoch_'+str(iter)+" Hidden Image ")
-            plt.show()
+            plt.savefig('training/'+str(iter)+'d_'+str(iter)+'Hidden image.png')
 
             plt.figure()
             plt.axis('off')
-            plt.imshow(np.squeeze(sess_results[2][0,:,:,:]))
+            plt.imshow(np.squeeze(sess_results[2][0,:,:,:] ))
             plt.title('epoch_'+str(iter)+" Reveal  Image")
-            plt.show()
-
+            plt.savefig('training/'+str(iter)+'e_'+str(iter)+'Reveal image.png')
 
             plt.close('all')
             print('\n--------------------\n')
@@ -222,31 +218,31 @@ with tf.Session() as sess :
                 plt.imshow(np.squeeze(current_batch_s[0,:,:,:]))
                 plt.axis('off')
                 plt.title('epoch_'+str(final)+' Secret')
-                plt.show()
+                plt.savefig('gif/'+str(iter)+'a_'+str(final)+'Secret image.png')
 
                 plt.figure()
                 plt.imshow(np.squeeze(current_batch_c[0,:,:,:]))
                 plt.axis('off')
                 plt.title('epoch_'+str(final)+' cover')
-                plt.show()
+                plt.savefig('gif/'+str(iter)+'b_'+str(final)+'cover image.png')
 
                 plt.figure()
                 plt.imshow(np.squeeze(sess_results[0][0,:,:,:]))
                 plt.axis('off')
                 plt.title('epoch_'+str(final)+' prep image')
-                plt.show()
+                plt.savefig('gif/'+str(iter)+'c_'+str(final)+'prep image.png')
 
                 plt.figure()
                 plt.imshow(np.squeeze(sess_results[1][0,:,:,:]))
                 plt.axis('off')
                 plt.title('epoch_'+str(final)+" Hidden Image ")
-                plt.show()
+                plt.savefig('gif/'+str(iter)+'d_'+str(final)+'Hidden image.png')
 
                 plt.figure()
                 plt.axis('off')
                 plt.imshow(np.squeeze(sess_results[2][0,:,:,:]))
                 plt.title('epoch_'+str(final)+" Reveal  Image")
-                plt.show()
+                plt.savefig('gif/'+str(iter)+'e_'+str(final)+'Reveal image.png')
 
                 plt.close('all')
 # -- end code --
