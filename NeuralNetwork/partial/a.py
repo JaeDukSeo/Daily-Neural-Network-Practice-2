@@ -1,236 +1,277 @@
 import tensorflow as tf
-import numpy as np
-import sys, os,cv2
-from sklearn.utils import shuffle
-from scipy.misc import imread
-from scipy.misc import imresize
+import numpy as np,sys,os
+from numpy import float32
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import OneHotEncoder
-from tensorflow.examples.tutorials.mnist import input_data
-from skimage.transform import resize
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.utils import shuffle
+from scipy.ndimage import imread
+from scipy.misc import imresize
+import hashlib
+np.random.seed(678)
+tf.set_random_seed(678)
+
+# Activation Functions - however there was no indication in the original paper
+def tf_Relu(x): return tf.nn.relu(x)
+def d_tf_Relu(x): return tf.cast(tf.greater(x,0),tf.float32)
+
+def tf_LRelu(x): return tf.nn.leaky_relu(x)
+# def d_tf_LRelu(x): return tf.cast(tf.greater(x,0),tf.float32)
+
+def tf_tanh(x): return tf.tanh(x)
+def d_tf_tanh(x): return 1.0 - tf.square(tf_tanh(x))
+
+# make class 
+class PCNN_L():
+    
+    def __init__(self,ker,in_c,out_c,act,d_act):
+        self.w = tf.Variable(tf.truncated_normal([ker,ker,in_c,out_c],stddev=0.005))
+        self.b = tf.Variable(tf.truncated_normal([],stddev=0.005))
+        self.act,self.d_act = act,d_act
+
+    def feedforward(self,input,mask ,stride=1):
+        self.input  = input * mask
+        self.layer  = tf.nn.conv2d(self.input,self.w,strides = [1,stride,stride,1],padding='SAME') + self.b
+        self.layerA = self.act(self.layer)
+        return self.layerA
+
+class MCNN_L():
+    def __init__(self,ker,in_c,out_c):
+        self.w = tf.Variable(tf.ones([ker,ker,in_c,out_c]))
+        self.b = tf.Variable(tf.zeros([]))
+
+    def feedforward(self,input,stride=1):
+        self.input  = input 
+        self.layer  = tf.nn.conv2d(self.input,self.w,strides = [1,stride,stride,1],padding='SAME') + self.b
+        return self.layer
+
+class PCNN_R():
+    
+    def __init__(self,ker,in_c,out_c):
+        self.w = tf.Variable(tf.truncated_normal([ker,ker,in_c,out_c],stddev=0.005))
+        self.b = tf.Variable(tf.truncated_normal([],stddev=0.005))
+        self.act,self.d_act = act,d_act
+
+    def feedforward(self,input,stride=1,dilate=1,output=1):
+        self.input  = input
+        current_shape_size = input.shape
+
+        self.layer = tf.nn.conv2d_transpose(input,self.w,output_shape=[batch_size] + [int(current_shape_size[1].value*2),int(current_shape_size[2].value*2),int(current_shape_size[3].value/2)],strides=[1,2,2,1],padding='SAME')
+        self.layerA = self.act(self.layer)
+
+        return self.layerA
+
+class MCNN_R():
+    
+    def __init__(self,ker,in_c,out_c):
+        self.w = tf.Variable(tf.random_normal([ker,ker,in_c,out_c],stddev=0.05))
+
+    def feedforward(self,input,stride=1,dilate=1,output=1):
+        self.input  = input
+
+        current_shape_size = input.shape
+
+        self.layer = tf.nn.conv2d_transpose(input,self.w,
+        output_shape=[batch_size] + [int(current_shape_size[1].value*2),int(current_shape_size[2].value*2),int(current_shape_size[3].value/2)],strides=[1,2,2,1],padding='SAME')
+        self.layerA = tf_relu(self.layer)
+        return self.layerA
 
 
-def tf_relu(x): return tf.nn.relu(x)
-def d_tf_relu(x): return tf.cast(tf.greater(x,0),tf.float32)
-def tf_soft(x): return tf.nn.softmax(x)
-
-def unpickle(file):
-    import pickle
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
-
-# data prep
-PathDicom = "../../Dataset/cifar-10-batches-py/"
-lstFilesDCM = []  # create an empty list
-for dirName, subdirList, fileList in os.walk(PathDicom):
+# data
+data_location = "../../Dataset/Semanticdataset100/image/"
+train_data = []  # create an empty list
+for dirName, subdirList, fileList in sorted(os.walk(data_location)):
     for filename in fileList:
-        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
-            lstFilesDCM.append(os.path.join(dirName,filename))
+        if ".jpg" in filename.lower() :
+            train_data.append(os.path.join(dirName,filename))
 
-# Read the data traind and Test
-batch0 = unpickle(lstFilesDCM[0])
-batch1 = unpickle(lstFilesDCM[1])
-batch2 = unpickle(lstFilesDCM[2])
-batch3 = unpickle(lstFilesDCM[3])
-batch4 = unpickle(lstFilesDCM[4])
+data_location =  "../../Dataset/Semanticdataset100/ground-truth/"
+train_data_gt = []  # create an empty list
+for dirName, subdirList, fileList in sorted(os.walk(data_location)):
+    for filename in fileList:
+        if ".png" in filename.lower() :
+            train_data_gt.append(os.path.join(dirName,filename))
 
-onehot_encoder = OneHotEncoder(sparse=True)
-train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
-train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
-train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
+train_images = np.zeros(shape=(100,128,128,3))
+train_labels = np.zeros(shape=(100,128,128,1))
+train_labels_inverted = np.zeros(shape=(100,128,128,1))
 
-test_batch = unpickle(lstFilesDCM[5])[b'data']
-test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
-test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
 
-# reshape data
-train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
-test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
+for file_index in range(len(train_data)):
+    train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(128,128))
+    train_labels[file_index,:,:]   = np.expand_dims(imresize(imread(train_data_gt[file_index],mode='F'),(128,128)),axis=3)
+    train_labels_inverted[file_index,:,:]  = np.logical_not(train_labels[file_index,:,:,:])
 
-# rotate data
-train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0))
+train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0))
+train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0))
+train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0))
 
-# Normalize data from 0 to 1 per each channel
-train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].min(axis=0)) / (train_batch[:,:,:,0].max(axis=0) - train_batch[:,:,:,0].min(axis=0))
-train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)) / (train_batch[:,:,:,1].max(axis=0) - train_batch[:,:,:,1].min(axis=0))
-train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
-test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
+train_images = shuffle(train_images)
 
 # class
-class cnn0():
-    
-    def __init__(self,k,inc,out):
-        self.w1 = tf.Variable(tf.random_normal([k,k,inc,out]))
+l1x = PCNN_L(7,3,64,tf_Relu,d_tf_Relu)
+l1m = MCNN_L(7,1,1)
 
-    def feedforward(self,input,resadd=True):
-        self.input  = input
-        self.layer1  = tf.nn.conv2d(self.input,self.w1,strides=[1,1,1,1],padding='SAME')
-        self.layer1  = tf.nn.batch_normalization(self.layer1 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
-        self.layer1  = tf_relu(self.layer1) 
-        return self.layer1 
+l2x = PCNN_L(3,64,128,tf_Relu,d_tf_Relu)
+l2m = MCNN_L(3,1,1)
 
-class cnn1():
-    
-    def __init__(self,k,inc,out):
-        self.w1 = tf.Variable(tf.random_normal([k,k,inc,out]))
-        self.w2 = tf.Variable(tf.random_normal([k,k,out,out]))
-        self.w3 = tf.Variable(tf.random_normal([k,k,inc,out]))
+l3x = PCNN_L(3,128,256,tf_Relu,d_tf_Relu)
+l3m = MCNN_L(3,1,1)
 
-    def feedforward(self,input,resadd=True):
-        self.input  = input
+l4x = PCNN_L(3,256,256,tf_Relu,d_tf_Relu)
+l4m = MCNN_L(3,1,1)
 
-        self.layer1  = tf.nn.conv2d(self.input,self.w1,strides=[1,1,1,1],padding='SAME')
-        self.layer1  = tf.nn.batch_normalization(self.layer1 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
-        self.layer1  = tf_relu(self.layer1) 
-        self.layer1  = tf.nn.conv2d(self.layer1,self.w2,strides=[1,1,1,1],padding='SAME')
+# up
+l5x = PCNN_L(7,256,512,tf_LRelu,d_tf_Relu)
+l5m = MCNN_L(7,1,1)
 
-        self.layer2 = tf.nn.conv2d(self.input,self.w3,strides=[1,1,1,1],padding='SAME')
-        return self.layer1 + self.layer2 
+l6x = PCNN_L(3,128,512,tf_LRelu,d_tf_Relu)
+l6m = MCNN_L(3,1,1)
 
-class cnn2():
-    
-    def __init__(self,k,inc,out):
-        self.w1 = tf.Variable(tf.random_normal([k,k,inc,out]))
-        self.w2 = tf.Variable(tf.random_normal([k,k,out,out]))
+l7x = PCNN_L(3,64,256,tf_LRelu,d_tf_Relu)
+l7m = MCNN_L(3,1,1)
 
-    def feedforward(self,input,resadd=True):
-        self.input  = input
+l8x = PCNN_L(3,3,128,tf_LRelu,d_tf_Relu)
+l8m = MCNN_L(3,1,1)
 
-        self.layer1  = tf.nn.batch_normalization(self.input ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
-        self.layer1  = tf_relu(self.layer1) 
-        self.layer1  = tf.nn.conv2d(self.layer1,self.w1,strides=[1,1,1,1],padding='SAME')
-
-        self.layer1  = tf.nn.batch_normalization(self.layer1 ,mean=0,variance=1.0,variance_epsilon=1e-8,offset=True,scale=True)
-        self.layer1  = tf_relu(self.layer1) 
-        self.layer1  = tf.nn.conv2d(self.layer1,self.w2,strides=[1,1,1,1],padding='SAME')
-        return self.layer1 + self.input 
 
 # hyper
-num_epoch = 100
-batch_size = 100
-print_size = 2
-learning_rate = 0.00003
-beta1,beta2,adame = 0.9,0.999,1e-8
+num_epoch = 3000
+learing_rate = 0.0002
+batch_size = 5
+print_size = 100
 
-# class
-l1_1 = cnn0(3,3,16)
+networ_beta = 1.0
 
-l2_1 = cnn1(3,16,128)
-l2_2 = cnn2(3,128,128)
+beta_1,beta_2 = 0.9,0.999
+adam_e = 1e-8
 
-l3_1 = cnn1(3,128,256)
-l3_2 = cnn2(3,256,256)
+# graphs
+x = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32)
+y = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32)
+x_mask = tf.placeholder(shape=[None,128,128,1],dtype=tf.float32)
 
-l4_1 = cnn1(3,256,512)
-l4_2 = cnn2(3,512,512)
+layer1_x = l1x.feedforward(x,x_mask,stride=2)
+layer1_m = l1m.feedforward(x_mask,stride=2)
 
-l5_1 = cnn0(3,512,10)
+layer2_x = l2x.feedforward(layer1_x,layer1_m,stride=2)
+layer2_m = l2m.feedforward(layer1_m,stride=2)
 
-# graph
-x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
-y = tf.placeholder(shape=[None,10],dtype=tf.float32)
+layer3_x = l3x.feedforward(layer2_x,layer2_m,stride=2)
+layer3_m = l3m.feedforward(layer2_m,stride=2)
 
-layer1 = l1_1.feedforward(x)
+layer4_x = l4x.feedforward(layer3_x,layer3_m,stride=2)
+layer4_m = l4m.feedforward(layer3_m,stride=2)
 
-layer1 = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer2_1 = l2_1.feedforward(layer1)
-layer2_2 = l2_2.feedforward(layer2_1)
+layer5Upsample = tf.image.resize_images(layer4_x,size=[layer4_x.shape[1]*2,layer4_x.shape[2]*2],
+method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+layer5Input = tf.concat([layer5Upsample,layer3_x],axis=3)
 
-layer3Input = tf.nn.avg_pool(layer2_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer3_1 = l3_1.feedforward(layer3Input)
-layer3_2 = l3_2.feedforward(layer3_1)
 
-layer4Input = tf.nn.avg_pool(layer3_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4_1 = l4_1.feedforward(layer4Input)
-layer4_2 = l4_2.feedforward(layer4_1)
 
-layer5Input = tf.nn.avg_pool(layer4_2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer5_1 = l5_1.feedforward(layer5Input)
-layer6Input = tf.nn.avg_pool(layer5_1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+print(layer4_x.shape)
+print(layer4_m.shape)
+print(layer5Input.shape)
 
-final = tf.reshape(layer6Input,[batch_size,-1])
-final_soft = tf_soft(final)
+sys.exit()
 
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final,labels=y))
-correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# -- auto train ---
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+# --- auto train ---
+auto_train = tf.train.AdamOptimizer(learning_rate=learing_rate).minimize(cost_1+cost_2)
 
-# session
-with tf.Session() as sess: 
+# start the session
+with tf.Session() as sess : 
+
     sess.run(tf.global_variables_initializer())
 
-    train_total_cost,train_total_acc =0,0
-    train_cost_overtime,train_acc_overtime = [],[]
-
-    test_total_cost,test_total_acc = 0,0
-    test_cost_overtime,test_acc_overtime = [],[]
-
-    # start the train
     for iter in range(num_epoch):
-        
-        train_batch,train_label = shuffle(train_batch,train_label)
+        for current_batch_index in range(0,len(s_images),batch_size):
+            current_batch_s = s_images[current_batch_index:current_batch_index+batch_size,:,:,:]
+            current_batch_c = c_images[current_batch_index:current_batch_index+batch_size,:,:,:]
+            sess_results = sess.run([cost_1,cost_2,auto_train],feed_dict={Secret:current_batch_s,Cover:current_batch_c})
+            print("Iter: ",iter, ' cost 1: ',sess_results[0],' cost 2: ',sess_results[1],end='\r')
 
-        # Train Batch
-        for current_batch_index in range(0,len(train_batch),batch_size):
-            current_batch = train_batch[current_batch_index:current_batch_index+batch_size,:,:,:]
-            current_batch_label = train_label[current_batch_index:current_batch_index+batch_size,:]
-            sess_results = sess.run([cost,accuracy,correct_prediction,final_soft,final,auto_train], feed_dict= {x:current_batch,y:current_batch_label})
-            print("current iter:", iter, ' current batch: ', current_batch_index, " current cost: %.5f"%sess_results[0],' current acc: %.5f'%sess_results[1], end='\r')
-            train_total_cost = train_total_cost + sess_results[0]
-            train_total_acc = train_total_acc + sess_results[1]
+        if iter % print_size == 0 :
+            random_data_index = np.random.randint(len(s_images))
+            current_batch_s = np.expand_dims(s_images[random_data_index,:,:,:],0)
+            current_batch_c = np.expand_dims(c_images[random_data_index,:,:,:],0)
+            sess_results = sess.run([prep_layer5,hide_layer5,reve_layer5],feed_dict={Secret:current_batch_s,Cover:current_batch_c})
 
-        # Test Batch
-        for current_batch_index in range(0,len(test_batch),batch_size):
-            current_batch = test_batch[current_batch_index:current_batch_index+batch_size,:,:,:]
-            current_batch_label = test_label[current_batch_index:current_batch_index+batch_size,:]
-            sess_results = sess.run([cost,accuracy,correct_prediction], feed_dict= {x:current_batch,y:current_batch_label})
-            print("current iter:", iter, ' current batch: ', current_batch_index, " current cost: %.5f"%sess_results[0],' current acc: %.5f'%sess_results[1], end='\r')
-            test_total_cost = test_total_cost + sess_results[0]
-            test_total_acc = test_total_acc + sess_results[1]
+            plt.figure()
+            plt.imshow(np.squeeze(current_batch_s[0,:,:,:]))
+            plt.axis('off')
+            plt.title('epoch_'+str(iter)+' Secret')
+            plt.savefig('training/'+str(iter)+'a_'+str(iter)+'Secret image.png')
 
-        # store
-        train_cost_overtime.append(train_total_cost/(len(train_batch)/batch_size ) )
-        train_acc_overtime.append(train_total_acc/(len(train_batch)/batch_size ) )
-        test_cost_overtime.append(test_total_cost/(len(test_batch)/batch_size ) )
-        test_acc_overtime.append(test_total_acc/(len(test_batch)/batch_size ) )
-        
-        # print
-        if iter%print_size == 0:
-            print('\n------ Current Iter : ',iter)
-            print("Avg Train Cost: ", train_cost_overtime[-1])
-            print("Avg Train Acc: ", train_acc_overtime[-1])
-            print("Avg Test Cost: ", test_cost_overtime[-1])
-            print("Avg Test Acc: ", test_acc_overtime[-1])
-            print('-----------')      
-        train_total_cost,train_total_acc,test_total_cost,test_total_acc=0,0,0,0            
+            plt.figure()
+            plt.imshow(np.squeeze(current_batch_c[0,:,:,:]))
+            plt.axis('off')
+            plt.title('epoch_'+str(iter)+' cover')
+            plt.savefig('training/'+str(iter)+'b_'+str(iter)+'cover image.png')
 
-# plot and save
-plt.figure()
-plt.plot(range(len(train_cost_overtime)),train_cost_overtime,color='y',label='Original Model')
-plt.legend()
-plt.savefig('og Train Cost over time')
+            plt.figure()
+            plt.imshow(np.squeeze(sess_results[0][0,:,:,:] ))
+            plt.axis('off')
+            plt.title('epoch_'+str(iter)+' prep image')
+            plt.savefig('training/'+str(iter)+'c_'+str(iter)+'prep image.png')
 
-plt.figure()
-plt.plot(range(len(train_acc_overtime)),train_acc_overtime,color='y',label='Original Model')
-plt.legend()
-plt.savefig('og Train Acc over time')
+            plt.figure()
+            plt.imshow(np.squeeze(sess_results[1][0,:,:,:] ))
+            plt.axis('off')
+            plt.title('epoch_'+str(iter)+" Hidden Image ")
+            plt.savefig('training/'+str(iter)+'d_'+str(iter)+'Hidden image.png')
 
-plt.figure()
-plt.plot(range(len(test_cost_overtime)),test_cost_overtime,color='y',label='Original Model')
-plt.legend()
-plt.savefig('og Test Cost over time')
+            plt.figure()
+            plt.axis('off')
+            plt.imshow(np.squeeze(sess_results[2][0,:,:,:] ))
+            plt.title('epoch_'+str(iter)+" Reveal  Image")
+            plt.savefig('training/'+str(iter)+'e_'+str(iter)+'Reveal image.png')
 
-plt.figure()
-plt.plot(range(len(test_acc_overtime)),test_acc_overtime,color='y',label='Original Model')
-plt.legend()
-plt.savefig('og Test Acc over time')
+            plt.close('all')
+            print('\n--------------------\n')
 
+        if iter == num_epoch-1:
+            
+            for final in range(len(s_images)):
+                current_batch_s = np.expand_dims(s_images[final,:,:,:],0)
+                current_batch_c = np.expand_dims(c_images[final,:,:,:],0)
+                sess_results = sess.run([prep_layer5,hide_layer5,reve_layer5],feed_dict={Secret:current_batch_s,Cover:current_batch_c})
 
+                # create hash table 
+                hash_object = hashlib.sha512(np.squeeze(current_batch_s))
+                secrete_hex_digit = hash_object.hexdigest() 
 
+                hash_object = hashlib.sha512(np.squeeze(sess_results[1][0,:,:,:]))
+                prep_hex_digit = hash_object.hexdigest() 
+
+                plt.figure()
+                plt.imshow(np.squeeze(current_batch_s[0,:,:,:]))
+                plt.axis('off')
+                plt.title('epoch_'+str(final)+' Secret')
+                plt.savefig('gif/'+str(final)+'a_'+str(secrete_hex_digit)+'Secret image.png')
+
+                plt.figure()
+                plt.imshow(np.squeeze(current_batch_c[0,:,:,:]))
+                plt.axis('off')
+                plt.title('epoch_'+str(final)+' cover')
+                plt.savefig('gif/'+str(final)+'b_'+str(final)+'cover image.png')
+
+                plt.figure()
+                plt.imshow(np.squeeze(sess_results[0][0,:,:,:]))
+                plt.axis('off')
+                plt.title('epoch_'+str(final)+' prep image')
+                plt.savefig('gif/'+str(final)+'c_'+str(final)+'prep image.png')
+
+                plt.figure()
+                plt.imshow(np.squeeze(sess_results[1][0,:,:,:]))
+                plt.axis('off')
+                plt.title('epoch_'+str(final)+" Hidden Image ")
+                plt.savefig('gif/'+str(final)+'d_'+str(prep_hex_digit)+'Hidden image.png')
+
+                plt.figure()
+                plt.axis('off')
+                plt.imshow(np.squeeze(sess_results[2][0,:,:,:]))
+                plt.title('epoch_'+str(final)+" Reveal  Image")
+                plt.savefig('gif/'+str(final)+'e_'+str(final)+'Reveal image.png')
+
+                plt.close('all')
 # -- end code --
