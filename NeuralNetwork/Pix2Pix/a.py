@@ -23,10 +23,10 @@ def d_tf_log(x): return tf_log(x) * (1-tf_log(x))
 class CNNLayer():
     
     def __init__(self,ker,in_c,out_c,act,d_act):
-        self.w = tf.Variable(tf.truncated_normal([ker,ker,in_c,out_c],stddev=0.005))
+        self.w = tf.Variable(tf.truncated_normal([ker,ker,in_c,out_c],stddev=0.02))
         self.act,self.d_act = act,d_act
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
-
+    def getw(self): return [self.w]
     def feedforward(self,input,stride=2,batch_norm=True,padding_val='SAME'):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides = [1,stride,stride,1],padding=padding_val)
@@ -69,9 +69,9 @@ class CNNLayer():
 class CNNLayer_Up():
     
     def __init__(self,ker,in_c,out_c,act,d_act):
-        self.w = tf.Variable(tf.random_normal([ker,ker,in_c,out_c],stddev=0.005))
+        self.w = tf.Variable(tf.random_normal([ker,ker,in_c,out_c],stddev=0.02))
         self.act,self.d_act = act,d_act
-
+    def getw(self): return [self.w]
     def feedforward(self,input,stride=1,dilate=1,output=1,batch_norm=True,dropout=False):
         self.input  = input
         current_shape_size = input.shape
@@ -98,46 +98,70 @@ for dirName, subdirList, fileList in sorted(os.walk(data_location)):
         if ".png" in filename.lower() :
             train_data_gt.append(os.path.join(dirName,filename))
 
-train_images = np.zeros(shape=(850,255,255,3))
-train_labels = np.zeros(shape=(850,255,255,1))
+data_location =  "../../Dataset/Semanticdataset100/image/"
+test_data_c = []  # create an empty list
+for dirName, subdirList, fileList in sorted(os.walk(data_location)):
+    for filename in fileList:
+        if ".jpg" in filename.lower() :
+            test_data_c.append(os.path.join(dirName,filename))
+
+data_location =  "../../Dataset/Semanticdataset100/ground-truth/"
+test_data = []  # create an empty list
+for dirName, subdirList, fileList in sorted(os.walk(data_location)):
+    for filename in fileList:
+        if ".png" in filename.lower() :
+            test_data.append(os.path.join(dirName,filename))
+
+train_images = np.zeros(shape=(850,256,256,3))
+train_labels = np.zeros(shape=(850,256,256,1))
+test_images_c = np.zeros(shape=(850,256,256,3))
+test_images = np.zeros(shape=(100,256,256,1))
 
 for file_index in range(len(train_data)-1):
-    train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(255,255))
-    train_labels[file_index,:,:]   = np.expand_dims(imresize(imread(train_data_gt[file_index],mode='F',flatten=True),(255,255)),axis=3)
+    train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(256,256))
+    train_labels[file_index,:,:]   = np.expand_dims(imresize(imread(train_data_gt[file_index],mode='F',flatten=True),(256,256)),axis=3)
+for file_index in range(len(test_data)):
+    test_images_c[file_index,:,:]   = imresize(imread(test_data_c[file_index],mode='RGB'),(256,256))
+    test_images[file_index,:,:]   = np.expand_dims(imresize(imread(test_data[file_index],mode='F',flatten=True),(256,256)),axis=3)
 
 train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0)+ 1e-10)
 train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0)+ 1e-10)
 train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0)+ 1e-10)
 train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+ 1e-10)
 
-train_data = train_labels[50:,:,:,:]
-train_gt =   train_images[50:,:,:,:]
+test_images_c[:,:,:,0]  = (test_images_c[:,:,:,0] - test_images_c[:,:,:,0].min(axis=0)) / (test_images_c[:,:,:,0].max(axis=0) - test_images_c[:,:,:,0].min(axis=0)+ 1e-10)
+test_images_c[:,:,:,1]  = (test_images_c[:,:,:,1] - test_images_c[:,:,:,1].min(axis=0)) / (test_images_c[:,:,:,1].max(axis=0) - test_images_c[:,:,:,1].min(axis=0)+ 1e-10)
+test_images_c[:,:,:,2]  = (test_images_c[:,:,:,2] - test_images_c[:,:,:,2].min(axis=0)) / (test_images_c[:,:,:,2].max(axis=0) - test_images_c[:,:,:,2].min(axis=0)+ 1e-10)
+test_images[:,:,:,0]  = (test_images[:,:,:,0] - test_images[:,:,:,0].min(axis=0)) / (test_images[:,:,:,0].max(axis=0) - test_images[:,:,:,0].min(axis=0)+ 1e-10)
 
-test_data = train_labels[:50,:,:,:]
-test_gt =   train_images[:50,:,:,:]
+train_data = train_labels
+train_gt =   train_images
 
 # hyper
-num_epoch = 1000
-learning_rate = 0.0001
-batch_size = 5
+num_epoch = 800
+learning_rate = 0.00001
+batch_size = 2
+print_size = 2
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # generator ---------
 # encoder (unet)
-gl1 = CNNLayer(4,1,64,tf_LRelu,d_tf_LRelu)
-gl2 = CNNLayer(4,64,128,tf_LRelu,d_tf_LRelu)
-gl3 = CNNLayer(4,128,256,tf_LRelu,d_tf_LRelu)
-gl4 = CNNLayer(4,256,512,tf_LRelu,d_tf_LRelu)
+gl1 = CNNLayer(4,1,128,tf_LRelu,d_tf_LRelu)
+gl2 = CNNLayer(4,128,256,tf_LRelu,d_tf_LRelu)
+gl3 = CNNLayer(4,256,512,tf_LRelu,d_tf_LRelu)
+gl4 = CNNLayer(4,512,512,tf_LRelu,d_tf_LRelu)
 gl5 = CNNLayer(4,512,512,tf_LRelu,d_tf_LRelu)
 
 # decoder
 gl6 = CNNLayer_Up(4,512,512,tf_Relu,d_tf_Relu)
-gl7 = CNNLayer_Up(4,256,1024,tf_Relu,d_tf_Relu)
-gl8 = CNNLayer_Up(4,128,512,tf_Relu,d_tf_Relu)
-gl9 = CNNLayer_Up(4,64,256,tf_Relu,d_tf_Relu)
-gl10 = CNNLayer_Up(4,64,128,tf_Relu,d_tf_Relu)
-glfinal = CNNLayer(4,64,3,tf_tanh,d_tf_tanh)
+gl7 = CNNLayer_Up(4,512,1024,tf_Relu,d_tf_Relu)
+gl8 = CNNLayer_Up(4,256,1024,tf_Relu,d_tf_Relu)
+gl9 = CNNLayer_Up(4,128,512,tf_Relu,d_tf_Relu)
+gl10 = CNNLayer_Up(4,128,256,tf_Relu,d_tf_Relu)
+glfinal = CNNLayer(4,128,3,tf_tanh,d_tf_tanh)
+generator_w = gl1.getw() + gl2.getw() + gl3.getw() + gl4.getw() + gl5.getw() + \
+gl6.getw() + gl7.getw() + gl8.getw() + gl9.getw() + gl10.getw() + glfinal.getw()
 # generator ---------
 
 # discrimator -------
@@ -146,6 +170,7 @@ dl2 = CNNLayer(4,64,128,tf_LRelu,d_tf_LRelu)
 dl3 = CNNLayer(4,128,256,tf_LRelu,d_tf_LRelu)
 dl4 = CNNLayer(4,256,512,tf_LRelu,d_tf_LRelu)
 dlfinal = CNNLayer(4,512,1,tf_log,d_tf_log)
+discrimator_w = dl1.getw() + dl2.getw() + dl3.getw() + dl4.getw() + dlfinal.getw() 
 
 # graph
 input_binary_image = tf.placeholder(shape=[None,256,256,1],dtype=tf.float32)
@@ -181,12 +206,12 @@ fake_d_4 = dl4.feedforward(fake_d_3)
 fake_d_f = dlfinal.feedforward(fake_d_4)
 
 # ----- losses
-g_loss = tf.reduce_mean(-tf.log(fake_d_f)) + 100 * tf.reduce_mean(tf.abs(color_image - g_e_layer_final))
-d_loss = tf.reduce_mean(-tf.log(true_d_f) + tf.log(1.0 - fake_d_f))
+g_loss = tf.reduce_mean(-tf.log(fake_d_f+1e-10)) + 100 * tf.reduce_mean(tf.abs(color_image - g_e_layer_final))
+d_loss = tf.reduce_mean(-tf.log(true_d_f+1e-10) + tf.log(1.0 - fake_d_f+1e-10))
 
 # --- training
-auto_g_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=0.5).minimize(g_loss)
-auto_d_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=0.5).minimize(d_loss)
+auto_g_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=0.5).minimize(g_loss,var_list=generator_w)
+auto_d_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta1=0.5).minimize(d_loss,var_list=discrimator_w)
 
 
 # session
@@ -195,11 +220,104 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
         
+        train_data,train_gt = shuffle(train_data,train_gt)
         for current_batch_index in range(0,len(train_data),batch_size):
             current_image_batch = train_data[current_batch_index:current_batch_index+batch_size,:,:,:]
             current_mask_batch  = train_gt[current_batch_index:current_batch_index+batch_size,:,:,:]
 
-            
+            sess_results_d = sess.run([d_loss,auto_d_train],feed_dict={input_binary_image:current_image_batch,color_image:current_mask_batch})
+            sess_results_g = sess.run([g_loss,auto_g_train],feed_dict={input_binary_image:current_image_batch,color_image:current_mask_batch})
+            print("Current Iter: ",iter, " current batch: ",current_batch_index," D Cost: ",sess_results_d[0], " G Cost: ",sess_results_g[0],end='\r')
+
+        if iter % print_size == 0:
+            print("\n------------------------\n")
+            test_example =   train_data[:2,:,:,:]
+            test_example_gt = train_gt[:2,:,:,:]
+            sess_results = sess.run([g_e_layer_final],feed_dict={input_binary_image:test_example,color_image:test_example_gt})
+
+            sess_results = sess_results[0][0,:,:,:]
+            test_example = test_example[0,:,:,:]
+            test_example_gt = test_example_gt[0,:,:,:]
+
+            plt.figure()
+            plt.imshow(np.squeeze(test_example),cmap='gray')
+            plt.axis('off')
+            plt.title('Original Mask ')
+            plt.savefig('train_change/'+str(iter)+"a_Original_Mask.png")
+
+            plt.figure()
+            plt.imshow(np.squeeze(test_example_gt))
+            plt.axis('off')
+            plt.title('Ground Truth Image')
+            plt.savefig('train_change/'+str(iter)+"b_Original_Image.png")
+
+            plt.figure()
+            plt.axis('off')
+            plt.imshow(np.squeeze(sess_results)   ,cmap='gray')
+            plt.title("Generated Image")
+            plt.savefig('train_change/'+str(iter)+"e_Generated_Image.png")
+
+            plt.close('all')       
+
+    # print halve test
+    for current_batch_index in range(0,len(test_images),batch_size):
+        test_example = test_images[current_batch_index:current_batch_index+batch_size,:,:,:]
+        test_example_gt  = test_images_c[current_batch_index:current_batch_index+batch_size,:,:,:]
+        sess_results = sess.run([g_e_layer_final],feed_dict={input_binary_image:test_example})
+
+        sess_results = sess_results[0][0,:,:,:]
+        test_example = test_example[0,:,:,:]
+        test_example_gt = test_example_gt[0,:,:,:]
+
+        plt.figure()
+        plt.imshow(np.squeeze(test_example),cmap='gray')
+        plt.axis('off')
+        plt.title('Original Mask ')
+        plt.savefig('gif/'+str(current_batch_index)+"a_Original_Mask.png")
+
+        plt.figure()
+        plt.imshow(np.squeeze(test_example_gt))
+        plt.axis('off')
+        plt.title('Ground Truth Image')
+        plt.savefig('gif/'+str(current_batch_index)+"b_Original_Image.png")
+
+        plt.figure()
+        plt.axis('off')
+        plt.imshow(np.squeeze(sess_results)   ,cmap='gray')
+        plt.title("Generated Image")
+        plt.savefig('gif/'+str(current_batch_index)+"e_Generated_Image.png")
+
+        plt.close('all')       
+
+    # print halve train
+    for current_batch_index in range(0,len(train_data),batch_size):
+        test_example = train_data[current_batch_index:current_batch_index+batch_size,:,:,:]
+        test_example_gt  = train_gt[current_batch_index:current_batch_index+batch_size,:,:,:]
+        sess_results = sess.run([g_e_layer_final],feed_dict={input_binary_image:test_example})
+
+        sess_results = sess_results[0][0,:,:,:]
+        test_example = test_example[0,:,:,:]
+        test_example_gt = test_example_gt[0,:,:,:]
+
+        plt.figure()
+        plt.imshow(np.squeeze(test_example),cmap='gray')
+        plt.axis('off')
+        plt.title('Original Mask ')
+        plt.savefig('final/'+str(current_batch_index)+"a_Original_Mask.png")
+
+        plt.figure()
+        plt.imshow(np.squeeze(test_example_gt))
+        plt.axis('off')
+        plt.title('Ground Truth Image')
+        plt.savefig('final/'+str(current_batch_index)+"b_Original_Image.png")
+
+        plt.figure()
+        plt.axis('off')
+        plt.imshow(np.squeeze(sess_results)   ,cmap='gray')
+        plt.title("Generated Image")
+        plt.savefig('final/'+str(current_batch_index)+"e_Generated_Image.png")
+
+        plt.close('all')       
         
 
 # -- end code --
