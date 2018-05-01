@@ -172,7 +172,7 @@ dl4 = CNNLayer(4,256,512,tf_LRelu,d_tf_LRelu)
 dlfinal = CNNLayer(4,512,1,tf_log,d_tf_log)
 discrimator_w = dl1.getw() + dl2.getw() + dl3.getw() + dl4.getw() + dlfinal.getw() 
 
-# graph
+# graph here
 input_binary_image = tf.placeholder(shape=[None,256,256,1],dtype=tf.float32)
 color_image = tf.placeholder(shape=[None,256,256,3],dtype=tf.float32)
 
