@@ -20,12 +20,11 @@ def tf_log(x): return tf.nn.sigmoid(x)
 def d_tf_log(x): return tf_log(x) * (1-tf_log(x))
 def tf_softmax(x): return tf.nn.softmax(x)
 
-
 # convolution layer
 class CNNLayer():
     
     def __init__(self,ker,in_c,out_c,act,d_act):
-        self.w = tf.Variable(tf.truncated_normal([ker,ker,in_c,out_c],stddev=0.5))
+        self.w = tf.Variable(tf.truncated_normal([ker,ker,in_c,out_c],stddev=0.005))
         self.act,self.d_act = act,d_act
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -90,32 +89,29 @@ def tf_repeat(tensor, repeats):
     return repeated_tesnor
 
 # data 
-data_location = "../../Dataset/VOC2011/JPEGImages/"
-train_data = []  # create an empty list
-for dirName, subdirList, fileList in sorted(os.walk(data_location)):
-    for filename in fileList:
-        if ".jpg" in filename.lower() :
-            train_data.append(os.path.join(dirName,filename))
-
 data_location =  "../../Dataset/VOC2011/SegmentationClass/"
 train_data_gt = []  # create an empty list
+only_file_name = []
 for dirName, subdirList, fileList in sorted(os.walk(data_location)):
     for filename in fileList:
         if ".png" in filename.lower() :
             train_data_gt.append(os.path.join(dirName,filename))
+            only_file_name.append(filename[:-4])
+
+data_location = "../../Dataset/VOC2011/JPEGImages/"
+train_data = []  # create an empty list
+for dirName, subdirList, fileList in sorted(os.walk(data_location)):
+    for filename in fileList:
+        if ".jpg" in filename.lower() and filename.lower()[:-4] in  only_file_name:
+            train_data.append(os.path.join(dirName,filename))
 
 train_images = np.zeros(shape=(1000,128,128,3))
 train_labels = np.zeros(shape=(1000,128,128,3))
 
-for x in range(len(train_data)):
-    print(train_data[x])
-    print(train_data_gt[x])
-    
-
-
 for file_index in range(len(train_images)):
     train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(128,128))
     train_labels[file_index,:,:]   = imresize(imread(train_data_gt[file_index],mode='RGB'),(128,128))
+    # train_labels[file_index,:,:]   = np.expand_dims(imresize(imread(train_data_gt[file_index],mode='F',flatten=True),(128,128)),axis=3)
     
 train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0)+1e-10)
 train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0)+1e-10)
@@ -130,19 +126,9 @@ test_label = train_labels[900:,:,:,:]
 train_image = train_images[:900,:,:,:]
 train_label = train_labels[:900,:,:,:]
 
-for x in range(10):
-    plt.imshow(train_image[x,:,:,:])
-    plt.show()
-    plt.imshow(train_label[x,:,:,:])
-    plt.show()
-
-
-sys.exit()
-
-
 # hyper
-num_epoch = 500
-learing_rate = 0.002
+num_epoch = 1000
+learing_rate = 0.001
 batch_size = 10
 print_size = 5
 
@@ -161,7 +147,7 @@ l10_d = CNNLayer(3,16,3,tf_Relu,d_tf_Relu)
 
 # graph
 x = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32)
-y = tf.placeholder(shape=[None,128,128,1],dtype=tf.float32)
+y = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32)
 
 layer1 = l1_e.feedforward(x)
 layer2 = l2_e.feedforward(layer1)
@@ -170,24 +156,25 @@ layer4 = l4_e.feedforward(layer3)
 layer5 = l5_e.feedforward(layer4)
 
 layer6_Input = tf_repeat(layer5,[1,2,2,1])
-layer6 = l6_d.feedforward(layer6_Input)
+layer6 = l6_d.feedforward(layer6_Input,mean_pooling=False)
 
 layer7_Input = tf_repeat(layer6,[1,2,2,1])
-layer7 = l7_d.feedforward(layer7_Input)
+layer7 = l7_d.feedforward(layer7_Input,mean_pooling=False)
 
 layer8_Input = tf_repeat(layer7,[1,2,2,1])
-layer8 = l8_d.feedforward(layer8_Input)
+layer8 = l8_d.feedforward(layer8_Input,mean_pooling=False)
 
 layer9_Input = tf_repeat(layer8,[1,2,2,1])
-layer9 = l9_d.feedforward(layer9_Input)
+layer9 = l9_d.feedforward(layer9_Input,mean_pooling=False)
 
 layer10_Input = tf_repeat(layer9,[1,2,2,1])
-layer10 = l10_d.feedforward(layer10_Input)
-sys.exit()
+layer10 = l10_d.feedforward(layer10_Input,mean_pooling=False)
 
-
-
-
+final_image = tf.nn.softmax(layer10,axis=3)
+# cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer10,labels=y))
+cost = tf.reduce_mean(tf.square(final_image-y))
+# auto_train = tf.train.MomentumOptimizer(learning_rate=learing_rate,momentum=0.9).minimize(cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learing_rate).minimize(cost)
 
 
 # session
@@ -196,27 +183,26 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
         
-        train_images,train_labels = shuffle(train_images,train_labels)
-        for current_batch_index in range(0,len(train_data),batch_size):
+        train_image,train_label = shuffle(train_image,train_label)
+        for current_batch_index in range(0,len(train_image),batch_size):
             
-            current_image_batch = train_images[current_batch_index:current_batch_index+batch_size,:,:,:]
-            current_mask_batch  = train_labels[current_batch_index:current_batch_index+batch_size,:,:,:]
+            current_image_batch = train_image[current_batch_index:current_batch_index+batch_size,:,:,:]
+            current_mask_batch  = train_label[current_batch_index:current_batch_index+batch_size,:,:,:]
 
-            sess_results = sess.run([auto_train,
-            layer9_cost,layer8_cost,layer7_cost,layer6_cost,layer5_cost,
-            layer9_Upsample,layer8_Upsample,layer7_Upsample,layer6_Upsample,
-            ],feed_dict={x:current_image_batch,y5:current_mask_batch})
-            print("Current Iter: ",iter, " current batch: ",current_batch_index,
-            ' Cost 5: ',sess_results[1],' Cost 4: ',sess_results[2],' Cost 3:',sess_results[3],' Cost 2:',sess_results[4],' Cost 1:',sess_results[5]
-            ,end='\r')
+            sess_results = sess.run([auto_train,cost,layer10,final_image],feed_dict={x:current_image_batch,y:current_mask_batch})
+            print("Current Iter: ",iter, " current batch: ",current_batch_index,' Cost : ',sess_results[1],end='\r')
 
         if iter % print_size == 0:
             print("\n------------------------\n")
-            test_example    = train_images[:2,:,:,:]
-            test_example_gt = train_labels[:2,:,:,:]
-            sess_results = sess.run([final_image],feed_dict={x:test_example,y5:test_example_gt})
+            test_example    = train_image[:2,:,:,:]
+            test_example_gt = train_label[:2,:,:,:]
+            sess_results = sess.run([layer10],feed_dict={x:test_example,y:test_example_gt})
 
-            sess_results = sess_results[0][0,:,:,:]
+            sess_results = sess_results[0]
+            sess_results[:,:,:,0]  = (sess_results[:,:,:,0] - sess_results[:,:,:,0].min(axis=0)) / (sess_results[:,:,:,0].max(axis=0) - sess_results[:,:,:,0].min(axis=0)+1e-10)
+            sess_results[:,:,:,1]  = (sess_results[:,:,:,1] - sess_results[:,:,:,1].min(axis=0)) / (sess_results[:,:,:,1].max(axis=0) - sess_results[:,:,:,1].min(axis=0)+1e-10)
+            sess_results[:,:,:,2]  = (sess_results[:,:,:,2] - sess_results[:,:,:,2].min(axis=0)) / (sess_results[:,:,:,2].max(axis=0) - sess_results[:,:,:,2].min(axis=0)+1e-10)
+            sess_results = sess_results[0,:,:,:]
             test_example = test_example[0,:,:,:]
             test_example_gt = test_example_gt[0,:,:,:]
 
@@ -246,7 +232,7 @@ with tf.Session() as sess:
 
             plt.figure()
             plt.axis('off')
-            plt.imshow(np.squeeze(sess_results*test_example),cmap='gray')
+            plt.imshow(np.squeeze(sess_results*test_example))
             plt.title("Generated Overlayed")
             plt.savefig('train_change/'+str(iter)+"f Overlayed Mask.png")
 
