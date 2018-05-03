@@ -24,7 +24,7 @@ def tf_softmax(x): return tf.nn.softmax(x)
 class CNNLayer():
     
     def __init__(self,ker,in_c,out_c,act,d_act):
-        self.w = tf.Variable(tf.truncated_normal([ker,ker,in_c,out_c],stddev=0.05))
+        self.w = tf.Variable(tf.truncated_normal([ker,ker,in_c,out_c]))
         self.act,self.d_act = act,d_act
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -72,30 +72,30 @@ class CNNLayer():
         return grad_pass,update_w
 
 # data 
-data_location = "../../Dataset/salObj/datasets/imgs/pascal/"
-train_data = []  # create an empty list
-for dirName, subdirList, fileList in sorted(os.walk(data_location)):
-    for filename in fileList:
-        if ".jpg" in filename.lower() :
-            train_data.append(os.path.join(dirName,filename))
+# data_location = "../../Dataset/salObj/datasets/imgs/pascal/"
+# train_data = []  # create an empty list
+# for dirName, subdirList, fileList in sorted(os.walk(data_location)):
+#     for filename in fileList:
+#         if ".jpg" in filename.lower() :
+#             train_data.append(os.path.join(dirName,filename))
 
-data_location =  "../../Dataset/salObj/datasets/masks/pascal/"
-train_data_gt = []  # create an empty list
-for dirName, subdirList, fileList in sorted(os.walk(data_location)):
-    for filename in fileList:
-        if ".png" in filename.lower() :
-            train_data_gt.append(os.path.join(dirName,filename))
+# data_location =  "../../Dataset/salObj/datasets/masks/pascal/"
+# train_data_gt = []  # create an empty list
+# for dirName, subdirList, fileList in sorted(os.walk(data_location)):
+#     for filename in fileList:
+#         if ".png" in filename.lower() :
+#             train_data_gt.append(os.path.join(dirName,filename))
 
-train_images = np.zeros(shape=(850,128,128,3))
-train_labels = np.zeros(shape=(850,128,128,1))
+# train_images = np.zeros(shape=(850,128,128,3))
+# train_labels = np.zeros(shape=(850,128,128,1))
 
-for file_index in range(len(train_data)-1):
-    train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(128,128))
-    train_labels[file_index,:,:]   = np.expand_dims(imresize(imread(train_data_gt[file_index],mode='F',flatten=True),(128,128)),axis=3)
-train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0)+1e-10)
-train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0)+1e-10)
-train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0)+1e-10)
-train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+1e-10)
+# for file_index in range(len(train_data)-1):
+#     train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(128,128))
+#     train_labels[file_index,:,:]   = np.expand_dims(imresize(imread(train_data_gt[file_index],mode='F',flatten=True),(128,128)),axis=3)
+# train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0)+1e-10)
+# train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0)+1e-10)
+# train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0)+1e-10)
+# train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+1e-10)
 
 
 
@@ -111,57 +111,49 @@ l1_e = CNNLayer(3,3,16,tf_Relu,d_tf_Relu)
 l2_e = CNNLayer(3,16,32,tf_Relu,d_tf_Relu)
 l3_e = CNNLayer(3,32,64,tf_Relu,d_tf_Relu)
 l4_e = CNNLayer(3,64,128,tf_Relu,d_tf_Relu)
+l5_e = CNNLayer(3,128,256,tf_Relu,d_tf_Relu)
 
-l1_match = CNNLayer(3,128,1,tf_Relu,d_tf_Relu)
-l2_match = CNNLayer(3,64,1,tf_Relu,d_tf_Relu)
-l3_match = CNNLayer(3,32,1,tf_Relu,d_tf_Relu)
-l4_match = CNNLayer(3,16,1,tf_Relu,d_tf_Relu)
+l1_match = CNNLayer(3,256,1,tf_Relu,d_tf_Relu)
+l2_match = CNNLayer(3,128,1,tf_Relu,d_tf_Relu)
+l3_match = CNNLayer(3,64,1,tf_Relu,d_tf_Relu)
+l4_match = CNNLayer(3,32,1,tf_Relu,d_tf_Relu)
+l5_match = CNNLayer(3,16,1,tf_Relu,d_tf_Relu)
+l6_match = CNNLayer(3,16,1,tf_Relu,d_tf_Relu)
 
-l1_d = CNNLayer(3,2,1,tf_Relu,d_tf_Relu)
-l2_d = CNNLayer(3,2,1,tf_Relu,d_tf_Relu)
-l3_d = CNNLayer(3,2,1,tf_Relu,d_tf_Relu)
-l4_d = CNNLayer(3,2,1,tf_Relu,d_tf_Relu)
+l1_d = CNNLayer(3,256,1,tf_Relu,d_tf_Relu)
+l2_d = CNNLayer(3,128,1,tf_Relu,d_tf_Relu)
+l3_d = CNNLayer(3,64,1,tf_Relu,d_tf_Relu)
+l4_d = CNNLayer(3,32,1,tf_Relu,d_tf_Relu)
+l5_d = CNNLayer(3,16,1,tf_Relu,d_tf_Relu)
 
 # graph
 x = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32)
-y5 = tf.placeholder(shape=[None,128,128,1],dtype=tf.float32)
-y4 = tf.image.resize_images(y5,size=[64,64])
-y3 = tf.image.resize_images(y5,size=[32,32])
-y2 = tf.image.resize_images(y5,size=[16,16])
-y1 = tf.image.resize_images(y5,size=[8,8])
+y1 = tf.placeholder(shape=[None,128,128,1],dtype=tf.float32)
+y2 = tf.image.resize_images(y1,size=[64,64])
+y3 = tf.image.resize_images(y1,size=[32,32])
+y4 = tf.image.resize_images(y1,size=[16,16])
+y5 = tf.image.resize_images(y1,size=[8,8])
 
 # encode
 layer1 = l1_e.feedforward(x)
 layer2 = l2_e.feedforward(layer1)
 layer3 = l3_e.feedforward(layer2)
 layer4 = l4_e.feedforward(layer3)
-cost1 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4,labels=y1))
+layer5 = l5_e.feedforward(layer4)
 
-layer5_Match = l1_match.feedforward(layer4,mean_pooling=False)
-layer5_Input = tf.concat([layer4,layer5_Match],axis=3)
-layer5 = l1_d.feedforward(layer5_Input,mean_pooling=False,batch_norm=False,no_activation=False)
-layer5_Up = tf.image.resize_images(layer5,size=[16,16],method=tf.image.ResizeMethod.BILINEAR)
-cost2 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer5_Up,labels=y2))
+layer5Match = l1_match.feedforward(layer5,mean_pooling=False,no_activation=True,batch_norm=False)
+cost5_Matched_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer5Match,labels=y5))
 
-layer6_Match = l2_match.feedforward(layer3,mean_pooling=False)
-layer6_Input = tf.concat([layer5_Up,layer6_Match],axis=3)
-layer6 = l2_d.feedforward(layer6_Input,mean_pooling=False,batch_norm=False,no_activation=False)
-layer6_Up = tf.image.resize_images(layer6,size=[32,32],method=tf.image.ResizeMethod.BILINEAR)
-cost3 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer6_Up,labels=y3))
+layer6 = l2_match.feedforward(layer4,mean_pooling=False)
+layer6_Concat = tf.concat([layer5Match,layer6],axis=3)
 
-layer7_Match = l3_match.feedforward(layer2,mean_pooling=False)
-layer7_Input = tf.concat([layer6_Up,layer7_Match],axis=3)
-layer7 = l3_d.feedforward(layer7_Input,mean_pooling=False,batch_norm=False,no_activation=False)
-layer7_Up = tf.image.resize_images(layer7,size=[64,64],method=tf.image.ResizeMethod.BILINEAR)
-cost4 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer7_Up,labels=y4))
 
-layer8_Match = l4_match.feedforward(layer1,mean_pooling=False)
-layer8_Input = tf.concat([layer7_Up,layer8_Match],axis=3)
-layer8 = l4_d.feedforward(layer8_Input,mean_pooling=False,batch_norm=False,no_activation=False)
-layer8_Up = tf.image.resize_images(layer8,size=[128,128],method=tf.image.ResizeMethod.BILINEAR)
-cost5 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer8_Up,labels=y5))
+sys.exit()
 
-stage5_image,stage4_image,stage3_image,stage2_image,stage1_image = tf_softmax(layer8_Up),tf_softmax(layer7_Up),tf_softmax(layer6_Up),tf_softmax(layer5_Up),tf_softmax(layer4)
+# cost4_Matched = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4_Match,labels=y1))
+# cost3_Matched = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4_Match,labels=y1))
+# cost2_Matched = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4_Match,labels=y1))
+# cost1_Matched = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4_Match,labels=y1))
 
 auto_train = tf.train.MomentumOptimizer(learning_rate=learing_rate,momentum=0.9).minimize(cost1+cost2+cost3+cost4+cost5)
 
