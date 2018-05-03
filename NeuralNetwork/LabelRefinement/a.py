@@ -6,7 +6,7 @@ from sklearn.utils import shuffle
 from scipy.ndimage import imread
 from scipy.misc import imresize
 
-np.random.seed(678)
+np.random.seed(6783)
 tf.set_random_seed(678)
 
 # Activation Functions - however there was no indication in the original paper
@@ -30,11 +30,12 @@ class CNNLayer():
 
     def getw(self): return [self.w]
 
-    def feedforward(self,input,stride=1,batch_norm=True,padding_val='SAME',mean_pooling=True):
+    def feedforward(self,input,stride=1,batch_norm=True,padding_val='SAME',mean_pooling=True,no_activation=False):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides = [1,stride,stride,1],padding=padding_val)
         if batch_norm: self.layer = tf.nn.batch_normalization(self.layer,mean=0.0,variance=1.0,variance_epsilon=1e-8,scale=True,offset=True)
         if mean_pooling: self.layer = tf.nn.avg_pool(self.layer,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+        if no_activation: return self.layer
         self.layerA = self.act(self.layer)
         return self.layerA
 
@@ -98,7 +99,7 @@ train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis
 train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+ 1e-10)
 
 # hyper
-num_epoch = 1000
+num_epoch = 50
 learing_rate = 0.001
 batch_size = 10
 print_size = 5
@@ -121,13 +122,13 @@ l4_d = CNNLayer(3,2,1,tf_Relu,d_tf_Relu)
 
 # graph
 x = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32)
-
 y5 = tf.placeholder(shape=[None,128,128,1],dtype=tf.float32)
-y4 = tf.image.resize_images(y5,size=[64,64],method=tf.image.ResizeMethod.BILINEAR)
-y3 = tf.image.resize_images(y5,size=[32,32],method=tf.image.ResizeMethod.BILINEAR)
-y2 = tf.image.resize_images(y5,size=[16,16],method=tf.image.ResizeMethod.BILINEAR)
-y1 = tf.image.resize_images(y5,size=[8,8],method=tf.image.ResizeMethod.BILINEAR)
+y4 = tf.image.resize_images(y5,size=[64,64])
+y3 = tf.image.resize_images(y5,size=[32,32])
+y2 = tf.image.resize_images(y5,size=[16,16])
+y1 = tf.image.resize_images(y5,size=[8,8])
 
+# encode
 layer1 = l1_e.feedforward(x)
 layer2 = l2_e.feedforward(layer1)
 layer3 = l3_e.feedforward(layer2)
@@ -136,33 +137,29 @@ cost1 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4,
 
 layer5_Match = l1_match.feedforward(layer4,mean_pooling=False)
 layer5_Input = tf.concat([layer4,layer5_Match],axis=3)
-layer5 = l1_d.feedforward(layer5_Input,mean_pooling=False)
+layer5 = l1_d.feedforward(layer5_Input,mean_pooling=False,batch_norm=False,no_activation=True)
 layer5_Up = tf.image.resize_images(layer5,size=[16,16],method=tf.image.ResizeMethod.BILINEAR)
 cost2 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer5_Up,labels=y2))
 
 layer6_Match = l2_match.feedforward(layer3,mean_pooling=False)
 layer6_Input = tf.concat([layer5_Up,layer6_Match],axis=3)
-layer6 = l2_d.feedforward(layer6_Input,mean_pooling=False)
+layer6 = l2_d.feedforward(layer6_Input,mean_pooling=False,batch_norm=False,no_activation=True)
 layer6_Up = tf.image.resize_images(layer6,size=[32,32],method=tf.image.ResizeMethod.BILINEAR)
 cost3 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer6_Up,labels=y3))
 
 layer7_Match = l3_match.feedforward(layer2,mean_pooling=False)
 layer7_Input = tf.concat([layer6_Up,layer7_Match],axis=3)
-layer7 = l3_d.feedforward(layer7_Input,mean_pooling=False)
+layer7 = l3_d.feedforward(layer7_Input,mean_pooling=False,batch_norm=False,no_activation=True)
 layer7_Up = tf.image.resize_images(layer7,size=[64,64],method=tf.image.ResizeMethod.BILINEAR)
 cost4 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer7_Up,labels=y4))
 
 layer8_Match = l4_match.feedforward(layer1,mean_pooling=False)
 layer8_Input = tf.concat([layer7_Up,layer8_Match],axis=3)
-layer8 = l4_d.feedforward(layer8_Input,mean_pooling=False)
+layer8 = l4_d.feedforward(layer8_Input,mean_pooling=False,batch_norm=False,no_activation=True)
 layer8_Up = tf.image.resize_images(layer8,size=[128,128],method=tf.image.ResizeMethod.BILINEAR)
 cost5 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer8_Up,labels=y5))
 
-stage5_image = tf_softmax(layer8_Up)
-stage4_image = tf_softmax(layer7_Up)
-stage3_image = tf_softmax(layer6_Up)
-stage2_image = tf_softmax(layer5_Up)
-stage1_image = tf_softmax(layer4)
+stage5_image,stage4_image,stage3_image,stage2_image,stage1_image = tf_softmax(layer8_Up),tf_softmax(layer7_Up),tf_softmax(layer6_Up),tf_softmax(layer5_Up),tf_softmax(layer4)
 
 auto_train = tf.train.MomentumOptimizer(learning_rate=learing_rate,momentum=0.9).minimize(cost1+cost2+cost3+cost4+cost5)
 
@@ -174,8 +171,9 @@ with tf.Session() as sess:
         
         train_images,train_labels = shuffle(train_images,train_labels)
         for current_batch_index in range(0,len(train_data),batch_size):
+            
             current_image_batch = train_images[current_batch_index:current_batch_index+batch_size,:,:,:]
-            current_mask_batch = train_labels[current_batch_index:current_batch_index+batch_size,:,:,:]
+            current_mask_batch  = train_labels[current_batch_index:current_batch_index+batch_size,:,:,:]
 
             sess_results = sess.run([auto_train,cost5,cost4,cost3,cost2,cost1],feed_dict={x:current_image_batch,y5:current_mask_batch})
             print("Current Iter: ",iter, " current batch: ",current_batch_index,
@@ -186,7 +184,7 @@ with tf.Session() as sess:
             print("\n------------------------\n")
             test_example =   train_images[:2,:,:,:]
             test_example_gt = train_labels[:2,:,:,:]
-            sess_results = sess.run([stage5_image],feed_dict={x:test_example,y5:test_example_gt})
+            sess_results = sess.run([layer8_Up],feed_dict={x:test_example,y5:test_example_gt})
 
             sess_results = sess_results[0][0,:,:,:]
             test_example = test_example[0,:,:,:]
@@ -195,24 +193,36 @@ with tf.Session() as sess:
             plt.figure()
             plt.imshow(np.squeeze(test_example))
             plt.axis('off')
-            plt.title('Original Mask ')
-            plt.savefig('train_change/'+str(iter)+"a_Original_Mask.png")
+            plt.title('Original Image')
+            plt.savefig('train_change/'+str(iter)+"a Original Image.png")
 
             plt.figure()
             plt.imshow(np.squeeze(test_example_gt),cmap='gray')
             plt.axis('off')
-            plt.title('Ground Truth Image')
-            plt.savefig('train_change/'+str(iter)+"b_Original_Image.png")
+            plt.title('Ground Truth Mask')
+            plt.savefig('train_change/'+str(iter)+"b Original Mask.png")
 
             plt.figure()
             plt.axis('off')
             plt.imshow(np.squeeze(sess_results),cmap='gray')
-            plt.title("Generated Image")
-            plt.savefig('train_change/'+str(iter)+"e_Generated_Image.png")
+            plt.title("Generated Mask")
+            plt.savefig('train_change/'+str(iter)+"d Generated Mask.png")
+
+            plt.figure()
+            plt.imshow(np.squeeze(test_example_gt * test_example))
+            plt.axis('off')
+            plt.title('Ground Truth Overlayed')
+            plt.savefig('train_change/'+str(iter)+"e Overlayed Mask GT.png")
+
+            plt.figure()
+            plt.axis('off')
+            plt.imshow(np.squeeze(sess_results*test_example),cmap='gray')
+            plt.title("Generated Overlayed")
+            plt.savefig('train_change/'+str(iter)+"f Overlayed Mask.png")
 
             plt.close('all')       
 
-    # # print halve test
+    # Print halve test
     # for current_batch_index in range(0,len(test_images),batch_size):
     #     test_example = test_images[current_batch_index:current_batch_index+batch_size,:,:,:]
     #     test_example_gt  = test_images_c[current_batch_index:current_batch_index+batch_size,:,:,:]
@@ -242,7 +252,7 @@ with tf.Session() as sess:
 
     #     plt.close('all')       
 
-    # # print halve train
+    # Print halve train
     # for current_batch_index in range(0,len(train_data),batch_size):
     #     test_example = train_data[current_batch_index:current_batch_index+batch_size,:,:,:]
     #     test_example_gt  = train_gt[current_batch_index:current_batch_index+batch_size,:,:,:]
