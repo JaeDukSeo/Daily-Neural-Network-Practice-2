@@ -67,8 +67,7 @@ class CNNLayer():
         return grad_pass,update_w
 
 
-
-# data
+# data here
 
 # hyper
 
