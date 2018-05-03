@@ -7,7 +7,7 @@ from scipy.ndimage import imread
 from scipy.misc import imresize
 
 np.random.seed(6783)
-tf.set_random_seed(678)
+tf.set_random_seed(6785)
 
 # Activation Functions - however there was no indication in the original paper
 def tf_Relu(x): return tf.nn.relu(x)
@@ -92,25 +92,25 @@ train_labels = np.zeros(shape=(850,128,128,1))
 for file_index in range(len(train_data)-1):
     train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(128,128))
     train_labels[file_index,:,:]   = np.expand_dims(imresize(imread(train_data_gt[file_index],mode='F',flatten=True),(128,128)),axis=3)
-
-train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0)+ 1e-10)
-train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0)+ 1e-10)
-train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0)+ 1e-10)
-train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+ 1e-10)
+train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0)+1e-10)
+train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0)+1e-10)
+train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0)+1e-10)
+train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+1e-10)
 
 # hyper
 num_epoch = 50
-learing_rate = 0.001
+learing_rate = 0.0001
 batch_size = 10
 print_size = 5
 
-# define class
+# define 
 l1_e = CNNLayer(3,3,16,tf_Relu,d_tf_Relu)
 l2_e = CNNLayer(3,16,32,tf_Relu,d_tf_Relu)
 l3_e = CNNLayer(3,32,64,tf_Relu,d_tf_Relu)
-l4_e = CNNLayer(3,64,1,tf_Relu,d_tf_Relu)
+l4_e = CNNLayer(3,64,128,tf_Relu,d_tf_Relu)
 
-l1_match = CNNLayer(3,1,1,tf_Relu,d_tf_Relu)
+l0_match = CNNLayer(3,128,1,tf_Relu,d_tf_Relu)
+l1_match = CNNLayer(3,128,1,tf_Relu,d_tf_Relu)
 l2_match = CNNLayer(3,64,1,tf_Relu,d_tf_Relu)
 l3_match = CNNLayer(3,32,1,tf_Relu,d_tf_Relu)
 l4_match = CNNLayer(3,16,1,tf_Relu,d_tf_Relu)
@@ -133,7 +133,9 @@ layer1 = l1_e.feedforward(x)
 layer2 = l2_e.feedforward(layer1)
 layer3 = l3_e.feedforward(layer2)
 layer4 = l4_e.feedforward(layer3)
-cost1 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4,labels=y1))
+
+layer6_Input = l0_match.feedforward(layer4,mean_pooling=False)
+cost1 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer6_Input,labels=y1))
 
 layer5_Match = l1_match.feedforward(layer4,mean_pooling=False)
 layer5_Input = tf.concat([layer4,layer5_Match],axis=3)
