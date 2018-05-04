@@ -6,7 +6,7 @@ from sklearn.utils import shuffle
 from scipy.ndimage import imread
 from scipy.misc import imresize
 
-np.random.seed(603)
+np.random.seed(538)
 # tf.set_random_seed(6785)
 
 
@@ -16,29 +16,29 @@ def get_pascal_labels():
         np.ndarray with dimensions (21, 3)
 
     ** The names of the classes 
-    1. aeroplane     [128,0,0]
-    2. bicycle       [0,128,0]
-    3. bird          [128,128,0]
-    4. boat          [0,0,128]
-    5. bottle        [128,0,128]
-    6. bus           [0,128,128]
-    7. car           [128,128,128]
-    8. cat           [64,0,0]
-    9. chair         [192,0,0]
-    10. cow          [64,128,0]
-    11. diningtable  [192,128,0]
-    12. dog          [64,0,128]
-    13. horse        [192,0,128]
-    14. motorbike    [64,128,128]
-    15. person       [192,128,128]
-    16. potted plant [0,64,0]
-    17. sheep        [128,64,0]
-    18. sofa         [0,192,0]
-    19. train        [128,192,0]
-    20. tv/monitor   [0,64,128]
-    21. Void/None    [0,0,0] or [224,224,192]
+    0. aeroplane     [128,0,0]
+    1. bicycle       [0,128,0]
+    2. bird          [128,128,0]
+    3. boat          [0,0,128]
+    4. bottle        [128,0,128]
+    5. bus           [0,128,128]
+    6. car           [128,128,128]
+    7. cat           [64,0,0]
+    8. chair         [192,0,0]
+    9. cow          [64,128,0]
+    10. diningtable  [192,128,0]
+    11. dog          [64,0,128]
+    12. horse        [192,0,128]
+    13. motorbike    [64,128,128]
+    14. person       [192,128,128]
+    15. potted plant [0,64,0]
+    16. sheep        [128,64,0]
+    17. sofa         [0,192,0]
+    18. train        [128,192,0]
+    19. tv/monitor   [0,64,128]
+    20. Void/None    [0,0,0] or [224,224,192s]
     """
-    return np.asarray([[0,0,0], [128,0,0], [0,128,0], [128,128,0],[0,0,128], [128,0,128], [0,128,128], [128,128,128],
+    return np.asarray([ [128,0,0], [0,128,0], [128,128,0],[0,0,128], [128,0,128], [0,128,128], [128,128,128],
                         [64,0,0], [192,0,0], [64,128,0], [192,128,0],[64,0,128], [192,0,128], [64,128,128], [192,128,128],
                         [0, 64,0], [128, 64, 0], [0,192,0], [128,192,0],[0,64,128]])
 
@@ -81,7 +81,7 @@ train_data,train_data_gt = shuffle(train_data,train_data_gt)
 # create the array to read
 train_images = np.zeros(shape=(50,128,128,3))
 train_labels = np.zeros(shape=(50,128,128,3))
-train_labels_channels = np.zeros(shape=(10,128,128,20))
+train_labels_channels = np.zeros(shape=(10,128,128,21))
 
 for file_index in range(50):
     train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(128,128))
@@ -89,15 +89,24 @@ for file_index in range(50):
 train_images = train_images.astype(int)
 train_labels = train_labels.astype(int)
 
-for x in range(50):
-    plt.imshow(train_images[x,:,:,:])
+print(len(get_pascal_labels()))
+print('------------------------------')
+test_label = np.expand_dims(train_labels[0,:,:,:],axis=0)
+
+plt.imshow(np.squeeze(train_labels[0,:,:,:]) ) 
+plt.show()
+plt.imshow(np.squeeze(test_label[0,:,:,:]) ) 
+plt.show()
+
+mask_index = 0 
+label_mask = np.zeros((128, 128,20)).astype(int)
+for label in get_pascal_labels():
+    coordinate = np.where(np.all(test_label == label, axis=-1))
+    label_mask[coordinate[1],coordinate[2],mask_index ] = 1
+    mask_index = mask_index + 1
+    
+for x in range(20):
+    plt.imshow(label_mask[:,:,x],cmap='gray')
     plt.show()
-    plt.imshow(train_labels[x,:,:,:])
-    plt.show()
-
-
-
-
-
 
 # -- end code --
