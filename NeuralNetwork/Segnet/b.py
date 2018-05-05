@@ -71,7 +71,6 @@ class CNNLayer():
 
         return grad_pass,update_w
 
-
 def tf_repeat(tensor, repeats):
     """
     Args:
@@ -96,27 +95,27 @@ def get_pascal_labels_pixel():
         np.ndarray with dimensions (21, 3)
 
     ** The names of the classes 
-    0. aeroplane     [128,0,0]
-    1. bicycle       [0,128,0]
-    2. bird          [128,128,0]
-    3. boat          [0,0,128]
-    4. bottle        [128,0,128]
-    5. bus           [0,128,128]
-    6. car           [128,128,128]
-    7. cat           [64,0,0]
-    8. chair         [192,0,0]
-    9. cow          [64,128,0]
-    10. diningtable  [192,128,0]
-    11. dog          [64,0,128]
-    12. horse        [192,0,128]
-    13. motorbike    [64,128,128]
-    14. person       [192,128,128]
-    15. potted plant [0,64,0]
-    16. sheep        [128,64,0]
-    17. sofa         [0,192,0]
-    18. train        [128,192,0]
-    19. tv/monitor   [0,64,128]
-    20. Void/None    [0,0,0] or [224,224,192s]
+    0. Void/None    [0,0,0] or [224,224,192s]
+    1. aeroplane     [128,0,0]
+    2. bicycle       [0,128,0]
+    3. bird          [128,128,0]
+    4. boat          [0,0,128]
+    5. bottle        [128,0,128]
+    6. bus           [0,128,128]
+    7. car           [128,128,128]
+    8. cat           [64,0,0]
+    9. chair         [192,0,0]
+    10. cow          [64,128,0]
+    11. diningtable  [192,128,0]
+    12. dog          [64,0,128]
+    13. horse        [192,0,128]
+    14. motorbike    [64,128,128]
+    15. person       [192,128,128]
+    16. potted plant [0,64,0]
+    17. sheep        [128,64,0]
+    18. sofa         [0,192,0]
+    19. train        [128,192,0]
+    20. tv/monitor   [0,64,128]
     """
     return np.asarray([ [128,0,0], [0,128,0], [128,128,0],[0,0,128], [128,0,128], [0,128,128], [128,128,128],
                         [64,0,0], [192,0,0], [64,128,0], [192,128,0],[64,0,128], [192,0,128], [64,128,128], [192,128,128],
@@ -226,9 +225,9 @@ train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis
 train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0)+1e-10)
 train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0)+1e-10)
 
-train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+1e-10)
-train_labels[:,:,:,1]  = (train_labels[:,:,:,1] - train_labels[:,:,:,1].min(axis=0)) / (train_labels[:,:,:,1].max(axis=0) - train_labels[:,:,:,1].min(axis=0)+1e-10)
-train_labels[:,:,:,2]  = (train_labels[:,:,:,2] - train_labels[:,:,:,2].min(axis=0)) / (train_labels[:,:,:,2].max(axis=0) - train_labels[:,:,:,2].min(axis=0)+1e-10)
+# train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+1e-10)
+# train_labels[:,:,:,1]  = (train_labels[:,:,:,1] - train_labels[:,:,:,1].min(axis=0)) / (train_labels[:,:,:,1].max(axis=0) - train_labels[:,:,:,1].min(axis=0)+1e-10)
+# train_labels[:,:,:,2]  = (train_labels[:,:,:,2] - train_labels[:,:,:,2].min(axis=0)) / (train_labels[:,:,:,2].max(axis=0) - train_labels[:,:,:,2].min(axis=0)+1e-10)
 
 test_image = train_images[290:,:,:,:]
 test_label = train_labels[290:,:,:,:]
@@ -241,8 +240,8 @@ train_labels_RGB = train_labels_RGB[:290,:,:,:]
 NUM_CLASS = 20
 num_epoch = 1000
 learing_rate = 0.00001
-batch_size = 10
-print_size = 100
+batch_size = 1
+print_size = 10
 
 # define 
 l1_e = CNNLayer(3,3,32,tf_Relu,d_tf_Relu)
@@ -268,28 +267,27 @@ layer4 = l4_e.feedforward(layer3)
 layer5 = l5_e.feedforward(layer4)
 
 layer6_Input = tf_repeat(layer5,[1,2,2,1])
-layer6 = l6_d.feedforward(layer6_Input,mean_pooling=False)
+layer6 = l6_d.feedforward(layer6_Input,mean_pooling=False,batch_norm=False)
 
 layer7_Input = tf_repeat(layer6,[1,2,2,1])
-layer7 = l7_d.feedforward(layer7_Input,mean_pooling=False)
+layer7 = l7_d.feedforward(layer7_Input,mean_pooling=False,batch_norm=False)
 
 layer8_Input = tf_repeat(layer7,[1,2,2,1])
-layer8 = l8_d.feedforward(layer8_Input,mean_pooling=False)
+layer8 = l8_d.feedforward(layer8_Input,mean_pooling=False,batch_norm=False)
 
 layer9_Input = tf_repeat(layer8,[1,2,2,1])
-layer9 = l9_d.feedforward(layer9_Input,mean_pooling=False)
+layer9 = l9_d.feedforward(layer9_Input,mean_pooling=False,batch_norm=False)
 
 layer10_Input = tf_repeat(layer9,[1,2,2,1])
-layer10 = l10_d.feedforward(layer10_Input,mean_pooling=False)
+layer10 = l10_d.feedforward(layer10_Input,mean_pooling=False,batch_norm=False)
 
 layer10_reshape = tf.reshape(layer10,[-1,NUM_CLASS])
-layer10_pred = tf.reshape(tf_softmax(layer10_reshape),[batch_size,128,128,20])
 y_reshape = tf.reshape(y,[-1,NUM_CLASS])
-
-cost = tf.reduce_mean(tf.square(layer10-y))
-# cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer10_reshape,labels=y_reshape))
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer10_reshape,labels=y_reshape))
 auto_train = tf.train.MomentumOptimizer(learning_rate=learing_rate,momentum=0.9).minimize(cost)
-# auto_train = tf.train.AdamOptimizer(learning_rate=learing_rate).minimize(cost)
+
+# layer10_predict = tf.reshape(tf_softmax(layer10_reshape),[batch_size,128,128,20])
+layer10_predict = tf.argmax(layer10,axis=3)
 
 
 # session
@@ -304,31 +302,17 @@ with tf.Session() as sess:
             current_image_batch = train_image[current_batch_index:current_batch_index+batch_size,:,:,:]
             current_mask_batch  = train_label[current_batch_index:current_batch_index+batch_size,:,:,:]
 
-            sess_results = sess.run([auto_train,cost,y_reshape,layer10_reshape],feed_dict={x:current_image_batch,y:current_mask_batch})
+            sess_results = sess.run([auto_train,cost],feed_dict={x:current_image_batch,y:current_mask_batch})
             print("Current Iter: ",iter, " current batch: ",current_batch_index,' Cost : ',sess_results[1],end='\r')
 
         if iter % print_size == 0:
             print("\n------------------------\n")
             test_example    = train_image[:batch_size,:,:,:]
             test_example_gt_RGB = train_labels_RGB[:batch_size,:,:,:]
-            sess_results = sess.run([layer10,layer10_pred],feed_dict={x:test_example})
+            sess_results = sess.run([layer10_predict],feed_dict={x:test_example})
 
-            sess_results1 =  sess_results[1][0,:,:,:]
-            sess_results =  sess_results[0][0,:,:,:]
-
-            listss = get_pascal_label_names()
-            for xss in range(20):
-                print("Current Class : " , str(listss[xss]) ,' : ', str(sess_results[:,:,xss].sum()) )
-                plt.title(str(listss[xss])+" pure ")
-                plt.imshow(sess_results[:,:,xss],cmap='gray')
-                plt.show()
-
-            for xss in range(20):
-                print("Current Class : " , str(listss[xss]) ,' : ', str(sess_results1[:,:,xss].sum()) )
-                plt.title(str(listss[xss])+" softmax ")
-                plt.imshow(sess_results1[:,:,xss],cmap='gray')
-                plt.show()
-
+            sess_results =  sess_results[0][:,:,:]
+            print(sess_results.shape)
             test_example =    test_example[0,:,:,:]
             test_example_gt = test_example_gt_RGB[0,:,:,:]
 
@@ -346,7 +330,7 @@ with tf.Session() as sess:
 
             plt.figure()
             plt.axis('off')
-            plt.imshow(np.squeeze(sess_results[:,:,0]),cmap='gray')
+            plt.imshow(np.squeeze(sess_results[:,:,:]),cmap='gray')
             plt.title("Generated Mask")
             plt.savefig('train_change/'+str(iter)+"c Generated Mask.png")
 
