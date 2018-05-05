@@ -22,43 +22,48 @@ def tf_softmax(x): return tf.nn.softmax(x)
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 training_images, training_labels, testing_images, testing_labels = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
-print(training_images.shape)
-print(training_labels.shape)
-print(testing_images.shape)
-print(testing_labels.shape)
-
-
-sys.exit()
-
 # class
-def FNN():
-    
-    def __init__(self,inc,outc):
-        self.w = tf.Variable(tf.truncated_normal([inc,outc]))
-        self.b = tf.ones_like(self.w)
+class FNN():
+    def __init__(self,input_dim,hidden_dim,act,d_act):
+        self.w = tf.Variable(tf.truncated_normal([input_dim,hidden_dim], stddev=0.005))
+        self.act,self.d_act = act,d_act
 
+    def feedforward(self,input=None):
+        self.input = input
+        self.layer = tf.matmul(input,self.w)
+        self.layerA = self.act(self.layer)
+        return self.layerA
+
+    def backprop(self,gradient=None):
+        grad_part_1 = gradient
+        grad_part_2 = self.d_act(self.layer)
+        grad_part_3 = self.input 
+
+        grad_x_mid = tf.multiply(grad_part_1,grad_part_2)
+        grad = tf.matmul(tf.transpose(grad_part_3),grad_x_mid)
+        grad_pass = tf.matmul(tf.multiply(grad_part_1,grad_part_2),tf.transpose(self.w))
+
+        update_w = []
+        update_w.append(tf.assign(self.w, self.w - learning_rate * grad))
+        return grad_pass,update_w
 
 # hyper
-num_epoch = 100
-batch_size = 50
-print_size = 1
-learning_rate = 0.0003
-
-beta1,beta2 = 0.9,0.999
-adam_e = 1e-8
+num_epoch = 801
+batch_size = 100
+print_size = 50
+learning_rate = 0.003
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = CNN(5,1,2)
-l2 = CNN(3,4,8)
-l3 = CNN(3,16,4)
-l4 = CNN(3,8,2)
-l5 = CNN(1,4,5)
+l1 = FNN(784,400,tf_tanh,d_tf_tanh)
+l2 = FNN(400,400,tf_tanh,d_tf_tanh)
+l3 = FNN(400,10,tf_tanh,d_tf_tanh)
 
 # graph
-x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
+x = tf.placeholder(shape=[None,784],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
@@ -67,17 +72,19 @@ decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
-layer4 = l4.feedforward(layer3)
-layer5 = l5.feedforward(layer4)
-final_soft = tf.reshape(layer5,[batch_size,-1])
-final = tf_softmax(final_soft)
+layer3_soft = tf_softmax(layer3)
 
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft,labels=y))
-correct_prediction = tf.equal(tf.argmax(final, 1), tf.argmax(y, 1))
+# grad3,grad3_up = layer3.backprop(layer3_soft - y)
+# grad2,grad2_up = layer2.backprop(grad3)
+# grad1,grad1_up = layer1.backprop(grad2)
+# manual_backprop = grad1_up + grad2_up + grad3_up
+
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer3,labels=y))
+correct_prediction = tf.equal(tf.argmax(layer3_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # --- auto train ---
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+auto_train = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # session
 with tf.Session() as sess:
@@ -92,20 +99,19 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
 
-        # training_images,training_labels = shuffle(training_images,training_labels )
-
+        training_images,training_labels = shuffle(training_images,training_labels )
         for batch_size_index in range(0,len(training_images),batch_size):
-            current_batch = training_images[batch_size_index:batch_size_index+batch_size,:,:,:]
-            current_batch_label = training_labels[batch_size_index:batch_size_index+batch_size,:]
-            sess_result = sess.run([cost,accuracy,auto_train,correct_prediction,final],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            current_batch = training_images[batch_size_index:batch_size_index+batch_size]
+            current_batch_label = training_labels[batch_size_index:batch_size_index+batch_size]
+            sess_result = sess.run([cost,accuracy,auto_train,correct_prediction,layer3_soft],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
         for test_batch_index in range(0,len(testing_images),batch_size):
-            current_batch = testing_images[test_batch_index:test_batch_index+batch_size,:,:,:]
-            current_batch_label = testing_labels[test_batch_index:test_batch_index+batch_size,:]
-            sess_result = sess.run([cost,accuracy,final,final_soft],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            current_batch = testing_images[test_batch_index:test_batch_index+batch_size]
+            current_batch_label = testing_labels[test_batch_index:test_batch_index+batch_size]
+            sess_result = sess.run([cost,accuracy,layer3,layer3_soft],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
@@ -118,10 +124,8 @@ with tf.Session() as sess:
 
         train_acc.append(train_acca/(len(training_images)/batch_size))
         train_cot.append(train_cota/(len(training_images)/batch_size))
-
         test_acc.append(test_acca/(len(testing_images)/batch_size))
         test_cot.append(test_cota/(len(testing_images)/batch_size))
-
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
 
