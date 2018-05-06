@@ -41,7 +41,7 @@ class CNN():
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
         # self.B = tf.Variable(tf.random_uniform([k,k,inc,out],minval=-0.5,maxval=0.5))
-        self.m = tf.Variable(tf.zeros_like(self.w))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
     def feedforward(self,input):
         self.input  = input
@@ -75,11 +75,19 @@ class CNN():
                 strides=[1,1,1,1],padding='SAME'
             )
 
-        grad_update = []
-        grad_update.append(tf.assign(self.m,tf.add(0.9*self.m, learning_rate*grad)))
-        grad_update.append(tf.assign(self.w,tf.subtract(self.w,self.m)))
+        update_w = []
+        update_w.append(
+            tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
+        )
+        update_w.append(
+            tf.assign( self.v,self.v*beta2 + (1-beta2) * grad ** 2   )
+        )
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat))))
 
-        return grad_pass,grad_update  
+        return grad_pass,update_w  
 
 # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
@@ -135,7 +143,7 @@ print_size = 5
 learning_rate = 0.00001
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
-proportion_rate = 1
+proportion_rate = 0.003
 decay_rate = 0.9
 
 # define class
@@ -201,35 +209,30 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 grad11,grad11_up = l11.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ))
 grad10,grad10_up = l10.backprop(grad11)
 
-grad11_back = tf_repeat(grad11,[1,2,2,1])
 grad9_Input = tf_repeat(grad10,[1,2,2,1])
-grad9,grad9_up = l9.backprop(grad9_Input + decay_dilated_rate * (grad11_back) )
-grad8,grad8_up = l8.backprop(grad9+ decay_dilated_rate * (grad11_back + grad9_Input) )
+grad9,grad9_up = l9.backprop(grad9_Input  )
+grad8,grad8_up = l8.backprop(grad9+ decay_dilated_rate * (  grad9_Input) )
 
-grad9_back  = tf_repeat(grad9,[1,2,2,1])
 grad7_Input = tf_repeat(grad8,[1,2,2,1])
-grad7,grad7_up = l7.backprop(grad7_Input+ decay_dilated_rate * (grad9_back) )
-grad6,grad6_up = l6.backprop(grad7+ decay_dilated_rate * (grad9_back +grad7_Input ) )
+grad7,grad7_up = l7.backprop(grad7_Input )
+grad6,grad6_up = l6.backprop(grad7+ decay_dilated_rate * ( grad7_Input ) )
 
-grad7_back  = tf_repeat(grad7,[1,2,2,1])
 grad5_Input = tf_repeat(grad6,[1,2,2,1])
-grad5,grad5_up = l5.backprop(grad5_Input+ decay_dilated_rate * (grad7_back) )
-grad4,grad4_up = l4.backprop(grad5+ decay_dilated_rate * (grad7_back + grad5_Input) )
+grad5,grad5_up = l5.backprop(grad5_Input )
+grad4,grad4_up = l4.backprop(grad5+ decay_dilated_rate * (  grad5_Input) )
 
-grad5_back  = tf_repeat(grad5,[1,2,2,1])
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input+ decay_dilated_rate * (grad5_back) )
-grad2,grad2_up = l2.backprop(grad3+ decay_dilated_rate * (grad5_back + grad3_Input) )
+grad3,grad3_up = l3.backprop(grad3_Input)
+grad2,grad2_up = l2.backprop(grad3+ decay_dilated_rate * (  grad3_Input) )
 
-grad3_back  = tf_repeat(grad3,[1,2,2,1])
 grad1_Input = tf_repeat(grad2,[1,2,2,1])
-grad1,grad1_up = l1.backprop(grad1_Input+ decay_dilated_rate * (grad3_back) )
+grad1,grad1_up = l1.backprop(grad1_Input+ decay_dilated_rate  )
 grad_update = grad11_up + grad10_up + grad9_up + grad8_up + \
                 grad7_up + grad6_up + grad5_up + grad4_up + \
                 grad3_up + grad2_up + grad1_up
 
 # # sess
-with tf.Session() as sess:
+with tf.Session( ) as sess:
 
     sess.run(tf.global_variables_initializer())
     
@@ -247,7 +250,8 @@ with tf.Session() as sess:
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
 
-            sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape,grad1,grad3,grad5],feed_dict={x:current_batch,
+            y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]

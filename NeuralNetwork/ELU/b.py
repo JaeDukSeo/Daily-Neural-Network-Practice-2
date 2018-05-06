@@ -40,9 +40,9 @@ class CNN():
     
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
-        self.B = tf.Variable(tf.truncated_normal([k,k,inc,out] ))
-        self.m = tf.Variable(tf.zeros_like(self.w))
-
+        self.B = tf.Variable(tf.random_uniform([k,k,inc,out],minval=-0.5,maxval=0.5 ))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        
     def feedforward(self,input):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')
@@ -75,11 +75,19 @@ class CNN():
                 strides=[1,1,1,1],padding='SAME'
             )
 
-        grad_update = []
-        grad_update.append(tf.assign(self.m,tf.add(0.9*self.m, learning_rate*grad)))
-        grad_update.append(tf.assign(self.w,tf.subtract(self.w,self.m)))
-
-        return grad_pass,grad_update  
+        update_w = []
+        update_w.append(
+            tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
+        )
+        update_w.append(
+            tf.assign( self.v,self.v*beta2 + (1-beta2) * grad ** 2   )
+        )
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat))))
+        
+        return grad_pass,update_w  
 
 # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
@@ -139,22 +147,22 @@ proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = CNN(5,3,192)
+l1 = CNN(5,3,16)
 
-l2 = CNN(1,192,192)
-l3 = CNN(3,192,240)
+l2 = CNN(1,16,16)
+l3 = CNN(3,16,32)
 
-l4 = CNN(1,240,240)
-l5 = CNN(2,240,260)
+l4 = CNN(1,32,32)
+l5 = CNN(2,32,64)
 
-l6 = CNN(1,260,260)
-l7 = CNN(2,260,280)
+l6 = CNN(1,64,64)
+l7 = CNN(2,64,66)
 
-l8 = CNN(1,280,280)
-l9 = CNN(2,280,300)
+l8 = CNN(1,66,66)
+l9 = CNN(2,66,68)
 
-l10 = CNN(1,300,300)
-l11 = CNN(1,300,10)
+l10 = CNN(1,68,68)
+l11 = CNN(1,68,10)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
@@ -224,8 +232,8 @@ grad_update = grad11_up + grad10_up + grad9_up + grad8_up + \
                 grad3_up + grad2_up + grad1_up
 
 # # sess
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
-with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options) ) as sess:
 
     sess.run(tf.global_variables_initializer())
     
