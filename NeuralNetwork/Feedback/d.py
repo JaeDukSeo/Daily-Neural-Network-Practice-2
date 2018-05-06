@@ -26,7 +26,7 @@ training_images, training_labels, testing_images, testing_labels = mnist.train.i
 class FNN():
     def __init__(self,input_dim,hidden_dim,act,d_act):
         self.w = tf.Variable(tf.truncated_normal([input_dim,hidden_dim], stddev=0.005))
-        self.B = tf.Variable(tf.random_uniform([10,input_dim],minval=-0.5,maxval=0.5))
+        self.B = tf.Variable(tf.random_uniform([10,hidden_dim],minval=-0.5,maxval=0.5))
         self.act,self.d_act = act,d_act
 
     def feedforward(self,input=None):
@@ -40,12 +40,13 @@ class FNN():
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input 
 
-        grad_x_mid =   tf.matmul(grad_part_1,self.B)
-        grad = tf.matmul(tf.transpose(grad_x_mid),grad_part_2)
-        
+        grad_added_d = tf.matmul(grad_part_1,self.B)
+        grad_x_mid = tf.multiply(grad_added_d,grad_part_2)
+        grad = tf.matmul(tf.transpose(grad_part_3),grad_x_mid)
+
         update_w = []
         update_w.append(tf.assign(self.w, self.w - learning_rate * grad))
-        return update_w
+        return None,update_w
 
 # hyper
 num_epoch = 801
@@ -74,17 +75,14 @@ layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 layer3_soft = tf_softmax(layer3)
 
-grad3_up = l3.backprop(layer3_soft - y)
-grad2_up = l2.backprop(layer3_soft - y)
-grad1_up = l1.backprop(layer3_soft - y)
+grad3,grad3_up = l3.backprop(layer3_soft - y)
+grad2,grad2_up = l2.backprop(layer3_soft - y)
+grad1,grad1_up = l1.backprop(layer3_soft - y)
 manual_backprop = grad1_up + grad2_up + grad3_up
 
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer3,labels=y))
 correct_prediction = tf.equal(tf.argmax(layer3_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-# --- auto train ---
-# auto_train = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # session
 with tf.Session() as sess:
