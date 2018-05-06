@@ -89,7 +89,8 @@ correct_prediction = tf.equal(tf.argmax(layer3_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # session
-with tf.Session(config=tf.ConfigProto(device_count={'GPU': 0})) as sess:
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.6)
+with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
     sess.run(tf.global_variables_initializer())
     

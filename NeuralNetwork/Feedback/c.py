@@ -88,7 +88,8 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # auto_train = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # session
-with tf.Session() as sess:
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.16666666)
+with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
 
     sess.run(tf.global_variables_initializer())
     
