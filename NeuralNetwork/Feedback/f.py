@@ -75,8 +75,8 @@ layer3 = l3.feedforward(layer2)
 layer3_soft = tf_softmax(layer3)
 
 grad3,grad3_up = l3.backprop(layer3_soft - y)
-grad2,grad2_up = l2.backprop(grad3)
-grad1,grad1_up = l1.backprop(grad2)
+grad2,grad2_up = l2.backprop(grad3+ decay_dilated_rate * (grad3 ) )
+grad1,grad1_up = l1.backprop(grad2 + decay_dilated_rate * (grad3 + grad2) )
 manual_backprop = grad1_up + grad2_up + grad3_up
 
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer3,labels=y))

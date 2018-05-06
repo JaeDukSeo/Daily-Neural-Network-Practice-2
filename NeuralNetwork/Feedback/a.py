@@ -48,19 +48,19 @@ class FNN():
         return grad_pass,update_w
 
 # hyper
-num_epoch = 801
+num_epoch = 301
 batch_size = 100
 print_size = 50
-learning_rate = 0.003
+learning_rate = 0.0003
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = FNN(784,400,tf_tanh,d_tf_tanh)
-l2 = FNN(400,400,tf_tanh,d_tf_tanh)
-l3 = FNN(400,10,tf_tanh,d_tf_tanh)
+l1 = FNN(784,784,tf_tanh,d_tf_tanh)
+l2 = FNN(784,784,tf_tanh,d_tf_tanh)
+l3 = FNN(784,10,tf_tanh,d_tf_tanh)
 
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float32)
