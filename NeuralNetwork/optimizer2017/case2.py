@@ -42,6 +42,7 @@ class CNN():
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
         self.B = tf.Variable(tf.random_uniform([k,k,inc,out],minval=-0.5,maxval=0.5 ))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.v_past = tf.Variable(tf.zeros_like(self.w))
     def getw(self): return self.w
     def feedforward(self,input):
         self.input  = input
@@ -82,9 +83,19 @@ class CNN():
         update_w.append(
             tf.assign( self.v,self.v*beta2 + (1-beta2) * grad ** 2   )
         )
+
+        def f1(): return self.v
+        def f2(): return self.v_past
+
+        v_max = tf.cond(tf.greater(self.v, self.v_past), true_fn=f1, false_fn=f2)
+
+        update_w.append(
+            tf.assign( self.v_past,v_max )
+        )
+
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
-        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
+        adam_middel = learning_rate/(tf.sqrt(v_max) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat))))
         
         return grad_pass,update_w  
@@ -141,7 +152,7 @@ num_epoch = 201
 batch_size = 100
 print_size = 5
 learning_rate = 0.0001
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 proportion_rate = 1
 decay_rate = 0.05

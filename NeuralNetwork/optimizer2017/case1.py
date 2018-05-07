@@ -9,7 +9,7 @@ from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
 
 def tf_elu(x): return tf.nn.elu(x)
-def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + ( tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
+def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
     import pickle
@@ -39,8 +39,7 @@ def tf_repeat(tensor, repeats):
 class CNN():
     
     def __init__(self,k,inc,out):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
-        self.B = tf.Variable(tf.random_uniform([k,k,inc,out],minval=-0.5,maxval=0.5 ))
+        self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
     def getw(self): return self.w
     def feedforward(self,input):
@@ -49,7 +48,7 @@ class CNN():
         self.layerA = tf_elu(self.layer)
         return self.layerA
 
-    def backprop(self,gradient,feedback=True):
+    def backprop(self,gradient,weight_decay_tf,feedback=True):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -62,18 +61,11 @@ class CNN():
             strides=[1,1,1,1],padding='SAME'
         )
 
-        if feedback:
-            grad_pass = tf.nn.conv2d_backprop_input(
+        grad_pass = tf.nn.conv2d_backprop_input(
             input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
-            filter= self.B,out_backprop = grad_middle,
+            filter= self.w,out_backprop = grad_middle,
             strides=[1,1,1,1],padding='SAME'
-            )       
-        else:
-            grad_pass = tf.nn.conv2d_backprop_input(
-                input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
-                filter= self.w,out_backprop = grad_middle,
-                strides=[1,1,1,1],padding='SAME'
-            )
+        )
 
         update_w = []
         update_w.append(
@@ -84,8 +76,9 @@ class CNN():
         )
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
-        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat))))
+        adam_middel  = learning_rate/(tf.sqrt(v_hat) + adam_e)
+        adam_middel2 = tf.subtract(tf.multiply(adam_middel,m_hat),learning_rate * tf.multiply(weight_decay_tf,self.w))
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel2)))
         
         return grad_pass,update_w  
 
@@ -135,6 +128,7 @@ print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
+print('------------------')
 
 # hyper
 num_epoch = 201
@@ -142,6 +136,7 @@ batch_size = 100
 print_size = 5
 learning_rate = 0.0001
 beta1,beta2,adam_e = 0.9,0.999,1e-8
+weight_decay = 0.512
 
 proportion_rate = 1
 decay_rate = 0.05
@@ -168,6 +163,7 @@ l11 = CNN(1,300,10)
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
+weight_decay_tf = tf.placeholder(tf.float32, shape=())
 iter_variable = tf.placeholder(tf.float32, shape=())
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
@@ -176,26 +172,21 @@ layer1 = l1.feedforward(x)
 layer2_Input = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer2 = l2.feedforward(layer2_Input)
 layer3 = l3.feedforward(layer2)
-# layer3 = tf.nn.dropout(layer3,0.9)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer4_Input)
 layer5 = l5.feedforward(layer4)
-# layer5 = tf.nn.dropout(layer5,0.8)
 
 layer6_Input = tf.nn.avg_pool(layer5,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer6 = l6.feedforward(layer6_Input)
 layer7 = l7.feedforward(layer6)
-# layer7 = tf.nn.dropout(layer7,0.7)
 
 layer8_Input = tf.nn.avg_pool(layer7,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer8 = l8.feedforward(layer8_Input)
 layer9 = l9.feedforward(layer8)
-# layer9 = tf.nn.dropout(layer9,0.6)
 
 layer10_Input = tf.nn.avg_pool(layer9,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer10 = l10.feedforward(layer10_Input)
-# layer10 = tf.nn.dropout(layer10,0.5)
 
 layer11 = l11.feedforward(layer10)
 
@@ -206,27 +197,27 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_re
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-grad11,grad11_up = l11.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ))
-grad10,grad10_up = l10.backprop(grad11)
+grad11,grad11_up = l11.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ),weight_decay_tf=weight_decay_tf)
+grad10,grad10_up = l10.backprop(grad11,weight_decay_tf=weight_decay_tf)
 
 grad9_Input = tf_repeat(grad10,[1,2,2,1])
-grad9,grad9_up = l9.backprop(grad9_Input)
-grad8,grad8_up = l8.backprop(grad9)
+grad9,grad9_up = l9.backprop(grad9_Input,weight_decay_tf=weight_decay_tf)
+grad8,grad8_up = l8.backprop(grad9,weight_decay_tf=weight_decay_tf)
 
 grad7_Input = tf_repeat(grad8,[1,2,2,1])
-grad7,grad7_up = l7.backprop(grad7_Input)
-grad6,grad6_up = l6.backprop(grad7)
+grad7,grad7_up = l7.backprop(grad7_Input,weight_decay_tf=weight_decay_tf)
+grad6,grad6_up = l6.backprop(grad7,weight_decay_tf=weight_decay_tf)
 
 grad5_Input = tf_repeat(grad6,[1,2,2,1])
-grad5,grad5_up = l5.backprop(grad5_Input)
-grad4,grad4_up = l4.backprop(grad5)
+grad5,grad5_up = l5.backprop(grad5_Input,weight_decay_tf=weight_decay_tf)
+grad4,grad4_up = l4.backprop(grad5,weight_decay_tf=weight_decay_tf)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input)
-grad2,grad2_up = l2.backprop(grad3)
+grad3,grad3_up = l3.backprop(grad3_Input,weight_decay_tf=weight_decay_tf)
+grad2,grad2_up = l2.backprop(grad3,weight_decay_tf=weight_decay_tf)
 
 grad1_Input = tf_repeat(grad2,[1,2,2,1])
-grad1,grad1_up = l1.backprop(grad1_Input)
+grad1,grad1_up = l1.backprop(grad1_Input,weight_decay_tf=weight_decay_tf)
 grad_update = grad11_up + grad10_up + grad9_up + grad8_up + \
                 grad7_up + grad6_up + grad5_up + grad4_up + \
                 grad3_up + grad2_up + grad1_up
@@ -244,9 +235,10 @@ with tf.Session( ) as sess:
 
     for iter in range(num_epoch):
 
-        if iter == 25 : learning_rate = learning_rate * 0.5
-        if iter == 50 : learning_rate = learning_rate * 0.5
-        if iter == 100 : learning_rate = learning_rate * 0.5
+        if iter == 10 : weight_decay = weight_decay * 0.5
+        if iter == 50 : weight_decay = weight_decay * 0.5
+        if iter == 100 : weight_decay = weight_decay * 0.5
+        if iter == 150 : weight_decay = weight_decay * 0.5
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
@@ -254,7 +246,8 @@ with tf.Session( ) as sess:
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
 
-            sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape],feed_dict={x:current_batch,
+            y:current_batch_label,iter_variable:iter,weight_decay_tf:weight_decay})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -269,7 +262,7 @@ with tf.Session( ) as sess:
             test_cota = sess_result[0] + test_cota
 
         if iter % print_size==0:
-            print("\n----------")
+            print("\n---------- Weight Decay: ",weight_decay)
             print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),' Current Acc: ', train_acca/(len(train_batch)/batch_size),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
@@ -287,7 +280,7 @@ with tf.Session( ) as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig('case b train.png')
+    plt.savefig('case 1 train.png')
     plt.show()
 
     plt.figure()
@@ -295,7 +288,7 @@ with tf.Session( ) as sess:
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig('case b test.png')
+    plt.savefig('case 1 test.png')
     plt.show()
 
 
