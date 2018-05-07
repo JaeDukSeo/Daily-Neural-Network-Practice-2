@@ -7,9 +7,9 @@ from scipy.ndimage import imread
 from scipy.misc import imresize
 
 np.random.seed(538)
-# tf.set_random_seed(6785)
+tf.set_random_seed(6785)
 
-
+# Def: Get Pascal Labels for the dataset
 def get_pascal_labels():
     """Load the mapping that associates pascal classes with label colors
     Returns:
@@ -42,7 +42,7 @@ def get_pascal_labels():
                         [64,0,0], [192,0,0], [64,128,0], [192,128,0],[64,0,128], [192,0,128], [64,128,128], [192,128,128],
                         [0, 64,0], [128, 64, 0], [0,192,0], [128,192,0],[0,64,128]])
 
-def encode_segmap(mask):
+def encode_segmap(mask,num_class=20):
     """Encode segmentation label images as pascal classes
     Args:
         mask (np.ndarray): raw segmentation label image of dimension
@@ -51,11 +51,12 @@ def encode_segmap(mask):
         (np.ndarray): class map with dimensions (M,N), where the value at
         a given location is the integer denoting the class index.
     """
-    mask = mask.astype(int)
-    label_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=np.int16)
-    for ii, label in enumerate(get_pascal_labels()):
-        label_mask[np.where(np.all(mask == label, axis=-1))[:2]] = ii
-    label_mask = label_mask.astype(int)
+    mask_index = 0 
+    label_mask = np.zeros((mask.shape[0], mask.shape[1],num_class)).astype(int)
+    for label in get_pascal_labels():
+        coordinate = np.where(np.all(test_label == label, axis=-1))
+        label_mask[coordinate[1],coordinate[2],mask_index ] = 1
+        mask_index = mask_index + 1
     return label_mask
 
 

@@ -9,4 +9,11 @@
 /NeuralNetwork/Pix2Pix/final/
 /NeuralNetwork/Pix2Pix/gif/
 /NeuralNetwork/Pix2Pix/train_change/
+/NeuralNetwork/LabelRefinement/final/
+/NeuralNetwork/LabelRefinement/gif/
+/NeuralNetwork/LabelRefinement/train_change/
+/NeuralNetwork/Segnet/final/
+/NeuralNetwork/Segnet/gif/
+/NeuralNetwork/Segnet/train_change/
 /competitions/sec/
+/NeuralNetwork/reference_seg/

@@ -102,7 +102,7 @@ train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis
 
 # hyper
 num_epoch = 500
-learing_rate = 0.00001
+learing_rate = 0.002
 batch_size = 10
 print_size = 5
 
@@ -111,11 +111,6 @@ l1_e = CNNLayer(3,3,16,tf_Relu,d_tf_Relu)
 l2_e = CNNLayer(3,16,32,tf_Relu,d_tf_Relu)
 l3_e = CNNLayer(3,32,64,tf_Relu,d_tf_Relu)
 l4_e = CNNLayer(3,64,128,tf_Relu,d_tf_Relu)
-
-l5_match = CNNLayer(3,128,1,tf_Relu,d_tf_Relu)
-l6_match = CNNLayer(3,64,1,tf_Relu,d_tf_Relu)
-l7_match = CNNLayer(3,32,1,tf_Relu,d_tf_Relu)
-l8_match = CNNLayer(3,16,1,tf_Relu,d_tf_Relu)
 
 l5_d = CNNLayer(3,128,1,tf_Relu,d_tf_Relu)
 l6_d = CNNLayer(3,65,1,tf_Relu,d_tf_Relu)
@@ -139,66 +134,36 @@ layer3 = l3_e.feedforward(layer2)
 layer4 = l4_e.feedforward(layer3)
 
 layer5 = l5_d.feedforward(layer4,mean_pooling=False)
-layer5_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer5,labels=y1))
+# layer5_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer5,labels=y1))
+layer5_cost = tf.reduce_mean(tf.square(tf_log(layer5) - y1))
 
 layer6_Upsample = tf.image.resize_images(layer5,size=[16,16],method=tf.image.ResizeMethod.BILINEAR)
 layer6_Input = tf.concat([layer6_Upsample,layer3],axis=3)
 layer6 = l6_d.feedforward(layer6_Input,mean_pooling=False)
-layer6_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer6,labels=y2))
+# layer6_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer6,labels=y2))
+layer6_cost = tf.reduce_mean(tf.square(tf_log(layer6) - y2))
 
 layer7_Upsample = tf.image.resize_images(layer6,size=[32,32],method=tf.image.ResizeMethod.BILINEAR)
 layer7_Input = tf.concat([layer7_Upsample,layer2],axis=3)
 layer7 = l7_d.feedforward(layer7_Input,mean_pooling=False)
-layer7_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer7,labels=y3))
+# layer7_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer7,labels=y3))
+layer7_cost = tf.reduce_mean(tf.square(tf_log(layer7) - y3))
 
 layer8_Upsample = tf.image.resize_images(layer7,size=[64,64],method=tf.image.ResizeMethod.BILINEAR)
 layer8_Input = tf.concat([layer8_Upsample,layer1],axis=3)
 layer8 = l8_d.feedforward(layer8_Input,mean_pooling=False)
-layer8_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer8,labels=y4))
+# layer8_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer8,labels=y4))
+layer8_cost = tf.reduce_mean(tf.square(tf_log(layer8) - y4))
 
 layer9_Upsample = tf.image.resize_images(layer8,size=[128,128],method=tf.image.ResizeMethod.BILINEAR)
 layer9_Input = tf.concat([layer9_Upsample,x],axis=3)
 layer9 = l9_d.feedforward(layer9_Input,mean_pooling=False)
-layer9_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer9,labels=y5))
+# layer9_cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer9,labels=y5))
+layer9_cost = tf.reduce_mean(tf.square(tf_log(layer9) - y5))
 
-
-
-
-
-layer4Match = l0_match.feedforward(layer4,mean_pooling=False)
-cost1 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4Match,labels=y1))
-
-# layer5_Match = l1_match.feedforward(layer3,mean_pooling=False)
-layer5_Input = tf.concat([layer4,layer4Match],axis=3)
-layer5 = l1_d.feedforward(layer5_Input,mean_pooling=False)
-layer5_Up = tf.image.resize_images(layer5,size=[16,16],method=tf.image.ResizeMethod.BILINEAR)
-cost2 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer5_Up,labels=y2))
-
-layer6_Match = l2_match.feedforward(layer2,mean_pooling=False)
-layer6_Input = tf.concat([layer5_Up,layer6_Match],axis=3)
-layer6 = l2_d.feedforward(layer6_Input,mean_pooling=False)
-layer6_Up = tf.image.resize_images(layer6,size=[32,32],method=tf.image.ResizeMethod.BILINEAR)
-cost3 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer6_Up,labels=y3))
-
-layer7_Match = l3_match.feedforward(layer1,mean_pooling=False)
-layer7_Input = tf.concat([layer6_Up,layer7_Match],axis=3)
-layer7 = l3_d.feedforward(layer7_Input,mean_pooling=False)
-layer7_Up = tf.image.resize_images(layer7,size=[64,64],method=tf.image.ResizeMethod.BILINEAR)
-cost4 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer7_Up,labels=y4))
-
-layer8_Match = l4_match.feedforward(x,mean_pooling=False)
-layer8_Input = tf.concat([layer7_Up,layer8_Match],axis=3)
-layer8 = l4_d.feedforward(layer8_Input,mean_pooling=False)
-layer8_Up = tf.image.resize_images(layer8,size=[128,128],method=tf.image.ResizeMethod.BILINEAR)
-cost5 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer8_Up,labels=y5))
-
-stage5_image,stage4_image,stage3_image,stage2_image,stage1_image = tf_softmax(layer8_Up),tf_softmax(layer7_Up),tf_softmax(layer6_Up),tf_softmax(layer5_Up),tf_softmax(layer4)
-auto_train = tf.train.MomentumOptimizer(learning_rate=learing_rate,momentum=0.9).minimize(cost1+cost2+cost3+cost4+cost5)
-# auto_train = tf.train.AdamOptimizer(learning_rate=learing_rate).minimize(cost1+cost2+cost3+cost4+cost5)
-
-
-
-
+final_image = tf_log(layer9)
+# auto_train = tf.train.MomentumOptimizer(learning_rate=learing_rate,momentum=0.9).minimize(layer5_cost+layer6_cost+layer7_cost+layer8_cost+layer9_cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learing_rate).minimize(layer5_cost+layer6_cost+layer7_cost+layer8_cost+layer9_cost)
 
 
 # session
@@ -213,7 +178,10 @@ with tf.Session() as sess:
             current_image_batch = train_images[current_batch_index:current_batch_index+batch_size,:,:,:]
             current_mask_batch  = train_labels[current_batch_index:current_batch_index+batch_size,:,:,:]
 
-            sess_results = sess.run([auto_train,cost5,cost4,cost3,cost2,cost1],feed_dict={x:current_image_batch,y5:current_mask_batch})
+            sess_results = sess.run([auto_train,
+            layer9_cost,layer8_cost,layer7_cost,layer6_cost,layer5_cost,
+            layer9_Upsample,layer8_Upsample,layer7_Upsample,layer6_Upsample,
+            ],feed_dict={x:current_image_batch,y5:current_mask_batch})
             print("Current Iter: ",iter, " current batch: ",current_batch_index,
             ' Cost 5: ',sess_results[1],' Cost 4: ',sess_results[2],' Cost 3:',sess_results[3],' Cost 2:',sess_results[4],' Cost 1:',sess_results[5]
             ,end='\r')
@@ -222,7 +190,7 @@ with tf.Session() as sess:
             print("\n------------------------\n")
             test_example    = train_images[:2,:,:,:]
             test_example_gt = train_labels[:2,:,:,:]
-            sess_results = sess.run([stage1_image],feed_dict={x:test_example,y5:test_example_gt})
+            sess_results = sess.run([final_image],feed_dict={x:test_example,y5:test_example_gt})
 
             sess_results = sess_results[0][0,:,:,:]
             test_example = test_example[0,:,:,:]
@@ -252,11 +220,11 @@ with tf.Session() as sess:
             plt.title('Ground Truth Overlayed')
             plt.savefig('train_change/'+str(iter)+"e Overlayed Mask GT.png")
 
-            # plt.figure()
-            # plt.axis('off')
-            # plt.imshow(np.squeeze(sess_results*test_example),cmap='gray')
-            # plt.title("Generated Overlayed")
-            # plt.savefig('train_change/'+str(iter)+"f Overlayed Mask.png")
+            plt.figure()
+            plt.axis('off')
+            plt.imshow(np.squeeze(sess_results*test_example),cmap='gray')
+            plt.title("Generated Overlayed")
+            plt.savefig('train_change/'+str(iter)+"f Overlayed Mask.png")
 
             plt.close('all')       
 
