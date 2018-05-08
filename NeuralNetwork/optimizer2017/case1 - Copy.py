@@ -7,6 +7,9 @@ from scipy.misc import imresize
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
+import imgaug as ia
+from imgaug import augmenters as iaa
+
 
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
@@ -34,6 +37,37 @@ def tf_repeat(tensor, repeats):
     tiled_tensor = tf.tile(expanded_tensor, multiples = multiples)
     repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
     return repeated_tesnor
+
+# aug
+seq = iaa.Sequential([
+    iaa.Fliplr(0.5), # horizontal flips
+    iaa.Crop(percent=(0, 0.1)), # random crops
+    # Small gaussian blur with random sigma between 0 and 0.5.
+    # But we only blur about 50% of all images.
+    iaa.Sometimes(0.5,
+        iaa.GaussianBlur(sigma=(0, 0.5))
+    ),
+    # Strengthen or weaken the contrast in each image.
+    iaa.ContrastNormalization((0.75, 1.5)),
+    # Add gaussian noise.
+    # For 50% of all images, we sample the noise once per pixel.
+    # For the other 50% of all images, we sample the noise per pixel AND
+    # channel. This can change the color (not only brightness) of the
+    # pixels.
+    iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5),
+    # Make some images brighter and some darker.
+    # In 20% of all cases, we sample the multiplier once per channel,
+    # which can end up changing the color of the images.
+    iaa.Multiply((0.8, 1.2), per_channel=0.2),
+    # Apply affine transformations to each image.
+    # Scale/zoom them, translate/move them, rotate them and shear them.
+    iaa.Affine(
+        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        rotate=(-25, 25),
+        shear=(-8, 8)
+    )
+], random_order=True) # apply augmenters in random order
 
 # class
 class CNN():
@@ -101,6 +135,8 @@ onehot_encoder = OneHotEncoder(sparse=True)
 train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
 train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
 train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
+images_aug = seq.augment_images(images)
+sys.exit()
 
 test_batch = unpickle(lstFilesDCM[5])[b'data']
 test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
@@ -122,6 +158,7 @@ train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
 test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / (test_batch[:,:,:,1].max(axis=0) - test_batch[:,:,:,1].min(axis=0))
 test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / (test_batch[:,:,:,2].max(axis=0) - test_batch[:,:,:,2].min(axis=0))
+
 
 # print out the data shape
 print(train_batch.shape)
