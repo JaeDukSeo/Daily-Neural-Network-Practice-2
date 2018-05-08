@@ -41,6 +41,7 @@ def tf_repeat(tensor, repeats):
 # aug
 seq = iaa.Sequential([
     iaa.Fliplr(0.5), # horizontal flips
+    iaa.Flipud(0.5), # horizontal flips
     iaa.Crop(percent=(0, 0.1)), # random crops
     # Small gaussian blur with random sigma between 0 and 0.5.
     # But we only blur about 50% of all images.
@@ -96,7 +97,7 @@ class CNN():
         )
 
         grad_pass = tf.nn.conv2d_backprop_input(
-            input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
+            input_sizes = [batch_size*2] + list(grad_part_3.shape[1:]),
             filter= self.w,out_backprop = grad_middle,
             strides=[1,1,1,1],padding='SAME'
         )
@@ -135,8 +136,6 @@ onehot_encoder = OneHotEncoder(sparse=True)
 train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
 train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
 train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
-images_aug = seq.augment_images(images)
-sys.exit()
 
 test_batch = unpickle(lstFilesDCM[5])[b'data']
 test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
@@ -151,14 +150,12 @@ train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(n
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
 # Normalize data from 0 to 1 per each channel
-train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].min(axis=0)) / (train_batch[:,:,:,0].max(axis=0) - train_batch[:,:,:,0].min(axis=0))
-train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)) / (train_batch[:,:,:,1].max(axis=0) - train_batch[:,:,:,1].min(axis=0))
-train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
-
+# train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].min(axis=0)) / (train_batch[:,:,:,0].max(axis=0) - train_batch[:,:,:,0].min(axis=0))
+# train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)) / (train_batch[:,:,:,1].max(axis=0) - train_batch[:,:,:,1].min(axis=0))
+# train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
 test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / (test_batch[:,:,:,1].max(axis=0) - test_batch[:,:,:,1].min(axis=0))
 test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / (test_batch[:,:,:,2].max(axis=0) - test_batch[:,:,:,2].min(axis=0))
-
 
 # print out the data shape
 print(train_batch.shape)
@@ -169,7 +166,7 @@ print('------------------')
 
 # hyper
 num_epoch = 201
-batch_size = 100
+batch_size = 50
 print_size = 5
 learning_rate = 0.0001
 beta1,beta2,adam_e = 0.9,0.999,1e-8
@@ -227,14 +224,14 @@ layer10 = l10.feedforward(layer10_Input)
 
 layer11 = l11.feedforward(layer10)
 
-final_reshape = tf.reshape(layer11,[batch_size,-1])
+final_reshape = tf.reshape(layer11,[batch_size*2,-1])
 final_soft = tf_softmax(final_reshape)
 
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_reshape,labels=y))
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-grad11,grad11_up = l11.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ),weight_decay_tf=weight_decay_tf)
+grad11,grad11_up = l11.backprop(tf.reshape(final_soft-y,[batch_size*2,1,1,10] ),weight_decay_tf=weight_decay_tf)
 grad10,grad10_up = l10.backprop(grad11,weight_decay_tf=weight_decay_tf)
 
 grad9_Input = tf_repeat(grad10,[1,2,2,1])
@@ -283,15 +280,22 @@ with tf.Session( ) as sess:
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
 
-            sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape],feed_dict={x:current_batch,
-            y:current_batch_label,iter_variable:iter,weight_decay_tf:weight_decay})
+            current_batch_aug = np.vstack((seq.augment_images(current_batch),current_batch))
+            current_label_aug = np.vstack((current_batch_label,current_batch_label))
+
+            current_batch_aug[:,:,:,0]  = (current_batch_aug[:,:,:,0] - current_batch_aug[:,:,:,0].min(axis=0)) / (current_batch_aug[:,:,:,0].max(axis=0) - current_batch_aug[:,:,:,0].min(axis=0))
+            current_batch_aug[:,:,:,1]  = (current_batch_aug[:,:,:,1] - current_batch_aug[:,:,:,1].min(axis=0)) / (current_batch_aug[:,:,:,1].max(axis=0) - current_batch_aug[:,:,:,1].min(axis=0))
+            current_batch_aug[:,:,:,2]  = (current_batch_aug[:,:,:,2] - current_batch_aug[:,:,:,2].min(axis=0)) / (current_batch_aug[:,:,:,2].max(axis=0) - current_batch_aug[:,:,:,2].min(axis=0))
+            current_batch_aug,current_label_aug = shuffle(current_batch_aug,current_label_aug)
+            sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape],feed_dict={x:current_batch_aug,
+            y:current_label_aug,iter_variable:iter,weight_decay_tf:weight_decay})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
-        for test_batch_index in range(0,len(test_batch),batch_size):
-            current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
-            current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
+        for test_batch_index in range(0,len(test_batch),int(batch_size*2) ):
+            current_batch = test_batch[test_batch_index:test_batch_index+int(batch_size*2) ]
+            current_batch_label = test_label[test_batch_index:test_batch_index+int(batch_size*2) ]
 
             sess_result = sess.run([cost,accuracy,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
@@ -300,14 +304,14 @@ with tf.Session( ) as sess:
 
         if iter % print_size==0:
             print("\n---------- Weight Decay: ",weight_decay)
-            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),' Current Acc: ', train_acca/(len(train_batch)/batch_size),end='\n')
-            print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
+            print('Train Current cost: ', train_cota/(len(train_batch)/int(batch_size*2) ),' Current Acc: ', train_acca/(len(train_batch)/int(batch_size*2) ),end='\n')
+            print('Test Current cost: ', test_cota/(len(test_batch)/int(batch_size*2) ),' Current Acc: ', test_acca/(len(test_batch)/int(batch_size*2) ),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/batch_size))
-        train_cot.append(train_cota/(len(train_batch)/batch_size))
-        test_acc.append(test_acca/(len(test_batch)/batch_size))
-        test_cot.append(test_cota/(len(test_batch)/batch_size))
+        train_acc.append(train_acca/(len(train_batch)/int(batch_size*2) ))
+        train_cot.append(train_cota/(len(train_batch)/int(batch_size*2) ))
+        test_acc.append(test_acca/(len(test_batch)/int(batch_size*2) ))
+        test_cot.append(test_cota/(len(test_batch)/int(batch_size*2) ))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
 
