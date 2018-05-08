@@ -1,0 +1,205 @@
+Current Iter :  0  current batch:  9900  Current cost:  1.84028  Current Acc:  0.37271
+---------- Weight Decay:  0.512
+Train Current cost:  2.010301590204239  Current Acc:  0.2564200006946921
+Test Current cost:  1.8492248392105102  Current Acc:  0.3313000029325485
+----------
+Current Iter :  5  current batch:  9900  Current cost:  1.405168  Current Acc:  0.4687
+---------- Weight Decay:  0.512
+Train Current cost:  1.4698694739341736  Current Acc:  0.4702799960374832
+Test Current cost:  1.4375458371639251  Current Acc:  0.48259999573230744
+----------
+Current Iter :  10  current batch:  9900  Current cost:  1.3464962  Current Acc:  0.534
+---------- Weight Decay:  0.256
+Train Current cost:  1.2666380460262299  Current Acc:  0.5481199977993965
+Test Current cost:  1.304319429397583  Current Acc:  0.5359999960660935
+----------
+Current Iter :  15  current batch:  9900  Current cost:  1.2647984  Current Acc:  0.5513
+---------- Weight Decay:  0.256
+Train Current cost:  1.1454531483650208  Current Acc:  0.5934399985671044
+Test Current cost:  1.2392851227521897  Current Acc:  0.5609999933838844
+----------
+Current Iter :  20  current batch:  9900  Current cost:  1.3186156  Current Acc:  0.5527
+---------- Weight Decay:  0.256
+Train Current cost:  1.037739087343216  Current Acc:  0.6344000012278557
+Test Current cost:  1.1932549226284026  Current Acc:  0.5804999986290932
+----------
+Current Iter :  25  current batch:  9900  Current cost:  1.3184612  Current Acc:  0.5797
+---------- Weight Decay:  0.256
+Train Current cost:  0.9375786272287369  Current Acc:  0.6736400005817413
+Test Current cost:  1.1861573147773743  Current Acc:  0.588199999332428
+----------
+Current Iter :  30  current batch:  9900  Current cost:  1.4346585  Current Acc:  0.5441
+---------- Weight Decay:  0.256
+Train Current cost:  0.8417851243019104  Current Acc:  0.7078800014257431
+Test Current cost:  1.2201844477653503  Current Acc:  0.5944999983906746
+----------
+Current Iter :  35  current batch:  9900  Current cost:  1.4870907  Current Acc:  0.5425
+---------- Weight Decay:  0.256
+Train Current cost:  0.7470756441950798  Current Acc:  0.7444400007724762
+Test Current cost:  1.2760380917787553  Current Acc:  0.596299996972084
+----------
+Current Iter :  40  current batch:  9900  Current cost:  1.7287533  Current Acc:  0.5343
+---------- Weight Decay:  0.256
+Train Current cost:  0.6552937020063401  Current Acc:  0.7798999974727631
+Test Current cost:  1.4459091180562973  Current Acc:  0.5986000004410744
+----------
+Current Iter :  45  current batch:  9900  Current cost:  2.03514  Current Acc:  0.535312
+---------- Weight Decay:  0.256
+Train Current cost:  0.5663738833665848  Current Acc:  0.8117199983596802
+Test Current cost:  1.6185807567834853  Current Acc:  0.5964999985694885
+----------
+Current Iter :  50  current batch:  9900  Current cost:  2.427849  Current Acc:  0.53848
+---------- Weight Decay:  0.128
+Train Current cost:  0.46938694795966146  Current Acc:  0.8488599998950959
+Test Current cost:  1.960941300392151  Current Acc:  0.5897000005841255
+----------
+Current Iter :  55  current batch:  9900  Current cost:  2.6333835  Current Acc:  0.5388
+---------- Weight Decay:  0.128
+Train Current cost:  0.3679469156563282  Current Acc:  0.8825000016689301
+Test Current cost:  2.253811742067337  Current Acc:  0.5860999995470046
+----------
+Current Iter :  60  current batch:  9900  Current cost:  3.2203622  Current Acc:  0.52776
+---------- Weight Decay:  0.128
+Train Current cost:  0.2880459022670984  Current Acc:  0.9078400018215179
+Test Current cost:  2.6317457544803617  Current Acc:  0.5832999977469444
+----------
+Current Iter :  65  current batch:  9900  Current cost:  4.066205  Current Acc:  0.513446
+---------- Weight Decay:  0.128
+Train Current cost:  0.22134073664993048  Current Acc:  0.9286200021505355
+Test Current cost:  3.2432240986824037  Current Acc:  0.5842000004649163
+----------
+Current Iter :  70  current batch:  9900  Current cost:  4.909204  Current Acc:  0.546939
+---------- Weight Decay:  0.128
+Train Current cost:  0.1798468171954155  Current Acc:  0.9420600032806397
+Test Current cost:  3.9787544989585877  Current Acc:  0.5875
+----------
+Current Iter :  75  current batch:  9900  Current cost:  5.681224  Current Acc:  0.549957
+---------- Weight Decay:  0.128
+Train Current cost:  0.16316912559419872  Current Acc:  0.9463600019216537
+Test Current cost:  4.951176655292511  Current Acc:  0.5857999977469445
+----------
+Current Iter :  80  current batch:  9900  Current cost:  6.1914024  Current Acc:  0.56718
+---------- Weight Decay:  0.128
+Train Current cost:  0.23095221910253166  Current Acc:  0.933740002155304
+Test Current cost:  5.980325376987457  Current Acc:  0.5828999990224838
+----------
+Current Iter :  85  current batch:  9900  Current cost:  7.857256  Current Acc:  0.5653499
+---------- Weight Decay:  0.128
+Train Current cost:  0.254132884696126  Current Acc:  0.9338800014257431
+Test Current cost:  7.196074662208557  Current Acc:  0.5820999988913536
+----------
+Current Iter :  90  current batch:  9900  Current cost:  11.195865  Current Acc:  0.55946
+---------- Weight Decay:  0.128
+Train Current cost:  0.16400742305535823  Current Acc:  0.9529200026988983
+Test Current cost:  9.463880543708802  Current Acc:  0.5844000014662742
+----------
+Current Iter :  95  current batch:  9900  Current cost:  11.923648  Current Acc:  0.54677
+---------- Weight Decay:  0.128
+Train Current cost:  0.2159868939043954  Current Acc:  0.9489200010299682
+Test Current cost:  11.557829804420471  Current Acc:  0.5817999961972237
+----------
+Current Iter :  100  current batch:  9900  Current cost:  16.0383  Current Acc:  0.5357859
+---------- Weight Decay:  0.064
+Train Current cost:  0.23551862551644445  Current Acc:  0.9496800009012222
+Test Current cost:  14.672081756591798  Current Acc:  0.5835000008344651
+----------
+Current Iter :  105  current batch:  9900  Current cost:  16.422947  Current Acc:  0.55968
+---------- Weight Decay:  0.064
+Train Current cost:  0.20163782715378328  Current Acc:  0.9547000023126602
+Test Current cost:  15.741449213027954  Current Acc:  0.5875999972224235
+----------
+Current Iter :  110  current batch:  9900  Current cost:  21.632563  Current Acc:  0.549489
+---------- Weight Decay:  0.064
+Train Current cost:  0.25696869832843033  Current Acc:  0.9513000028133393
+Test Current cost:  19.130991439819336  Current Acc:  0.5807999992370605
+----------
+Current Iter :  115  current batch:  9900  Current cost:  21.652422  Current Acc:  0.586980
+---------- Weight Decay:  0.064
+Train Current cost:  0.2869066718960603  Current Acc:  0.9503600031137467
+Test Current cost:  20.668292741775513  Current Acc:  0.5858999979496002
+----------
+Current Iter :  120  current batch:  9900  Current cost:  23.526552  Current Acc:  0.559690
+---------- Weight Decay:  0.064
+Train Current cost:  0.2918237207643688  Current Acc:  0.9512800018787384
+Test Current cost:  22.811662101745604  Current Acc:  0.5823999977111817
+----------
+Current Iter :  125  current batch:  9900  Current cost:  28.718355  Current Acc:  0.546390
+---------- Weight Decay:  0.064
+Train Current cost:  0.36588038925640287  Current Acc:  0.9468200035095214
+Test Current cost:  26.538763608932495  Current Acc:  0.5866000017523766
+----------
+Current Iter :  130  current batch:  9900  Current cost:  34.703655  Current Acc:  0.52440
+---------- Weight Decay:  0.064
+Train Current cost:  0.2895179618792608  Current Acc:  0.9538800032138824
+Test Current cost:  29.947397861480713  Current Acc:  0.5831999948620796
+----------
+Current Iter :  135  current batch:  9900  Current cost:  36.619923  Current Acc:  0.529370
+---------- Weight Decay:  0.064
+Train Current cost:  0.36139706870913507  Current Acc:  0.9470200029611587
+Test Current cost:  32.74504997253418  Current Acc:  0.5793999969959259
+----------
+Current Iter :  140  current batch:  9900  Current cost:  35.4875  Current Acc:  0.52549660
+---------- Weight Decay:  0.064
+Train Current cost:  0.34423534401878714  Current Acc:  0.9496400014162064
+Test Current cost:  35.8444588470459  Current Acc:  0.5745999991893769
+----------
+Current Iter :  145  current batch:  9900  Current cost:  41.09039  Current Acc:  0.572949
+---------- Weight Decay:  0.064
+Train Current cost:  0.43512735443189743  Current Acc:  0.9410000010728836
+Test Current cost:  40.60659671783447  Current Acc:  0.5762999978661537
+----------
+Current Iter :  150  current batch:  9900  Current cost:  52.49353  Current Acc:  0.536.97
+---------- Weight Decay:  0.032
+Train Current cost:  0.4331798654012382  Current Acc:  0.943940002322197
+Test Current cost:  46.47404920578003  Current Acc:  0.5746999970078468
+----------
+Current Iter :  155  current batch:  9900  Current cost:  51.081722  Current Acc:  0.523670
+---------- Weight Decay:  0.032
+Train Current cost:  0.4537277594599873  Current Acc:  0.9405200012922287
+Test Current cost:  48.153425216674805  Current Acc:  0.5759999999403953
+----------
+Current Iter :  160  current batch:  9900  Current cost:  46.44296  Current Acc:  0.541969
+---------- Weight Decay:  0.032
+Train Current cost:  0.6011657343953848  Current Acc:  0.9323600009679794
+Test Current cost:  47.6661935043335  Current Acc:  0.5726999959349632
+----------
+Current Iter :  165  current batch:  9900  Current cost:  57.098858  Current Acc:  0.576370
+---------- Weight Decay:  0.032
+Train Current cost:  0.4235013171099126  Current Acc:  0.9407999999523163
+Test Current cost:  53.264872016906736  Current Acc:  0.5729999965429307
+----------
+Current Iter :  170  current batch:  9900  Current cost:  56.82113  Current Acc:  0.535958
+---------- Weight Decay:  0.032
+Train Current cost:  0.5818440884649754  Current Acc:  0.925860001206398
+Test Current cost:  54.19041677474976  Current Acc:  0.573599995970726
+----------
+Current Iter :  175  current batch:  9900  Current cost:  54.66495  Current Acc:  0.568139
+---------- Weight Decay:  0.032
+Train Current cost:  0.5916537447571755  Current Acc:  0.9282600011825561
+Test Current cost:  54.828282070159915  Current Acc:  0.5710999965667725
+----------
+Current Iter :  180  current batch:  9900  Current cost:  68.330574  Current Acc:  0.56919
+---------- Weight Decay:  0.032
+Train Current cost:  0.45336450849473475  Current Acc:  0.9303800020217895
+Test Current cost:  62.49002944946289  Current Acc:  0.5811999952793121
+----------
+Current Iter :  185  current batch:  9900  Current cost:  64.21244  Current Acc:  0.523937
+---------- Weight Decay:  0.032
+Train Current cost:  0.6528872629031539  Current Acc:  0.9166600028276444
+Test Current cost:  59.92981536865234  Current Acc:  0.5675000002980233
+----------
+Current Iter :  190  current batch:  9900  Current cost:  73.76228  Current Acc:  0.533446
+---------- Weight Decay:  0.032
+Train Current cost:  0.5523019487336278  Current Acc:  0.9225000022649765
+Test Current cost:  68.71777408599854  Current Acc:  0.571499999165535
+----------
+Current Iter :  195  current batch:  9900  Current cost:  73.145256  Current Acc:  0.48916
+---------- Weight Decay:  0.032
+Train Current cost:  0.5718979572951793  Current Acc:  0.9199000022411347
+Test Current cost:  68.9204637145996  Current Acc:  0.5657999953627586
+----------
+Current Iter :  200  current batch:  9900  Current cost:  68.28302  Current Acc:  0.512828
+---------- Weight Decay:  0.032
+Train Current cost:  0.6597374921739101  Current Acc:  0.9046400012969971
+Test Current cost:  71.74096916198731  Current Acc:  0.5622999992966652
+----------

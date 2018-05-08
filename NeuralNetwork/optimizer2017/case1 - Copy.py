@@ -49,17 +49,17 @@ seq = iaa.Sequential([
         iaa.GaussianBlur(sigma=(0, 0.5))
     ),
     # Strengthen or weaken the contrast in each image.
-    iaa.ContrastNormalization((0.75, 1.5)),
+    # iaa.ContrastNormalization((0.75, 1.5)),
     # Add gaussian noise.
     # For 50% of all images, we sample the noise once per pixel.
     # For the other 50% of all images, we sample the noise per pixel AND
     # channel. This can change the color (not only brightness) of the
     # pixels.
-    iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5),
+    # iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5),
     # Make some images brighter and some darker.
     # In 20% of all cases, we sample the multiplier once per channel,
     # which can end up changing the color of the images.
-    iaa.Multiply((0.8, 1.2), per_channel=0.2),
+    # iaa.Multiply((0.8, 1.2), per_channel=0.2),
     # Apply affine transformations to each image.
     # Scale/zoom them, translate/move them, rotate them and shear them.
     iaa.Affine(
@@ -75,11 +75,14 @@ class CNN():
     
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
+        self.b = tf.Variable(tf.truncated_normal([1],stddev=0.05))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.m_b,self.v_b = tf.Variable(tf.zeros_like(self.b)),tf.Variable(tf.zeros_like(self.b))
+
     def getw(self): return self.w
     def feedforward(self,input):
         self.input  = input
-        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')
+        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME') + self.b 
         self.layerA = tf_elu(self.layer)
         return self.layerA
 
@@ -102,6 +105,8 @@ class CNN():
             strides=[1,1,1,1],padding='SAME'
         )
 
+        grad_bias = tf.reduce_mean(grad_middle)
+
         update_w = []
         update_w.append(
             tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
@@ -109,12 +114,26 @@ class CNN():
         update_w.append(
             tf.assign( self.v,self.v*beta2 + (1-beta2) * grad ** 2   )
         )
+        update_w.append(
+            tf.assign( self.m_b,self.m_b*beta1 + (1-beta1) * grad_bias   )
+        )
+        update_w.append(
+            tf.assign( self.v_b,self.v_b*beta2 + (1-beta2) * grad_bias ** 2   )
+        )
+
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
+        m_hat_b = self.m_b / (1-beta1)
+        v_hat_b = self.v_b / (1-beta2)
+
         adam_middel  = learning_rate/(tf.sqrt(v_hat) + adam_e)
         adam_middel2 = tf.subtract(tf.multiply(adam_middel,m_hat),learning_rate * tf.multiply(weight_decay_tf,self.w))
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel2)))
-        
+
+        adam_middel_b  = learning_rate/(tf.sqrt(v_hat_b) + adam_e)
+        adam_middel2_b = tf.subtract(tf.multiply(adam_middel_b,m_hat_b),learning_rate * tf.multiply(weight_decay_tf,self.b))
+        update_w.append(tf.assign(self.b,tf.subtract(self.b,adam_middel2_b)))        
+
         return grad_pass,update_w  
 
 # data
@@ -170,7 +189,7 @@ batch_size = 50
 print_size = 5
 learning_rate = 0.0001
 beta1,beta2,adam_e = 0.9,0.999,1e-8
-weight_decay = 0.512
+weight_decay = 0.128
 
 proportion_rate = 1
 decay_rate = 0.05
