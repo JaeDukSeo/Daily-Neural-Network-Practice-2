@@ -41,8 +41,9 @@ class CNN():
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
         self.B = tf.Variable(tf.random_uniform([k,k,inc,out],minval=-0.5,maxval=0.5 ))
-        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
-        self.v_past = tf.Variable(tf.zeros_like(self.w))
+        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
+
     def getw(self): return self.w
     def feedforward(self,input):
         self.input  = input
@@ -50,7 +51,7 @@ class CNN():
         self.layerA = tf_elu(self.layer)
         return self.layerA
 
-    def backprop(self,gradient,feedback=True):
+    def backprop(self,gradient,t):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -63,40 +64,33 @@ class CNN():
             strides=[1,1,1,1],padding='SAME'
         )
 
-        if feedback:
-            grad_pass = tf.nn.conv2d_backprop_input(
+        grad_pass = tf.nn.conv2d_backprop_input(
             input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
-            filter= self.B,out_backprop = grad_middle,
+            filter= self.w,out_backprop = grad_middle,
             strides=[1,1,1,1],padding='SAME'
-            )       
-        else:
-            grad_pass = tf.nn.conv2d_backprop_input(
-                input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
-                filter= self.w,out_backprop = grad_middle,
-                strides=[1,1,1,1],padding='SAME'
-            )
+        )
 
         update_w = []
+        
         update_w.append(
             tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
         )
-        update_w.append(
-            tf.assign( self.v,self.v*beta2 + (1-beta2) * grad ** 2   )
-        )
 
-        def f1(): return self.v
-        def f2(): return self.v_past
+        v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
 
-        v_max = tf.cond(tf.greater(tf.reduce_sum(self.v), tf.reduce_sum(self.v_past) ) , true_fn=f1, false_fn=f2)
+        def f1(): return v_t
+        def f2(): return self.v_hat_prev
 
-        update_w.append(
-            tf.assign( self.v_past,v_max )
-        )
-
-        m_hat = self.m / (1-beta1)
-        v_hat = self.v / (1-beta2)
+        v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
         adam_middel = learning_rate/(tf.sqrt(v_max) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat))))
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,self.m))))
+
+        update_w.append(
+            tf.assign( self.v_prev,v_t )
+        )
+        update_w.append(
+            tf.assign( self.v_hat_prev,v_max )
+        )        
         
         return grad_pass,update_w  
 
@@ -212,27 +206,27 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_re
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-grad11,grad11_up = l11.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ))
-grad10,grad10_up = l10.backprop(grad11)
+grad11,grad11_up = l11.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ),t=iter_variable)
+grad10,grad10_up = l10.backprop(grad11,t=iter_variable)
 
 grad9_Input = tf_repeat(grad10,[1,2,2,1])
-grad9,grad9_up = l9.backprop(grad9_Input)
-grad8,grad8_up = l8.backprop(grad9)
+grad9,grad9_up = l9.backprop(grad9_Input,t=iter_variable)
+grad8,grad8_up = l8.backprop(grad9,t=iter_variable)
 
 grad7_Input = tf_repeat(grad8,[1,2,2,1])
-grad7,grad7_up = l7.backprop(grad7_Input)
-grad6,grad6_up = l6.backprop(grad7)
+grad7,grad7_up = l7.backprop(grad7_Input,t=iter_variable)
+grad6,grad6_up = l6.backprop(grad7,t=iter_variable)
 
 grad5_Input = tf_repeat(grad6,[1,2,2,1])
-grad5,grad5_up = l5.backprop(grad5_Input)
-grad4,grad4_up = l4.backprop(grad5)
+grad5,grad5_up = l5.backprop(grad5_Input,t=iter_variable)
+grad4,grad4_up = l4.backprop(grad5,t=iter_variable)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input)
-grad2,grad2_up = l2.backprop(grad3)
+grad3,grad3_up = l3.backprop(grad3_Input,t=iter_variable)
+grad2,grad2_up = l2.backprop(grad3,t=iter_variable)
 
 grad1_Input = tf_repeat(grad2,[1,2,2,1])
-grad1,grad1_up = l1.backprop(grad1_Input)
+grad1,grad1_up = l1.backprop(grad1_Input,t=iter_variable)
 grad_update = grad11_up + grad10_up + grad9_up + grad8_up + \
                 grad7_up + grad6_up + grad5_up + grad4_up + \
                 grad3_up + grad2_up + grad1_up

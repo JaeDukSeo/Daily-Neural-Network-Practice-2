@@ -143,7 +143,7 @@ print_size = 5
 learning_rate = 0.0001
 beta1,beta2,adam_e = 0.9,0.98,1e-9
 
-parameter_num = (5*5*3*192) + \ 
+parameter_num = (5*5*3*192) + \
                 (192*192) + (3*3*192*192) + \
                 (192*240) + (2*2*240*240) + \
                 (240*260) + (2*2*260*260) + \
@@ -166,7 +166,7 @@ l6 = CNN(1,240,260)
 l7 = CNN(2,260,260)
 
 l8 = CNN(1,260,280)
-l9 = CNN(2,280,280)
+l9 = CNN(2,280,280)     
 
 l10 = CNN(1,280,300)
 l11 = CNN(1,300,10)
@@ -212,27 +212,27 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_re
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-grad11,grad11_up = l11.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ))
-grad10,grad10_up = l10.backprop(grad11)
+grad11,grad11_up = l11.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ),learning_rate_dynamic=learning_rate_dynamic)
+grad10,grad10_up = l10.backprop(grad11,learning_rate_dynamic=learning_rate_dynamic)
 
 grad9_Input = tf_repeat(grad10,[1,2,2,1])
-grad9,grad9_up = l9.backprop(grad9_Input)
-grad8,grad8_up = l8.backprop(grad9)
+grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_dynamic=learning_rate_dynamic)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_dynamic=learning_rate_dynamic)
 
 grad7_Input = tf_repeat(grad8,[1,2,2,1])
-grad7,grad7_up = l7.backprop(grad7_Input)
-grad6,grad6_up = l6.backprop(grad7)
+grad7,grad7_up = l7.backprop(grad7_Input,learning_rate_dynamic=learning_rate_dynamic)
+grad6,grad6_up = l6.backprop(grad7,learning_rate_dynamic=learning_rate_dynamic)
 
 grad5_Input = tf_repeat(grad6,[1,2,2,1])
-grad5,grad5_up = l5.backprop(grad5_Input)
-grad4,grad4_up = l4.backprop(grad5)
+grad5,grad5_up = l5.backprop(grad5_Input,learning_rate_dynamic=learning_rate_dynamic)
+grad4,grad4_up = l4.backprop(grad5,learning_rate_dynamic=learning_rate_dynamic)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input)
-grad2,grad2_up = l2.backprop(grad3)
+grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_dynamic=learning_rate_dynamic)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_dynamic=learning_rate_dynamic)
 
 grad1_Input = tf_repeat(grad2,[1,2,2,1])
-grad1,grad1_up = l1.backprop(grad1_Input)
+grad1,grad1_up = l1.backprop(grad1_Input,learning_rate_dynamic=learning_rate_dynamic)
 grad_update = grad11_up + grad10_up + grad9_up + grad8_up + \
                 grad7_up + grad6_up + grad5_up + grad4_up + \
                 grad3_up + grad2_up + grad1_up
