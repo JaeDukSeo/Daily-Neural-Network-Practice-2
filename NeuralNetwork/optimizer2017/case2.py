@@ -87,7 +87,7 @@ class CNN():
         def f1(): return self.v
         def f2(): return self.v_past
 
-        v_max = tf.cond(tf.greater(self.v, self.v_past), true_fn=f1, false_fn=f2)
+        v_max = tf.cond(tf.greater(tf.reduce_sum(self.v), tf.reduce_sum(self.v_past) ) , true_fn=f1, false_fn=f2)
 
         update_w.append(
             tf.assign( self.v_past,v_max )
@@ -293,16 +293,14 @@ with tf.Session( ) as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig('case b train.png')
-    plt.show()
+    plt.savefig('case 2 train.png')
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig('case b test.png')
-    plt.show()
+    plt.savefig('case 2 test.png')
 
 
 

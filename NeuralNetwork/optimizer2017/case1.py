@@ -281,7 +281,6 @@ with tf.Session( ) as sess:
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
     plt.savefig('case 1 train.png')
-    plt.show()
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
@@ -289,7 +288,6 @@ with tf.Session( ) as sess:
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
     plt.savefig('case 1 test.png')
-    plt.show()
 
 
 
