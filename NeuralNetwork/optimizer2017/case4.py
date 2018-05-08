@@ -176,8 +176,10 @@ weight_decay_tf = tf.placeholder(tf.float32, shape=())
 iter_variable = tf.placeholder(tf.float32, shape=())
 t_cur = tf.placeholder(tf.float32, shape=())
 t_i   = tf.placeholder(tf.float32, shape=())
-decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 learning_rate_dynamic = 0.0005 + 0.0005 * tf.cos(t_cur/t_i * tf.constant(m.pi))
+
+decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
+
 
 layer1 = l1.feedforward(x)
 
