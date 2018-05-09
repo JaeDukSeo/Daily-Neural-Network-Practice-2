@@ -28,6 +28,24 @@ def unpickle(file):
         dict = pickle.load(fo, encoding='bytes')
     return dict
 
+# code from: https://github.com/tensorflow/tensorflow/issues/8246
+def tf_repeat(tensor, repeats):
+    """
+    Args:
+
+    input: A Tensor. 1-D or higher.
+    repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
+
+    Returns:
+    
+    A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
+    """
+    expanded_tensor = tf.expand_dims(tensor, -1)
+    multiples = [1] + repeats
+    tiled_tensor = tf.tile(expanded_tensor, multiples = multiples)
+    repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
+    return repeated_tesnor
+
 # class
 class CNN():
     
@@ -127,8 +145,15 @@ class CNN():
 
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-train_batch = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-test_batch = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+
+train_batch = np.zeros((55000,32,32,1))
+test_batch = np.zeros((10000,32,32,1))
+for x in range(len(x_data)):
+    train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(32,32)),axis=3)
+for x in range(len(y_data)):
+    test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(32,32)),axis=3)
 
 # # print out the data shape
 print(train_batch.shape)
@@ -138,32 +163,32 @@ print(test_label.shape)
 
 # hyper
 num_epoch = 11
-batch_size = 100
+batch_size = 50
 print_size = 2
-learning_rate = 0.0008
+learning_rate = 0.0001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = CNN(5,1,200)
-l2 = CNN(3,200,200)
-l3 = CNN(1,200,200)
-l4 = CNN(3,200,200)
-l5 = CNN(1,200,200)
-l6 = CNN(2,200,200)
-l7 = CNN(1,200,10)
+l1 = CNN(5,1,64)
+l2 = CNN(3,64,64)
+l3 = CNN(1,64,64)
+l4 = CNN(3,64,64)
+l5 = CNN(1,64,64)
+l6 = CNN(2,64,64)
+l7 = CNN(1,64,10)
 
 # graph
-x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32)
+x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
+# --------- first feed forward ---------
 layer1 = l1.feedforward(x)
-
 layer2 = l2.feedforward(layer1)
 
 layer3_Input = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
@@ -178,22 +203,77 @@ layer5 = l5.feedforward(layer5_Input)
 layer6_Input = tf.nn.avg_pool(layer5,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer6 = l6.feedforward(layer6_Input)
 
-# layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer7 = l7.feedforward(layer6)
+layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer7 = l7.feedforward(layer7_Input)
+# --------- first feed forward ---------
 
 temp_reshape = tf.reshape(layer7,[batch_size,-1])
 temp_soft = tf_softmax(temp_reshape)
-print(temp_soft.shape)
 
-sys.exit()
+grad7_f,_ = l7.backprop(tf.reshape(temp_soft-y,[batch_size,1,1,10] ))
 
+grad6_Input_f = tf_repeat(grad7_f,[1,2,2,1]) # 2
+grad6_f,_ = l6.backprop(grad6_Input_f)
 
-final_reshape = tf.reshape(layer7,[batch_size,-1])
+grad5_Input_f = tf_repeat(grad6_f,[1,2,2,1]) # 4
+grad5_f,_ = l5.backprop(grad5_Input_f)
+
+grad4_Input_f = tf_repeat(grad5_f,[1,2,2,1]) # 8
+grad4_f,_ = l4.backprop(grad4_Input_f)
+
+grad3_Input_f = tf_repeat(grad4_f,[1,2,2,1]) # 16
+grad3_f,_ = l3.backprop(grad3_Input_f)
+
+grad2_Input_f = tf_repeat(grad3_f,[1,2,2,1]) # 32
+grad2_f,_ = l2.backprop(grad2_Input_f)
+grad1_f,_ = l1.backprop(grad2_f)
+
+new_input = x + 0.08 * tf.sign(grad1_f)
+layer1_r = l1.feedforward(new_input)
+
+layer2_r = l2.feedforward(layer1_r)
+
+layer3_Input_r = tf.nn.avg_pool(layer2_r,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer3_r = l3.feedforward(layer3_Input_r)
+
+layer4_Input_r = tf.nn.avg_pool(layer3_r,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4_r = l4.feedforward(layer4_Input_r)
+
+layer5_Input_r = tf.nn.avg_pool(layer4_r,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer5_r = l5.feedforward(layer5_Input_r)
+
+layer6_Input_r = tf.nn.avg_pool(layer5_r,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer6_r = l6.feedforward(layer6_Input_r)
+
+layer7_Input_r = tf.nn.avg_pool(layer6_r,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer7_r = l7.feedforward(layer7_Input_r)
+
+final_reshape = tf.reshape(layer7_r,[batch_size,-1])
 final_soft = tf_softmax(final_reshape)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_reshape,labels=y))
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
+grad7,grad7_up = l7.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ))
+
+grad6_Input = tf_repeat(grad7,[1,2,2,1])
+grad6,grad6_up = l6.backprop(grad6_Input)
+
+grad5_Input = tf_repeat(grad6,[1,2,2,1])
+grad5,grad5_up = l5.backprop(grad5_Input)
+
+grad4_Input = tf_repeat(grad5,[1,2,2,1])
+grad4,grad4_up = l4.backprop(grad4_Input)
+
+grad3_Input = tf_repeat(grad4,[1,2,2,1])
+grad3,grad3_up = l3.backprop(grad3_Input)
+
+grad2_Input = tf_repeat(grad3,[1,2,2,1])
+grad2,grad2_up = l2.backprop(grad2_Input)
+
+grad1,grad1_up = l1.backprop(grad2)
+
+grad_update = grad7_up + grad6_up + grad5_up + grad4_up +  grad3_up + grad2_up + grad1_up
 
 # # sess
 with tf.Session() as sess:
@@ -213,7 +293,7 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,grad_update,new_input],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
