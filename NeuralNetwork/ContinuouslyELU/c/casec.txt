@@ -1,0 +1,130 @@
+Current Iter :  0  current batch:  9900  Current cost:  1.4289464  Current Acc:  0.456
+----------
+Train Current cost:  1.687904541492462  Current Acc:  0.3788799987137318
+Test Current cost:  1.3992195510864258  Current Acc:  0.4929999968409538
+----------
+Current Iter :  2  current batch:  9900  Current cost:  1.1034955  Current Acc:  0.5876
+----------
+Train Current cost:  1.0473690288066864  Current Acc:  0.628959999203682
+Test Current cost:  0.991624020934105  Current Acc:  0.6451999980211258
+----------
+Current Iter :  4  current batch:  9900  Current cost:  0.8139882  Current Acc:  0.6734
+----------
+Train Current cost:  0.7718139159679412  Current Acc:  0.7286200026273727
+Test Current cost:  0.8525825655460357  Current Acc:  0.6990000027418136
+----------
+Current Iter :  6  current batch:  9900  Current cost:  0.9309224  Current Acc:  0.6817
+----------
+Train Current cost:  0.587383899152279  Current Acc:  0.7934999988079071
+Test Current cost:  0.7875106847286224  Current Acc:  0.7357000023126602
+----------
+Current Iter :  8  current batch:  9900  Current cost:  0.8546546  Current Acc:  0.7328
+----------
+Train Current cost:  0.44152014929056166  Current Acc:  0.8467399989366531
+Test Current cost:  0.7291357344388962  Current Acc:  0.7581999981403351
+----------
+Current Iter :  10  current batch:  9900  Current cost:  0.84732276  Current Acc:  0.745
+----------
+Train Current cost:  0.320665285050869  Current Acc:  0.888560000538826
+Test Current cost:  0.7752328670024872  Current Acc:  0.7547999972105026
+----------
+Current Iter :  12  current batch:  9900  Current cost:  1.0026307  Current Acc:  0.69135
+----------
+Train Current cost:  0.21835902932286264  Current Acc:  0.9248400006294251
+Test Current cost:  0.835141424536705  Current Acc:  0.7678999954462051
+----------
+Current Iter :  14  current batch:  9900  Current cost:  1.4051502  Current Acc:  0.69327
+----------
+Train Current cost:  0.1432566660568118  Current Acc:  0.9518000038862229
+Test Current cost:  0.9576680213212967  Current Acc:  0.7647000020742416
+----------
+Current Iter :  16  current batch:  9900  Current cost:  1.4175661  Current Acc:  0.69754
+----------
+Train Current cost:  0.09833725511282683  Current Acc:  0.9672800062894821
+Test Current cost:  1.0751751053333283  Current Acc:  0.7599999970197677
+----------
+Current Iter :  18  current batch:  9900  Current cost:  1.3646284  Current Acc:  0.77988
+----------
+Train Current cost:  0.07074900284223258  Current Acc:  0.9762400093078614
+Test Current cost:  1.1611735117435455  Current Acc:  0.7609999984502792
+----------
+Current Iter :  20  current batch:  9900  Current cost:  1.3573471  Current Acc:  0.76359
+----------
+Train Current cost:  0.07036465198080986  Current Acc:  0.9762000085115433
+Test Current cost:  1.178806079030037  Current Acc:  0.7592000013589859
+----------
+Current Iter :  22  current batch:  9900  Current cost:  1.6714436  Current Acc:  0.73299
+----------
+Train Current cost:  0.04640148050803691  Current Acc:  0.9849200100898743
+Test Current cost:  1.2774709683656693  Current Acc:  0.7624999982118607
+----------
+Current Iter :  24  current batch:  9900  Current cost:  1.5710344  Current Acc:  0.74999
+----------
+Train Current cost:  0.03549294322449714  Current Acc:  0.9884000086784362
+Test Current cost:  1.3217655503749848  Current Acc:  0.7616000008583069
+----------
+Current Iter :  26  current batch:  9900  Current cost:  1.744643  Current Acc:  0.7268999
+----------
+Train Current cost:  0.030231817500665784  Current Acc:  0.9901600083112717
+Test Current cost:  1.4228709280490874  Current Acc:  0.7612000000476837
+----------
+Current Iter :  28  current batch:  9900  Current cost:  1.651948  Current Acc:  0.7289.09
+----------
+Train Current cost:  0.013639167106128298  Current Acc:  0.9962200034856796
+Test Current cost:  1.4166849887371062  Current Acc:  0.7737000006437301
+----------
+Current Iter :  30  current batch:  9900  Current cost:  1.9251566  Current Acc:  0.715999
+----------
+Train Current cost:  0.027456206066184676  Current Acc:  0.991520006775856
+Test Current cost:  1.5015056419372559  Current Acc:  0.7606999999284745
+----------
+Current Iter :  32  current batch:  9900  Current cost:  1.7743474  Current Acc:  0.72999
+----------
+Train Current cost:  0.05076856046356261  Current Acc:  0.98326001060009
+Test Current cost:  1.4279822707176208  Current Acc:  0.7631000006198883
+----------
+Current Iter :  34  current batch:  9900  Current cost:  2.1465385  Current Acc:  0.71897
+----------
+Train Current cost:  0.04640628134971485  Current Acc:  0.9841800104379654
+Test Current cost:  1.4433699309825898  Current Acc:  0.76469999730587
+----------
+Current Iter :  36  current batch:  9900  Current cost:  2.013906  Current Acc:  0.7538000
+----------
+Train Current cost:  0.006875175886787474  Current Acc:  0.9980800018310547
+Test Current cost:  1.4683016055822373  Current Acc:  0.7719999980926514
+----------
+Current Iter :  38  current batch:  9900  Current cost:  2.1130073  Current Acc:  0.7481.00
+----------
+Train Current cost:  0.0018690519778465386  Current Acc:  0.9993800005912781
+Test Current cost:  1.5163851672410964  Current Acc:  0.7795000010728836
+----------
+Current Iter :  40  current batch:  9900  Current cost:  2.1561363  Current Acc:  0.753.000
+----------
+Train Current cost:  0.0016791924581630155  Current Acc:  0.9994400005340576
+Test Current cost:  1.545215489268303  Current Acc:  0.7809999990463257
+----------
+Current Iter :  42  current batch:  9900  Current cost:  2.2033117  Current Acc:  0.7521.00
+----------
+Train Current cost:  0.0015185857486576424  Current Acc:  0.9994400005340576
+Test Current cost:  1.5717943543195725  Current Acc:  0.7808999997377396
+----------
+Current Iter :  44  current batch:  9900  Current cost:  2.2438655  Current Acc:  0.7521.00
+----------
+Train Current cost:  0.0014604641881087446  Current Acc:  0.9994600005149842
+Test Current cost:  1.5869846481084824  Current Acc:  0.7806000006198883
+----------
+Current Iter :  46  current batch:  9900  Current cost:  2.244234  Current Acc:  0.74421.00
+----------
+Train Current cost:  0.0014100660088515724  Current Acc:  0.9994800004959107
+Test Current cost:  1.6010891425609588  Current Acc:  0.7797999995946884
+----------
+Current Iter :  48  current batch:  9900  Current cost:  2.269968  Current Acc:  0.7448.000
+----------
+Train Current cost:  0.0013248349514469737  Current Acc:  0.9995000004768372
+Test Current cost:  1.6125030988454818  Current Acc:  0.7801000022888184
+----------
+Current Iter :  50  current batch:  9900  Current cost:  2.284647  Current Acc:  0.7442.000
+----------
+Train Current cost:  0.0012763274095923408  Current Acc:  0.9995000004768372
+Test Current cost:  1.62738989174366  Current Acc:  0.7808000016212463
+----------

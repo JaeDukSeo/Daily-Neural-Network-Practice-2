@@ -154,10 +154,8 @@ print_size = 2
 learning_rate = 0.0008
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
-# proportion_rate = 0.0001
-# decay_rate = 10
-proportion_rate = 1
-decay_rate = 0.1
+proportion_rate = 0.0001
+decay_rate = 10
 
 # define class
 l1 = CNN(5,3,200)
