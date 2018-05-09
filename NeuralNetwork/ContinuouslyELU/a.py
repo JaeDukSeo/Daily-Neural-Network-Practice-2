@@ -7,6 +7,8 @@ from scipy.misc import imresize
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
+from tensorflow.examples.tutorials.mnist import input_data
+
 
 def tf_celu(x,alpha=2.0 ):
     mask_greater = tf.cast(tf.greater_equal(x,0),tf.float32) * x
@@ -82,52 +84,57 @@ class CNN():
         )        
         return grad_pass,update_w   
 
-# data
-PathDicom = "../../Dataset/cifar-10-batches-py/"
-lstFilesDCM = []  # create an empty list
-for dirName, subdirList, fileList in os.walk(PathDicom):
-    for filename in fileList:
-        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
-            lstFilesDCM.append(os.path.join(dirName,filename))
+# # data
+# PathDicom = "../../Dataset/cifar-10-batches-py/"
+# lstFilesDCM = []  # create an empty list
+# for dirName, subdirList, fileList in os.walk(PathDicom):
+#     for filename in fileList:
+#         if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
+#             lstFilesDCM.append(os.path.join(dirName,filename))
 
-# Read the data traind and Test
-batch0 = unpickle(lstFilesDCM[0])
-batch1 = unpickle(lstFilesDCM[1])
-batch2 = unpickle(lstFilesDCM[2])
-batch3 = unpickle(lstFilesDCM[3])
-batch4 = unpickle(lstFilesDCM[4])
+# # Read the data traind and Test
+# batch0 = unpickle(lstFilesDCM[0])
+# batch1 = unpickle(lstFilesDCM[1])
+# batch2 = unpickle(lstFilesDCM[2])
+# batch3 = unpickle(lstFilesDCM[3])
+# batch4 = unpickle(lstFilesDCM[4])
 
-onehot_encoder = OneHotEncoder(sparse=True)
-train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
-train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
-train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
+# onehot_encoder = OneHotEncoder(sparse=True)
+# train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
+# train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
+# train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
 
-test_batch = unpickle(lstFilesDCM[5])[b'data']
-test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
-test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
+# test_batch = unpickle(lstFilesDCM[5])[b'data']
+# test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
+# test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
 
-# reshape data
-train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
-test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
+# # reshape data
+# train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
+# test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 
-# rotate data
-train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+# # rotate data
+# train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+# test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
-# Normalize data from 0 to 1 per each channel
-train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].min(axis=0)) / (train_batch[:,:,:,0].max(axis=0) - train_batch[:,:,:,0].min(axis=0))
-train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)) / (train_batch[:,:,:,1].max(axis=0) - train_batch[:,:,:,1].min(axis=0))
-train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
+# # Normalize data from 0 to 1 per each channel
+# train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].min(axis=0)) / (train_batch[:,:,:,0].max(axis=0) - train_batch[:,:,:,0].min(axis=0))
+# train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)) / (train_batch[:,:,:,1].max(axis=0) - train_batch[:,:,:,1].min(axis=0))
+# train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
 
-test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
-test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / (test_batch[:,:,:,1].max(axis=0) - test_batch[:,:,:,1].min(axis=0))
-test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / (test_batch[:,:,:,2].max(axis=0) - test_batch[:,:,:,2].min(axis=0))
+# test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
+# test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / (test_batch[:,:,:,1].max(axis=0) - test_batch[:,:,:,1].min(axis=0))
+# test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / (test_batch[:,:,:,2].max(axis=0) - test_batch[:,:,:,2].min(axis=0))
 
-# print out the data shape
-print(train_batch.shape)
-print(train_label.shape)
-print(test_batch.shape)
-print(test_label.shape)
+# # print out the data shape
+# print(train_batch.shape)
+# print(train_label.shape)
+# print(test_batch.shape)
+# print(test_label.shape)
+
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+train_batch = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+test_batch = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 
 # hyper
 num_epoch = 101
@@ -233,14 +240,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.show()
+    plt.savefig("Case a Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.show()
+    plt.savefig("Case a Test.png")
 
 
 
