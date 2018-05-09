@@ -34,12 +34,12 @@ class CNN():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
 
-    def feedforward(self,input,res=True):
+    def feedforward(self,input):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')
         self.layerA = tf_celu(self.layer)
-        if res: return self.layerA + self.input * 0.8
         return self.layerA 
+
 
     def backprop(self,gradient):
         grad_part_1 = gradient 
@@ -130,7 +130,7 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper
-num_epoch = 101
+num_epoch = 51
 batch_size = 100
 print_size = 2
 learning_rate = 0.0008
@@ -140,13 +140,13 @@ proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = CNN(5,3,100)
-l2 = CNN(3,100,100)
-l3 = CNN(1,100,100)
-l4 = CNN(3,100,100)
-l5 = CNN(1,100,100)
-l6 = CNN(2,100,100)
-l7 = CNN(1,100,10)
+l1 = CNN(5,3,200)
+l2 = CNN(3,200,200)
+l3 = CNN(1,200,200)
+l4 = CNN(3,200,200)
+l5 = CNN(1,200,200)
+l6 = CNN(2,200,200)
+l7 = CNN(1,200,10)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
@@ -155,24 +155,24 @@ y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 iter_variable = tf.placeholder(tf.float32, shape=())
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
-layer1 = l1.feedforward(x,res=False)
+layer1 = l1.feedforward(x)
 
 layer2 = l2.feedforward(layer1)
 
 layer3_Input = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer3 = l3.feedforward(layer3_Input,res=True)
+layer3 = l3.feedforward(layer3_Input)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer4_Input)
 
 layer5_Input = tf.nn.avg_pool(layer4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer5 = l5.feedforward(layer5_Input,res=True)
+layer5 = l5.feedforward(layer5_Input)
 
 layer6_Input = tf.nn.avg_pool(layer5,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer6 = l6.feedforward(layer6_Input)
 
 layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer7 = l7.feedforward(layer7_Input,res=False)
+layer7 = l7.feedforward(layer7_Input)
 
 final_reshape = tf.reshape(layer7,[batch_size,-1])
 final_soft = tf_softmax(final_reshape)
@@ -226,7 +226,8 @@ with tf.Session() as sess:
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
-
+    train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
+    test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
     # training done
     plt.figure()
     plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')

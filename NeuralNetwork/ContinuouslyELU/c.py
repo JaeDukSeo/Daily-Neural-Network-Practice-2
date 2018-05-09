@@ -245,7 +245,6 @@ with tf.Session() as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-
             sess_result = sess.run([cost,accuracy,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
@@ -264,9 +263,12 @@ with tf.Session() as sess:
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
 
+
+    train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
+    test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
+
     # training done
     plt.figure()
-    train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
     plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
@@ -274,7 +276,6 @@ with tf.Session() as sess:
     plt.savefig("Case c Train.png")
 
     plt.figure()
-    test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
