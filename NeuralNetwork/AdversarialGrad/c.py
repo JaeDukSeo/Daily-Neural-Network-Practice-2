@@ -10,7 +10,7 @@ from skimage.transform import resize
 from tensorflow.examples.tutorials.mnist import input_data
 
 import time
-time.sleep(60*60*5)
+time.sleep(60*60*2)
 
 def tf_celu(x,alpha=2.0 ):
     mask_greater = tf.cast(tf.greater_equal(x,0),tf.float32) * x
@@ -161,15 +161,15 @@ print(test_label.shape)
 # plt.show()
 
 # hyper
-num_epoch = 301
+num_epoch = 101
 batch_size = 100
-print_size = 1
-learning_rate = 0.0005
-mag_pertu = 0.06
+print_size = 2
+learning_rate = 0.0007
+mag_pertu = 0.09
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
-proportion_rate = 0.3
-decay_rate = 10
+proportion_rate = 0.5
+decay_rate = 0.05
 
 # define class
 l1 = CNN(5,3,256)
@@ -300,6 +300,11 @@ with tf.Session() as sess:
     test_cot,test_acc = [],[]
 
     for iter in range(num_epoch):
+
+        # mag_pertu = 0.09
+        if iter == 10:
+            mag_pertu = 0.075
+            learning_rate = learning_rate * 0.1
 
         train_batch,train_label = shuffle(train_batch,train_label)
 

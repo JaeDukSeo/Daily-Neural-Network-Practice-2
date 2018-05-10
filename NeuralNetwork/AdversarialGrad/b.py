@@ -147,10 +147,10 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper
-num_epoch = 301
+num_epoch = 101
 batch_size = 100
-print_size = 1
-learning_rate = 0.0008
+print_size = 2
+learning_rate = 0.0007
 mag_pertu = 0.09
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -158,13 +158,13 @@ proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = CNN(5,3,128)
-l2 = CNN(2,128,128)
-l3 = CNN(1,128,128)
-l4 = CNN(5,128,128)
-l5 = CNN(3,128,128)
-l6 = CNN(1,128,128)
-l7 = CNN(1,128,10)
+l1 = CNN(5,3,256)
+l2 = CNN(3,256,256)
+l3 = CNN(1,256,256)
+l4 = CNN(3,256,256)
+l5 = CNN(1,256,256)
+l6 = CNN(2,256,256)
+l7 = CNN(1,256,10)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
@@ -286,8 +286,9 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
 
+        # mag_pertu = 0.09
         if iter == 10:
-            mag_pertu = 0.03
+            mag_pertu = 0.075
             learning_rate = learning_rate * 0.1
 
         train_batch,train_label = shuffle(train_batch,train_label)
