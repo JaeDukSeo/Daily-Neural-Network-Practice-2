@@ -142,14 +142,20 @@ class CNN():
 # test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / (test_batch[:,:,:,1].max(axis=0) - test_batch[:,:,:,1].min(axis=0))
 # test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / (test_batch[:,:,:,2].max(axis=0) - test_batch[:,:,:,2].min(axis=0))
 
-
+# data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+x_data_added,x_data_added_label = mnist.validation.images,mnist.validation.labels
 x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+x_data_added = x_data_added.reshape(-1, 28, 28, 1) 
 
-train_batch = np.zeros((55000,32,32,1))
+x_data = np.vstack((x_data,x_data_added))
+train_label = np.vstack((train_label,x_data_added_label))
+
+train_batch = np.zeros((60000,32,32,1))
 test_batch = np.zeros((10000,32,32,1))
+
 for x in range(len(x_data)):
     train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(32,32)),axis=3)
 for x in range(len(y_data)):
@@ -162,11 +168,11 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper
-num_epoch = 101
+num_epoch = 51
 batch_size = 50
 print_size = 1
-learning_rate = 0.00008
-perturbation_mag = 0.8
+learning_rate = 0.00007
+perturbation_mag = 0.5
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 proportion_rate = 1
@@ -185,7 +191,7 @@ l7 = CNN(1,128,10)
 x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
-mag =tf.placeholder(tf.float32, shape=())
+mag = tf.placeholder(tf.float32, shape=())
 learing_rate_dynamic =tf.placeholder(tf.float32, shape=())
 iter_variable = tf.placeholder(tf.float32, shape=())
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
@@ -210,13 +216,14 @@ layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='
 layer7 = l7.feedforward(layer7_Input)
 # --------- first feed forward ---------
 
-# -------- Gradient Calculation ---------
+# -------- Gradient Calculation / Test Image out put ---------
 temp_reshape = tf.reshape(layer7,[batch_size,-1])
 temp_soft = tf_softmax(temp_reshape)
 cost_test = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=temp_soft,labels=y))
 correct_prediction_test = tf.equal(tf.argmax(temp_soft, 1), tf.argmax(y, 1))
 accuracy_test = tf.reduce_mean(tf.cast(correct_prediction_test, tf.float32))
 
+# -------- Gradient Calculation ---------
 grad7_f,_ = l7.backprop(tf.reshape(temp_soft-y,[batch_size,1,1,10] ),learing_rate_dynamic)
 
 grad6_Input_f = tf_repeat(grad7_f,[1,2,2,1]) # 2
@@ -236,7 +243,6 @@ grad2_f,_ = l2.backprop(grad2_Input_f,learing_rate_dynamic)
 grad1_f,_ = l1.backprop(grad2_f,learing_rate_dynamic)
 # -------- Gradient Calculation ---------
 
-# 0.1 best 99.4
 # ------- Create new input and feed forward ------
 new_input = x + mag * tf.sign(grad1_f)
 layer1_r = l1.feedforward(new_input)
@@ -302,10 +308,7 @@ with sess as sess:
     for iter in range(num_epoch):
 
         train_batch,train_label = shuffle(train_batch,train_label)
-        if iter == 19 : 
-            learning_rate = learning_rate * 0.1
-            perturbation_mag = 0.08
-
+        
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
@@ -317,7 +320,6 @@ with sess as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-
             sess_result = sess.run([cost_test,accuracy_test,correct_prediction_test,temp_soft,temp_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
@@ -335,6 +337,7 @@ with sess as sess:
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
+
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
     test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
     # training done

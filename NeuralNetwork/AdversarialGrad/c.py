@@ -9,6 +9,8 @@ from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
 from tensorflow.examples.tutorials.mnist import input_data
 
+import time
+time.sleep(60*60*5)
 
 def tf_celu(x,alpha=2.0 ):
     mask_greater = tf.cast(tf.greater_equal(x,0),tf.float32) * x
@@ -133,7 +135,12 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
-# standardize Normalize data from 0 to 1 per each channel
+# plt.hist(train_batch.flatten() ,bins='auto')
+# plt.show()
+# plt.hist(test_batch.flatten() ,bins='auto')
+# plt.show()
+
+# standardize Normalize data per channel
 train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].mean(axis=0)) / ( train_batch[:,:,:,0].std(axis=0))
 train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].mean(axis=0)) / ( train_batch[:,:,:,1].std(axis=0))
 train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].mean(axis=0)) / ( train_batch[:,:,:,2].std(axis=0))
@@ -148,33 +155,33 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-plt.hist(train_batch.flatten() ,bins='auto')
-plt.show()
-plt.hist(test_batch.flatten() ,bins='auto')
-plt.show()
-sys.exit()
+# plt.hist(train_batch.flatten() ,bins='auto')
+# plt.show()
+# plt.hist(test_batch.flatten() ,bins='auto')
+# plt.show()
 
 # hyper
-num_epoch = 101
+num_epoch = 301
 batch_size = 100
 print_size = 1
-learning_rate = 0.00008
+learning_rate = 0.0005
+mag_pertu = 0.06
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
-proportion_rate = 1
-decay_rate = 0.05
+proportion_rate = 0.3
+decay_rate = 10
 
 # define class
-l1 = CNN(5,1,200)
-l2 = CNN(3,200,200)
-l3 = CNN(1,200,200)
-l4 = CNN(3,200,200)
-l5 = CNN(1,200,200)
-l6 = CNN(2,200,200)
-l7 = CNN(1,200,10)
+l1 = CNN(5,3,256)
+l2 = CNN(3,256,256)
+l3 = CNN(1,256,256)
+l4 = CNN(3,256,256)
+l5 = CNN(1,256,256)
+l6 = CNN(2,256,256)
+l7 = CNN(1,256,10)
 
 # graph
-x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
+x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
@@ -200,32 +207,35 @@ layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='
 layer7 = l7.feedforward(layer7_Input)
 # --------- first feed forward ---------
 
+# -------- Gradient Calculation / Test Image out put ---------
 temp_reshape = tf.reshape(layer7,[batch_size,-1])
 temp_soft = tf_softmax(temp_reshape)
+cost_test = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=temp_soft,labels=y))
+correct_prediction_test = tf.equal(tf.argmax(temp_soft, 1), tf.argmax(y, 1))
+accuracy_test = tf.reduce_mean(tf.cast(correct_prediction_test, tf.float32))
 
+# -------- Gradient Calculation ---------
 grad7_f,_ = l7.backprop(tf.reshape(temp_soft-y,[batch_size,1,1,10] ))
 
 grad6_Input_f = tf_repeat(grad7_f,[1,2,2,1]) # 2
 grad6_f,_ = l6.backprop(grad6_Input_f)
 
-grad7_Dilated_f = tf_repeat(grad7_f,[1,4,4,1])
 grad5_Input_f = tf_repeat(grad6_f,[1,2,2,1]) # 4
-grad5_f,_ = l5.backprop(grad5_Input_f+decay_dilated_rate*grad7_Dilate)
+grad5_f,_ = l5.backprop(grad5_Input_f)
 
-grad6_Dilated_f = tf_repeat(grad6_f,[1,4,4,1])
 grad4_Input_f = tf_repeat(grad5_f,[1,2,2,1]) # 8
-grad4_f,_ = l4.backprop(grad4_Input_f+decay_dilated_rate*grad6_Dilate)
+grad4_f,_ = l4.backprop(grad4_Input_f)
 
-grad5_Dilated_f = tf_repeat(grad5_f,[1,4,4,1])
 grad3_Input_f = tf_repeat(grad4_f,[1,2,2,1]) # 16
-grad3_f,_ = l3.backprop(grad3_Input_f+decay_dilated_rate*grad5_Dilate)
+grad3_f,_ = l3.backprop(grad3_Input_f)
 
-grad4_Dilated_f = tf_repeat(grad4_f,[1,4,4,1])
 grad2_Input_f = tf_repeat(grad3_f,[1,2,2,1]) # 32
-grad2_f,_ = l2.backprop(grad2_Input_f+decay_dilated_rate*grad4_Dilate)
+grad2_f,_ = l2.backprop(grad2_Input_f)
 grad1_f,_ = l1.backprop(grad2_f)
+# -------- Gradient Calculation ---------
 
-new_input = x + 0.08 * tf.sign(grad1_f)
+# ------- Create new input and feed forward ------
+new_input = x + mag_pertu * tf.sign(grad1_f)
 layer1_r = l1.feedforward(new_input)
 
 layer2_r = l2.feedforward(layer1_r)
@@ -244,7 +254,9 @@ layer6_r = l6.feedforward(layer6_Input_r)
 
 layer7_Input_r = tf.nn.avg_pool(layer6_r,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7_r = l7.feedforward(layer7_Input_r)
+# ------- Create new input and feed forward ------
 
+# ------ real back propagation ---------
 final_reshape = tf.reshape(layer7_r,[batch_size,-1])
 final_soft = tf_softmax(final_reshape)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_reshape,labels=y))
@@ -264,7 +276,7 @@ grad6_Dilate = tf_repeat(grad6,[1,4,4,1])
 grad4_Input = tf_repeat(grad5,[1,2,2,1])
 grad4,grad4_up = l4.backprop(grad4_Input+decay_dilated_rate*grad6_Dilate)
 
-grad5_Dilate = tf_repeat(grad7,[1,4,4,1])
+grad5_Dilate = tf_repeat(grad5,[1,4,4,1])
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
 grad3,grad3_up = l3.backprop(grad3_Input+decay_dilated_rate*grad5_Dilate)
 
@@ -302,8 +314,7 @@ with tf.Session() as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-
-            sess_result = sess.run([cost,accuracy,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost_test,accuracy_test,correct_prediction_test,temp_soft,temp_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
@@ -320,6 +331,7 @@ with tf.Session() as sess:
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
+
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
     test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
     # training done
@@ -328,14 +340,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case a Train.png")
+    plt.savefig("Case c Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case a Test.png")
+    plt.savefig("Case c Test.png")
 
 
 

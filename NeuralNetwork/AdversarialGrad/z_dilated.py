@@ -144,6 +144,7 @@ class CNN():
 
 
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+print(dir(mnist))
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
@@ -166,7 +167,7 @@ num_epoch = 41
 batch_size = 50
 print_size = 1
 learning_rate = 0.00008
-perturbation_mag = 1.0
+perturbation_mag = 0.9
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 proportion_rate = 0.01
@@ -363,14 +364,14 @@ with sess as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case a Train.png")
+    plt.savefig("Case z dilated Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case a Test.png")
+    plt.savefig("Case z dilated Test.png")
 
 
 

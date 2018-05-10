@@ -84,9 +84,7 @@ class CNN():
         update_w.append(
             tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
         )
-
         v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
-
         def f1(): return v_t
         def f2(): return self.v_hat_prev
 
@@ -133,12 +131,7 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
-# plt.hist(train_batch.flatten() ,bins='auto')
-# plt.show()
-# plt.hist(test_batch.flatten() ,bins='auto')
-# plt.show()
-
-# standardize Normalize data from 0 to 1 per each channel
+# standardize Normalize data per channel
 train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].mean(axis=0)) / ( train_batch[:,:,:,0].std(axis=0))
 train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].mean(axis=0)) / ( train_batch[:,:,:,1].std(axis=0))
 train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].mean(axis=0)) / ( train_batch[:,:,:,2].std(axis=0))
@@ -153,36 +146,32 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-# plt.hist(train_batch.flatten() ,bins='auto')
-# plt.show()
-# plt.hist(test_batch.flatten() ,bins='auto')
-# plt.show()
-
-sys.exit()
-
 # hyper
-num_epoch = 101
+num_epoch = 301
 batch_size = 100
 print_size = 1
-learning_rate = 0.00008
+learning_rate = 0.0008
+mag_pertu = 0.09
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = CNN(5,1,200)
-l2 = CNN(3,200,200)
-l3 = CNN(1,200,200)
-l4 = CNN(3,200,200)
-l5 = CNN(1,200,200)
-l6 = CNN(2,200,200)
-l7 = CNN(1,200,10)
+l1 = CNN(5,3,128)
+l2 = CNN(2,128,128)
+l3 = CNN(1,128,128)
+l4 = CNN(5,128,128)
+l5 = CNN(3,128,128)
+l6 = CNN(1,128,128)
+l7 = CNN(1,128,10)
 
 # graph
-x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
+x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
+mag_dynamic = tf.placeholder(tf.float32, shape=())
+learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 iter_variable = tf.placeholder(tf.float32, shape=())
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
@@ -206,9 +195,14 @@ layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='
 layer7 = l7.feedforward(layer7_Input)
 # --------- first feed forward ---------
 
+# -------- Gradient Calculation / Test Image out put ---------
 temp_reshape = tf.reshape(layer7,[batch_size,-1])
 temp_soft = tf_softmax(temp_reshape)
+cost_test = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=temp_soft,labels=y))
+correct_prediction_test = tf.equal(tf.argmax(temp_soft, 1), tf.argmax(y, 1))
+accuracy_test = tf.reduce_mean(tf.cast(correct_prediction_test, tf.float32))
 
+# -------- Gradient Calculation ---------
 grad7_f,_ = l7.backprop(tf.reshape(temp_soft-y,[batch_size,1,1,10] ))
 
 grad6_Input_f = tf_repeat(grad7_f,[1,2,2,1]) # 2
@@ -226,8 +220,10 @@ grad3_f,_ = l3.backprop(grad3_Input_f)
 grad2_Input_f = tf_repeat(grad3_f,[1,2,2,1]) # 32
 grad2_f,_ = l2.backprop(grad2_Input_f)
 grad1_f,_ = l1.backprop(grad2_f)
+# -------- Gradient Calculation ---------
 
-new_input = x + 0.08 * tf.sign(grad1_f)
+# ------- Create new input and feed forward ------
+new_input = x + mag_pertu * tf.sign(grad1_f)
 layer1_r = l1.feedforward(new_input)
 
 layer2_r = l2.feedforward(layer1_r)
@@ -246,7 +242,9 @@ layer6_r = l6.feedforward(layer6_Input_r)
 
 layer7_Input_r = tf.nn.avg_pool(layer6_r,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7_r = l7.feedforward(layer7_Input_r)
+# ------- Create new input and feed forward ------
 
+# ------ real back propagation ---------
 final_reshape = tf.reshape(layer7_r,[batch_size,-1])
 final_soft = tf_softmax(final_reshape)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_reshape,labels=y))
@@ -273,6 +271,7 @@ grad2,grad2_up = l2.backprop(grad2_Input)
 grad1,grad1_up = l1.backprop(grad2)
 
 grad_update = grad7_up + grad6_up + grad5_up + grad4_up +  grad3_up + grad2_up + grad1_up
+# ------ real back propagation ---------
 
 # # sess
 with tf.Session() as sess:
@@ -287,12 +286,17 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
 
+        if iter == 10:
+            mag_pertu = 0.03
+            learning_rate = learning_rate * 0.1
+
         train_batch,train_label = shuffle(train_batch,train_label)
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,accuracy,grad_update,new_input],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,grad_update,new_input],feed_dict={x:current_batch,y:current_batch_label,
+            iter_variable:iter,mag_dynamic:mag_pertu,learning_rate_dynamic:learning_rate})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -300,8 +304,8 @@ with tf.Session() as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-
-            sess_result = sess.run([cost,accuracy,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost_test,accuracy_test,correct_prediction_test,temp_soft,temp_reshape],
+            feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
@@ -318,6 +322,7 @@ with tf.Session() as sess:
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
+
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
     test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
     # training done
@@ -326,14 +331,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case a Train.png")
+    plt.savefig("Case b Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case a Test.png")
+    plt.savefig("Case b Test.png")
 
 
 
