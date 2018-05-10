@@ -60,7 +60,7 @@ class CNN():
         self.layerA = tf_celu(self.layer)
         return self.layerA 
 
-    def backprop(self,gradient):
+    def backprop(self,gradient,learing_rate_dynamic):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_celu(self.layer) 
         grad_part_3 = self.input
@@ -91,7 +91,7 @@ class CNN():
         def f2(): return self.v_hat_prev
 
         v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
-        adam_middel = learning_rate/(tf.sqrt(v_max) + adam_e)
+        adam_middel = learing_rate_dynamic/(tf.sqrt(v_max) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,self.m))))
         update_w.append(
             tf.assign( self.v_prev,v_t )
@@ -184,6 +184,7 @@ l7 = CNN(1,128,10)
 x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
+learing_rate_dynamic =tf.placeholder(tf.float32, shape=())
 iter_variable = tf.placeholder(tf.float32, shape=())
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
@@ -211,28 +212,28 @@ layer7 = l7.feedforward(layer7_Input)
 temp_reshape = tf.reshape(layer7,[batch_size,-1])
 temp_soft = tf_softmax(temp_reshape)
 
-grad7_f,_ = l7.backprop(tf.reshape(temp_soft-y,[batch_size,1,1,10] ))
+grad7_f,_ = l7.backprop(tf.reshape(temp_soft-y,[batch_size,1,1,10] ),learing_rate_dynamic)
 
 grad6_Input_f = tf_repeat(grad7_f,[1,2,2,1]) # 2
-grad6_f,_ = l6.backprop(grad6_Input_f)
+grad6_f,_ = l6.backprop(grad6_Input_f,learing_rate_dynamic)
 
 grad5_Input_f = tf_repeat(grad6_f,[1,2,2,1]) # 4
-grad5_f,_ = l5.backprop(grad5_Input_f)
+grad5_f,_ = l5.backprop(grad5_Input_f,learing_rate_dynamic)
 
 grad4_Input_f = tf_repeat(grad5_f,[1,2,2,1]) # 8
-grad4_f,_ = l4.backprop(grad4_Input_f)
+grad4_f,_ = l4.backprop(grad4_Input_f,learing_rate_dynamic)
 
 grad3_Input_f = tf_repeat(grad4_f,[1,2,2,1]) # 16
-grad3_f,_ = l3.backprop(grad3_Input_f)
+grad3_f,_ = l3.backprop(grad3_Input_f,learing_rate_dynamic)
 
 grad2_Input_f = tf_repeat(grad3_f,[1,2,2,1]) # 32
-grad2_f,_ = l2.backprop(grad2_Input_f)
-grad1_f,_ = l1.backprop(grad2_f)
+grad2_f,_ = l2.backprop(grad2_Input_f,learing_rate_dynamic)
+grad1_f,_ = l1.backprop(grad2_f,learing_rate_dynamic)
 # -------- Gradient Calculation ---------
 
 # 0.1 best 99.4
 # ------- Create new input and feed forward ------
-new_input = x + 0.3 * tf.sign(grad1_f)
+new_input = x + 0.4 * tf.sign(grad1_f)
 layer1_r = l1.feedforward(new_input)
 
 layer2_r = l2.feedforward(layer1_r)
@@ -260,32 +261,29 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_re
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-grad7,grad7_up = l7.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ))
+grad7,grad7_up = l7.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ),learing_rate_dynamic)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input)
+grad6,grad6_up = l6.backprop(grad6_Input,learing_rate_dynamic)
 
 grad5_Input = tf_repeat(grad6,[1,2,2,1])
-grad5,grad5_up = l5.backprop(grad5_Input)
+grad5,grad5_up = l5.backprop(grad5_Input,learing_rate_dynamic)
 
 grad4_Input = tf_repeat(grad5,[1,2,2,1])
-grad4,grad4_up = l4.backprop(grad4_Input)
+grad4,grad4_up = l4.backprop(grad4_Input,learing_rate_dynamic)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input)
+grad3,grad3_up = l3.backprop(grad3_Input,learing_rate_dynamic)
 
 grad2_Input = tf_repeat(grad3,[1,2,2,1])
-grad2,grad2_up = l2.backprop(grad2_Input)
-
-grad1,grad1_up = l1.backprop(grad2)
+grad2,grad2_up = l2.backprop(grad2_Input,learing_rate_dynamic)
+grad1,grad1_up = l1.backprop(grad2,learing_rate_dynamic)
 
 grad_update = grad7_up + grad6_up + grad5_up + grad4_up +  grad3_up + grad2_up + grad1_up
 # ------ real back propagation ---------
 
 # # sess
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
-sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-# sess = tf.Session()
+sess = tf.Session()
 with sess as sess:
 
     sess.run(tf.global_variables_initializer())
@@ -299,11 +297,12 @@ with sess as sess:
     for iter in range(num_epoch):
 
         train_batch,train_label = shuffle(train_batch,train_label)
+        if iter == 19 : learning_rate = learning_rate * 0.8
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,accuracy,grad_update,new_input],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,grad_update,new_input],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learing_rate_dynamic:learning_rate})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
