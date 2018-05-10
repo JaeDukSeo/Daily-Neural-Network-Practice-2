@@ -4,9 +4,7 @@ import tensorflow as tf
 x1 = tf.constant([1,-1,1,4])
 x2 = tf.constant([5,-6,-1,8])
 
-temp_sess = tf.Session()
 # Multiply
-result = tf.multiply(x1, x2)
 sss = tf.sign(x1)
 sss1 = tf.sign(x2)
 
@@ -14,9 +12,12 @@ sss1 = tf.sign(x2)
 sess = tf.Session()
 
 # Print the result
-print(sess.run(result))
-print(sess.run(sss))
-print(sess.run(sss1))
+print(dir(x1))
+print("Input Array: ", sess.run(x1))
+print("Return Sign Array: ",sess.run(sss))
+print('---------------------')
+print("Input Array: ", sess.run(x2))
+print("Return Sign Array: ",sess.run(sss1))
 
 # Close the session
 sess.close()

@@ -172,13 +172,13 @@ proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = CNN(5,1,128)
-l2 = CNN(3,128,128)
-l3 = CNN(1,128,128)
-l4 = CNN(3,128,128)
-l5 = CNN(1,128,128)
-l6 = CNN(2,128,128)
-l7 = CNN(1,128,10)
+l1 = CNN(5,1,16)
+l2 = CNN(3,16,16)
+l3 = CNN(1,16,32)
+l4 = CNN(3,32,32)
+l5 = CNN(1,32,64)
+l6 = CNN(2,64,64)
+l7 = CNN(1,64,10)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
@@ -230,9 +230,8 @@ grad2_f,_ = l2.backprop(grad2_Input_f)
 grad1_f,_ = l1.backprop(grad2_f)
 # -------- Gradient Calculation ---------
 
-# 0.1 best 99.4
 # ------- Create new input and feed forward ------
-new_input = x + 0.3 * tf.sign(grad1_f)
+new_input = x + 0.08 * tf.sign(grad1_f)
 layer1_r = l1.feedforward(new_input)
 
 layer2_r = l2.feedforward(layer1_r)
@@ -283,9 +282,9 @@ grad_update = grad7_up + grad6_up + grad5_up + grad4_up +  grad3_up + grad2_up +
 # ------ real back propagation ---------
 
 # # sess
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
-sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-# sess = tf.Session()
+# gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+# sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+sess = tf.Session()
 with sess as sess:
 
     sess.run(tf.global_variables_initializer())

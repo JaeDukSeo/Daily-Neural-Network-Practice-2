@@ -102,58 +102,45 @@ class CNN():
         return grad_pass,update_w   
 
 # # data
-# PathDicom = "../../Dataset/cifar-10-batches-py/"
-# lstFilesDCM = []  # create an empty list
-# for dirName, subdirList, fileList in os.walk(PathDicom):
-#     for filename in fileList:
-#         if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
-#             lstFilesDCM.append(os.path.join(dirName,filename))
+PathDicom = "../../Dataset/cifar-10-batches-py/"
+lstFilesDCM = []  # create an empty list
+for dirName, subdirList, fileList in os.walk(PathDicom):
+    for filename in fileList:
+        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
+            lstFilesDCM.append(os.path.join(dirName,filename))
 
-# # Read the data traind and Test
-# batch0 = unpickle(lstFilesDCM[0])
-# batch1 = unpickle(lstFilesDCM[1])
-# batch2 = unpickle(lstFilesDCM[2])
-# batch3 = unpickle(lstFilesDCM[3])
-# batch4 = unpickle(lstFilesDCM[4])
+# Read the data traind and Test
+batch0 = unpickle(lstFilesDCM[0])
+batch1 = unpickle(lstFilesDCM[1])
+batch2 = unpickle(lstFilesDCM[2])
+batch3 = unpickle(lstFilesDCM[3])
+batch4 = unpickle(lstFilesDCM[4])
 
-# onehot_encoder = OneHotEncoder(sparse=True)
-# train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
-# train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
-# train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
+onehot_encoder = OneHotEncoder(sparse=True)
+train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
+train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
+train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
 
-# test_batch = unpickle(lstFilesDCM[5])[b'data']
-# test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
-# test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
+test_batch = unpickle(lstFilesDCM[5])[b'data']
+test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
+test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
 
-# # reshape data
-# train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
-# test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
+# reshape data
+train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
+test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 
-# # rotate data
-# train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-# test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+# rotate data
+train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
-# # Normalize data from 0 to 1 per each channel
-# train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].min(axis=0)) / (train_batch[:,:,:,0].max(axis=0) - train_batch[:,:,:,0].min(axis=0))
-# train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)) / (train_batch[:,:,:,1].max(axis=0) - train_batch[:,:,:,1].min(axis=0))
-# train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
+# standardize Normalize data from 0 to 1 per each channel
+train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].mean(axis=0)) / ( train_batch[:,:,:,0].std(axis=0))
+train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].mean(axis=0)) / ( train_batch[:,:,:,1].std(axis=0))
+train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].mean(axis=0)) / ( train_batch[:,:,:,2].std(axis=0))
 
-# test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
-# test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / (test_batch[:,:,:,1].max(axis=0) - test_batch[:,:,:,1].min(axis=0))
-# test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / (test_batch[:,:,:,2].max(axis=0) - test_batch[:,:,:,2].min(axis=0))
-
-
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-
-train_batch = np.zeros((55000,32,32,1))
-test_batch = np.zeros((10000,32,32,1))
-for x in range(len(x_data)):
-    train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(32,32)),axis=3)
-for x in range(len(y_data)):
-    test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(32,32)),axis=3)
+test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0))
+test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0))
+test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0))
 
 # # print out the data shape
 print(train_batch.shape)
@@ -161,9 +148,15 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
+plt.hist(train_batch.flatten() ,bins='auto')
+plt.show()
+plt.hist(test_batch.flatten() ,bins='auto')
+plt.show()
+sys.exit()
+
 # hyper
 num_epoch = 101
-batch_size = 50
+batch_size = 100
 print_size = 1
 learning_rate = 0.00008
 beta1,beta2,adam_e = 0.9,0.9,1e-8
@@ -172,13 +165,13 @@ proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = CNN(5,1,128)
-l2 = CNN(3,128,128)
-l3 = CNN(1,128,128)
-l4 = CNN(3,128,128)
-l5 = CNN(1,128,128)
-l6 = CNN(2,128,128)
-l7 = CNN(1,128,10)
+l1 = CNN(5,1,200)
+l2 = CNN(3,200,200)
+l3 = CNN(1,200,200)
+l4 = CNN(3,200,200)
+l5 = CNN(1,200,200)
+l6 = CNN(2,200,200)
+l7 = CNN(1,200,10)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,1],dtype=tf.float32)
@@ -207,7 +200,6 @@ layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='
 layer7 = l7.feedforward(layer7_Input)
 # --------- first feed forward ---------
 
-# -------- Gradient Calculation ---------
 temp_reshape = tf.reshape(layer7,[batch_size,-1])
 temp_soft = tf_softmax(temp_reshape)
 
@@ -216,23 +208,24 @@ grad7_f,_ = l7.backprop(tf.reshape(temp_soft-y,[batch_size,1,1,10] ))
 grad6_Input_f = tf_repeat(grad7_f,[1,2,2,1]) # 2
 grad6_f,_ = l6.backprop(grad6_Input_f)
 
+grad7_Dilated_f = tf_repeat(grad7_f,[1,4,4,1])
 grad5_Input_f = tf_repeat(grad6_f,[1,2,2,1]) # 4
-grad5_f,_ = l5.backprop(grad5_Input_f)
+grad5_f,_ = l5.backprop(grad5_Input_f+decay_dilated_rate*grad7_Dilate)
 
+grad6_Dilated_f = tf_repeat(grad6_f,[1,4,4,1])
 grad4_Input_f = tf_repeat(grad5_f,[1,2,2,1]) # 8
-grad4_f,_ = l4.backprop(grad4_Input_f)
+grad4_f,_ = l4.backprop(grad4_Input_f+decay_dilated_rate*grad6_Dilate)
 
+grad5_Dilated_f = tf_repeat(grad5_f,[1,4,4,1])
 grad3_Input_f = tf_repeat(grad4_f,[1,2,2,1]) # 16
-grad3_f,_ = l3.backprop(grad3_Input_f)
+grad3_f,_ = l3.backprop(grad3_Input_f+decay_dilated_rate*grad5_Dilate)
 
+grad4_Dilated_f = tf_repeat(grad4_f,[1,4,4,1])
 grad2_Input_f = tf_repeat(grad3_f,[1,2,2,1]) # 32
-grad2_f,_ = l2.backprop(grad2_Input_f)
+grad2_f,_ = l2.backprop(grad2_Input_f+decay_dilated_rate*grad4_Dilate)
 grad1_f,_ = l1.backprop(grad2_f)
-# -------- Gradient Calculation ---------
 
-# 0.1 best 99.4
-# ------- Create new input and feed forward ------
-new_input = x + 0.3 * tf.sign(grad1_f)
+new_input = x + 0.08 * tf.sign(grad1_f)
 layer1_r = l1.feedforward(new_input)
 
 layer2_r = l2.feedforward(layer1_r)
@@ -251,9 +244,7 @@ layer6_r = l6.feedforward(layer6_Input_r)
 
 layer7_Input_r = tf.nn.avg_pool(layer6_r,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7_r = l7.feedforward(layer7_Input_r)
-# ------- Create new input and feed forward ------
 
-# ------ real back propagation ---------
 final_reshape = tf.reshape(layer7_r,[batch_size,-1])
 final_soft = tf_softmax(final_reshape)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_reshape,labels=y))
@@ -265,28 +256,28 @@ grad7,grad7_up = l7.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ))
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
 grad6,grad6_up = l6.backprop(grad6_Input)
 
+grad7_Dilate = tf_repeat(grad7,[1,4,4,1])
 grad5_Input = tf_repeat(grad6,[1,2,2,1])
-grad5,grad5_up = l5.backprop(grad5_Input)
+grad5,grad5_up = l5.backprop(grad5_Input+decay_dilated_rate*grad7_Dilate)
 
+grad6_Dilate = tf_repeat(grad6,[1,4,4,1])
 grad4_Input = tf_repeat(grad5,[1,2,2,1])
-grad4,grad4_up = l4.backprop(grad4_Input)
+grad4,grad4_up = l4.backprop(grad4_Input+decay_dilated_rate*grad6_Dilate)
 
+grad5_Dilate = tf_repeat(grad7,[1,4,4,1])
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input)
+grad3,grad3_up = l3.backprop(grad3_Input+decay_dilated_rate*grad5_Dilate)
 
+grad4_Dilate = tf_repeat(grad4,[1,4,4,1])
 grad2_Input = tf_repeat(grad3,[1,2,2,1])
-grad2,grad2_up = l2.backprop(grad2_Input)
+grad2,grad2_up = l2.backprop(grad2_Input+decay_dilated_rate*grad4_Dilate)
 
 grad1,grad1_up = l1.backprop(grad2)
 
 grad_update = grad7_up + grad6_up + grad5_up + grad4_up +  grad3_up + grad2_up + grad1_up
-# ------ real back propagation ---------
 
 # # sess
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
-sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-# sess = tf.Session()
-with sess as sess:
+with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     
