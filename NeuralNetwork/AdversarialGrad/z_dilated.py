@@ -162,15 +162,26 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper
-num_epoch = 101
+num_epoch = 41
 batch_size = 50
 print_size = 1
 learning_rate = 0.00008
-perturbation_mag = 0.8
+perturbation_mag = 1.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
-proportion_rate = 1
-decay_rate = 0.05
+proportion_rate = 0.01
+decay_rate = 0.5
+# 
+# learning_rate = 0.00008
+# perturbation_mag = 0.8
+# beta1,beta2,adam_e = 0.9,0.9,1e-8
+
+# proportion_rate = 1
+# decay_rate = 0.05
+# if iter == 19 : 
+#     learning_rate = learning_rate * 0.1
+#     perturbation_mag = 0.08
+# 
 
 # define class
 l1 = CNN(5,1,128)
@@ -222,17 +233,21 @@ grad7_f,_ = l7.backprop(tf.reshape(temp_soft-y,[batch_size,1,1,10] ),learing_rat
 grad6_Input_f = tf_repeat(grad7_f,[1,2,2,1]) # 2
 grad6_f,_ = l6.backprop(grad6_Input_f,learing_rate_dynamic)
 
+grad7_Dilated_f = tf_repeat(grad7_f,[1,4,4,1])
 grad5_Input_f = tf_repeat(grad6_f,[1,2,2,1]) # 4
-grad5_f,_ = l5.backprop(grad5_Input_f,learing_rate_dynamic)
+grad5_f,_ = l5.backprop(grad5_Input_f+decay_dilated_rate*grad7_Dilated_f,learing_rate_dynamic)
 
+grad6_Dilated_f = tf_repeat(grad6_f,[1,4,4,1])
 grad4_Input_f = tf_repeat(grad5_f,[1,2,2,1]) # 8
-grad4_f,_ = l4.backprop(grad4_Input_f,learing_rate_dynamic)
+grad4_f,_ = l4.backprop(grad4_Input_f+decay_dilated_rate*grad6_Dilated_f,learing_rate_dynamic)
 
+grad5_Dilated_f = tf_repeat(grad5_f,[1,4,4,1])
 grad3_Input_f = tf_repeat(grad4_f,[1,2,2,1]) # 16
-grad3_f,_ = l3.backprop(grad3_Input_f,learing_rate_dynamic)
+grad3_f,_ = l3.backprop(grad3_Input_f+decay_dilated_rate*grad5_Dilated_f,learing_rate_dynamic)
 
+grad4_Dilated_f = tf_repeat(grad4_f,[1,4,4,1])
 grad2_Input_f = tf_repeat(grad3_f,[1,2,2,1]) # 32
-grad2_f,_ = l2.backprop(grad2_Input_f,learing_rate_dynamic)
+grad2_f,_ = l2.backprop(grad2_Input_f+decay_dilated_rate*grad4_Dilated_f,learing_rate_dynamic)
 grad1_f,_ = l1.backprop(grad2_f,learing_rate_dynamic)
 # -------- Gradient Calculation ---------
 
@@ -271,19 +286,23 @@ grad7,grad7_up = l7.backprop(tf.reshape(final_soft-y,[batch_size,1,1,10] ),leari
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
 grad6,grad6_up = l6.backprop(grad6_Input,learing_rate_dynamic)
 
+grad7_Dilate = tf_repeat(grad7,[1,4,4,1])
 grad5_Input = tf_repeat(grad6,[1,2,2,1])
-grad5,grad5_up = l5.backprop(grad5_Input,learing_rate_dynamic)
+grad5,grad5_up = l5.backprop(grad5_Input+decay_dilated_rate*grad7_Dilate,learing_rate_dynamic)
 
+grad6_Dilate = tf_repeat(grad6,[1,4,4,1])
 grad4_Input = tf_repeat(grad5,[1,2,2,1])
-grad4,grad4_up = l4.backprop(grad4_Input,learing_rate_dynamic)
+grad4,grad4_up = l4.backprop(grad4_Input+decay_dilated_rate*grad6_Dilate,learing_rate_dynamic)
 
+grad5_Dilate = tf_repeat(grad5,[1,4,4,1])
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input,learing_rate_dynamic)
+grad3,grad3_up = l3.backprop(grad3_Input+decay_dilated_rate*grad5_Dilate,learing_rate_dynamic)
 
+grad4_Dilate = tf_repeat(grad4,[1,4,4,1])
 grad2_Input = tf_repeat(grad3,[1,2,2,1])
-grad2,grad2_up = l2.backprop(grad2_Input,learing_rate_dynamic)
-grad1,grad1_up = l1.backprop(grad2,learing_rate_dynamic)
+grad2,grad2_up = l2.backprop(grad2_Input+decay_dilated_rate*grad4_Dilate,learing_rate_dynamic)
 
+grad1,grad1_up = l1.backprop(grad2,learing_rate_dynamic)
 grad_update = grad7_up + grad6_up + grad5_up + grad4_up +  grad3_up + grad2_up + grad1_up
 # ------ real back propagation ---------
 
@@ -302,9 +321,9 @@ with sess as sess:
     for iter in range(num_epoch):
 
         train_batch,train_label = shuffle(train_batch,train_label)
-        if iter == 19 : 
+        if iter == 20 : 
             learning_rate = learning_rate * 0.1
-            perturbation_mag = 0.08
+            perturbation_mag = perturbation_mag * 1.1
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
@@ -317,7 +336,6 @@ with sess as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-
             sess_result = sess.run([cost_test,accuracy_test,correct_prediction_test,temp_soft,temp_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
@@ -335,6 +353,8 @@ with sess as sess:
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
+    
+    # normalize the cost 
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
     test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
     # training done

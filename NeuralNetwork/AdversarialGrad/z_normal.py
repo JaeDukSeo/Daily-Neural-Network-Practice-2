@@ -162,7 +162,7 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper
-num_epoch = 101
+num_epoch = 41
 batch_size = 50
 print_size = 1
 learning_rate = 0.00008

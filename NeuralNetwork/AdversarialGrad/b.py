@@ -133,6 +133,11 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
+# plt.hist(train_batch.flatten() ,bins='auto')
+# plt.show()
+# plt.hist(test_batch.flatten() ,bins='auto')
+# plt.show()
+
 # standardize Normalize data from 0 to 1 per each channel
 train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].mean(axis=0)) / ( train_batch[:,:,:,0].std(axis=0))
 train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].mean(axis=0)) / ( train_batch[:,:,:,1].std(axis=0))
@@ -148,10 +153,11 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-plt.hist(train_batch.flatten() ,bins='auto')
-plt.show()
-plt.hist(test_batch.flatten() ,bins='auto')
-plt.show()
+# plt.hist(train_batch.flatten() ,bins='auto')
+# plt.show()
+# plt.hist(test_batch.flatten() ,bins='auto')
+# plt.show()
+
 sys.exit()
 
 # hyper
