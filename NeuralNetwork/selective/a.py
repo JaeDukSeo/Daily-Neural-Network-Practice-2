@@ -9,6 +9,9 @@ from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
 from tensorflow.examples.tutorials.mnist import input_data
 
+np.random.seed(678)
+tf.set_random_seed(678)
+
 def tf_relu(x): return tf.nn.relu(x)
 def d_tf_relu(x): return tf.cast(tf.greater_equal(x,0.0),tf.float32)
 def tf_softmax(x): return tf.nn.softmax(x)
@@ -41,12 +44,14 @@ class CNN():
     
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
+        self.b = tf.Variable(tf.random_normal([out],stddev=0.05))
+
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
-        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding)
+        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) + self.b
         self.layerA = tf_relu(self.layer)
         return self.layerA 
 
@@ -70,11 +75,11 @@ class CNN():
         )
 
         update_w = []
-        
         update_w.append(
             tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
         )
         v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
+
         def f1(): return v_t
         def f2(): return self.v_hat_prev
 
@@ -87,6 +92,7 @@ class CNN():
         update_w.append(
             tf.assign( self.v_hat_prev,v_max )
         )        
+
         return grad_pass,update_w   
 
 # # data
@@ -138,9 +144,9 @@ print(test_label.shape)
 
 # hyper
 num_epoch = 101
-batch_size = 50
+batch_size = 100
 print_size = 2
-learning_rate = 0.0001
+learning_rate = 0.05
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 proportion_rate = 1
@@ -170,10 +176,12 @@ decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2,stride=2)
+layer3 = tf.nn.dropout(layer3,0.5)
 
 layer4 = l4.feedforward(layer3)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5,stride=2)
+layer6 = tf.nn.dropout(layer6,0.5)
 
 layer7 = l7.feedforward(layer6)
 layer8 = l8.feedforward(layer7,padding='VALID')
@@ -186,6 +194,7 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_so
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+# auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_dynamic,momentum=0.9).minimize(cost)
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_dynamic).minimize(cost)
 
 # sess
@@ -206,6 +215,12 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
+
+            # online data augmentation here
+
+
+            # online data augmentation here
+
             sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label,
             iter_variable:iter,learning_rate_dynamic:learning_rate})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
