@@ -9,9 +9,6 @@ from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
 from tensorflow.examples.tutorials.mnist import input_data
 
-import time
-time.sleep(60*60*2)
-
 def tf_celu(x,alpha=2.0 ):
     mask_greater = tf.cast(tf.greater_equal(x,0),tf.float32) * x
     mask_smaller = tf.cast(tf.less(x,0),tf.float32) * x

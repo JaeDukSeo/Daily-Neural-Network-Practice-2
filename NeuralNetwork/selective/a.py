@@ -8,18 +8,29 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
 from tensorflow.examples.tutorials.mnist import input_data
+from imgaug import augmenters as iaa
+import imgaug as ia
 
 np.random.seed(678)
 tf.set_random_seed(678)
+ia.seed(678)
 
-def tf_relu(x): return tf.nn.relu(x)
+def tf_relu(x): return tf.nn.elu(x)
 def d_tf_relu(x): return tf.cast(tf.greater_equal(x,0.0),tf.float32)
+
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
     import pickle
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     return dict
+
+# data aug
+seq = iaa.Sequential([
+    iaa.Fliplr(0.99), # horizontal flips
+    iaa.Flipud(0.99), # Vertical flips
+    iaa.Crop(percent=(0, 0.1)), # random crops
+], random_order=True) # apply augmenters in random order
 
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
@@ -124,19 +135,19 @@ train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
 test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 
 # rotate data
-train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
 # standardize Normalize data per channel
-train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].mean(axis=0)) / ( train_batch[:,:,:,0].std(axis=0))
-train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].mean(axis=0)) / ( train_batch[:,:,:,1].std(axis=0))
-train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].mean(axis=0)) / ( train_batch[:,:,:,2].std(axis=0))
+# train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].mean(axis=0)) / ( train_batch[:,:,:,0].std(axis=0))
+# train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].mean(axis=0)) / ( train_batch[:,:,:,1].std(axis=0))
+# train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].mean(axis=0)) / ( train_batch[:,:,:,2].std(axis=0))
 
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0))
 test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0))
 test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0))
 
-# # print out the data shape
+# print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
@@ -144,9 +155,9 @@ print(test_label.shape)
 
 # hyper
 num_epoch = 101
-batch_size = 100
+batch_size = 50
 print_size = 2
-learning_rate = 0.05
+learning_rate = 0.03
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 proportion_rate = 1
@@ -194,8 +205,7 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_so
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_dynamic,momentum=0.9).minimize(cost)
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_dynamic).minimize(cost)
+auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_dynamic,momentum=0.9).minimize(cost)
 
 # sess
 with tf.Session() as sess:
@@ -212,14 +222,19 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        for batch_size_index in range(0,len(train_batch),batch_size):
+        for batch_size_index in range(0,len(train_batch),batch_size//2):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
 
-            # online data augmentation here
-
-
-            # online data augmentation here
+            # online data augmentation here and standard normalization
+            images_aug = seq.augment_images(current_batch.astype(np.float32))
+            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0))
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
+            current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
+            # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label,
             iter_variable:iter,learning_rate_dynamic:learning_rate})
@@ -227,7 +242,7 @@ with tf.Session() as sess:
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
-        for test_batch_index in range(0,len(test_batch),batch_size):
+        for test_batch_index in range(0,len(test_batch),batch_size//2):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
             sess_result = sess.run([cost,accuracy,correct_prediction],
