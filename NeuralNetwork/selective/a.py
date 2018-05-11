@@ -15,8 +15,8 @@ np.random.seed(678)
 tf.set_random_seed(678)
 ia.seed(678)
 
-def tf_relu(x): return tf.nn.elu(x)
-def d_tf_relu(x): return tf.cast(tf.greater_equal(x,0.0),tf.float32)
+def tf_elu(x): return tf.nn.elu(x)
+def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + ( tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
 
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
@@ -56,19 +56,18 @@ class CNN():
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
         self.b = tf.Variable(tf.random_normal([out],stddev=0.05))
-
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) + self.b
-        self.layerA = tf_relu(self.layer)
+        self.layerA = tf_elu(self.layer)
         return self.layerA 
 
     def backprop(self,gradient,stride=1,padding='SAME'):
         grad_part_1 = gradient 
-        grad_part_2 = d_tf_relu(self.layer) 
+        grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
@@ -157,7 +156,7 @@ print(test_label.shape)
 num_epoch = 101
 batch_size = 50
 print_size = 2
-learning_rate = 0.03
+learning_rate = 0.05
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 proportion_rate = 1
@@ -201,10 +200,9 @@ layer9 = l9.feedforward(layer8,padding='VALID')
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
 
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft,labels=y))
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y))
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
 auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_dynamic,momentum=0.9).minimize(cost)
 
 # sess
@@ -242,18 +240,17 @@ with tf.Session() as sess:
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
-        for test_batch_index in range(0,len(test_batch),batch_size//2):
+        for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-            sess_result = sess.run([cost,accuracy,correct_prediction],
-            feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
 
         if iter % print_size==0:
             print("\n----------")
-            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),' Current Acc: ', train_acca/(len(train_batch)/batch_size),end='\n')
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
@@ -268,20 +265,20 @@ with tf.Session() as sess:
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
     test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
 
-    # training done
+    # training done now plot
     plt.figure()
     plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case b Train.png")
+    plt.savefig("Case a Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case b Test.png")
+    plt.savefig("Case a Test.png")
 
 
 
