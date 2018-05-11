@@ -1,10 +1,14 @@
-#For plotting the images
 from matplotlib import pyplot as plt
 import sys
 import numpy as np
-from som import SOM
 
-#Training inputs for RGBcolors
+np.random.seed(678)
+
+neuron_matrix = np.random.randn(5,5)
+print(neuron_matrix.shape)
+print(neuron_matrix)
+
+# colors and its names
 colors = np.array([[0., 0., 0.],
       [0., 0., 1.],
       [0., 0., 0.5],
@@ -20,31 +24,18 @@ colors = np.array([[0., 0., 0.],
       [.33, .33, .33],
       [.5, .5, .5],
       [.66, .66, .66]])
-
 color_names = ['black', 'blue', 'darkblue', 'skyblue',
      'greyblue', 'lilac', 'green', 'red',
      'cyan', 'violet', 'yellow', 'white',
      'darkgrey', 'mediumgrey', 'lightgrey']
- 
-#Train a 20x30 SOM with 400 iterations
-som = SOM(5, 5, 3, 400)
 
-sys.exit()
-som.train(colors)
- 
-#Get output grid
-image_grid = som.get_centroids()
- 
-#Map colours to their closest neurons
-mapped = som.map_vects(colors)
- 
-#Plot
-plt.imshow(image_grid)
-plt.title('Color SOM')
-for i, m in enumerate(mapped):
-    plt.text(m[1], m[0], color_names[i], ha='center', va='center',
-             bbox=dict(facecolor='white', alpha=0.5, lw=0))
-plt.show()
+# start the training
+for iter in range(1):
+    
+    for x in colors:
+        print(x)
 
 
-# -- end code --
+
+
+# -- end code ---
