@@ -174,18 +174,16 @@ class SOM(object):
             print(weightage_delta.shape)
             print('---------------------') 
 
-            sys.exit()
-                     
             new_weightages_op = tf.add(self._weightage_vects,weightage_delta)
             self._training_op = tf.assign(self._weightage_vects,new_weightages_op)                                       
     
-            sys.exit()
             ##INITIALIZE SESSION
-            # self._sess = tf.Session()
+            config = tf.ConfigProto(device_count = {'GPU': 0})
+            self._sess = tf.Session(config=config)
  
             ##INITIALIZE VARIABLES
-            # init_op = tf.initialize_all_variables()
-            # self._sess.run(init_op)
+            init_op = tf.global_variables_initializer()
+            self._sess.run(init_op)
  
     # location of the neuron
     def _neuron_locations(self, m, n):
