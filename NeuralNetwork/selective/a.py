@@ -186,6 +186,8 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_so
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_dynamic).minimize(cost)
+
 # sess
 with tf.Session() as sess:
 
@@ -204,8 +206,8 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,accuracy,grad_update,new_input],feed_dict={x:current_batch,y:current_batch_label,
-            iter_variable:iter,mag_dynamic:mag_pertu,learning_rate_dynamic:learning_rate})
+            sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label,
+            iter_variable:iter,learning_rate_dynamic:learning_rate})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -213,7 +215,7 @@ with tf.Session() as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-            sess_result = sess.run([cost_test,accuracy_test,correct_prediction_test,temp_soft,temp_reshape],
+            sess_result = sess.run([cost,accuracy,correct_prediction],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
