@@ -230,17 +230,17 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
-grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_momen_change,padding='VALID',adam=False)
+grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
 grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_momen_change,padding='VALID',adam=False)
 grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_momen_change,adam=False)
 
 grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=True)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
-grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_momen_change,adam=False)
+grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_momen_change,adam=False)
 
 grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=True)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
-grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,adam=True)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_momen_change,adam=False)
+grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_momen_change,adam=False)
 
 grad_update = grad9_up + grad8_up+ grad7_up + \
              grad6_up + grad5_up + grad4_up + \
@@ -276,7 +276,7 @@ with tf.Session() as sess:
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,
-            iter_variable:iter,learning_rate_dynamic:learning_rate,learning_rate_momen:0.0001})
+            iter_variable:iter,learning_rate_dynamic:learning_rate,learning_rate_momen:0.01})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],
             ' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
