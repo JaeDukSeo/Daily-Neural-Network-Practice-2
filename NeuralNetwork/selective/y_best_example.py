@@ -176,9 +176,8 @@ print(test_label.shape)
 num_epoch = 101
 batch_size = 32
 print_size = 1
-learning_rate = 0.0005
+learning_rate = 0.01
 
-learning_recy = 0.05
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 proportion_rate = 1
 decay_rate = 0.05
@@ -204,7 +203,7 @@ learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 iter_variable = tf.placeholder(tf.float32, shape=())
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
-learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learning_recy*iter_variable))
+learning_rate_change = learning_rate_dynamic * (1.0/(1.0+(1e-7)*iter_variable))
 
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1,padding='VALID')
@@ -227,8 +226,8 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_change,momentum=0.9).minimize(cost)
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change).minimize(cost)
+auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_change,momentum=0.9).minimize(cost)
+# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change).minimize(cost)
 
 # sess
 with tf.Session() as sess:
@@ -278,7 +277,7 @@ with tf.Session() as sess:
             test_cota = sess_result[0] + test_cota
 
         if iter % print_size==0:
-            print("\n---------- LR : ", learning_rate * (1.0/(1.0+learning_recy*iter)) )
+            print("\n----------")
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', 
             train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')

@@ -154,17 +154,9 @@ train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
 # standardize Normalize data per channel
-# train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].mean(axis=0)) / ( train_batch[:,:,:,0].std(axis=0))
-# train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].mean(axis=0)) / ( train_batch[:,:,:,1].std(axis=0))
-# train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].mean(axis=0)) / ( train_batch[:,:,:,2].std(axis=0))
-
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0))
 test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0))
 test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0))
-
-# test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
-# test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / (test_batch[:,:,:,1].max(axis=0) - test_batch[:,:,:,1].min(axis=0))
-# test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / (test_batch[:,:,:,2].max(axis=0) - test_batch[:,:,:,2].min(axis=0))
 
 # print out the data shape
 print(train_batch.shape)
@@ -176,9 +168,9 @@ print(test_label.shape)
 num_epoch = 101
 batch_size = 32
 print_size = 1
-learning_rate = 0.0005
+learning_rate = 0.01
 
-learning_recy = 0.05
+learning_recy = 1e-6
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 proportion_rate = 1
 decay_rate = 0.05
@@ -227,8 +219,7 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_change,momentum=0.9).minimize(cost)
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change).minimize(cost)
+auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_change,momentum=0.9).minimize(cost)
 
 # sess
 with tf.Session() as sess:
@@ -251,15 +242,11 @@ with tf.Session() as sess:
 
             # online data augmentation here and standard normalization
             images_aug = seq2.augment_images(current_batch.astype(np.float32))
-            # current_batch = images_aug
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0))
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
-            # current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].min(axis=0)) / (current_batch[:,:,:,0].max(axis=0) - current_batch[:,:,:,0].min(axis=0))
-            # current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].min(axis=0)) / (current_batch[:,:,:,1].max(axis=0) - current_batch[:,:,:,1].min(axis=0))
-            # current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].min(axis=0)) / (current_batch[:,:,:,2].max(axis=0) - current_batch[:,:,:,2].min(axis=0))
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
