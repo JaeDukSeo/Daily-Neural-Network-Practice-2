@@ -17,7 +17,6 @@ ia.seed(678)
 
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + ( tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
-
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
     import pickle
@@ -27,10 +26,6 @@ def unpickle(file):
 
 # data aug
 seq = iaa.Sequential([
-    # iaa.Crop(percent=(0, 0.1)), # random crops
-    iaa.Sometimes(0.4,
-        iaa.Flipud(0.2) # Vertical flips
-    ),
     # iaa.Sometimes(0.1,
     #     iaa.GaussianBlur(sigma=(0, 0.5))
     # ),
@@ -73,6 +68,48 @@ seq = iaa.Sequential([
     iaa.Fliplr(1.0), # Horizonatl flips
 ], random_order=True) # apply augmenters in random order
 
+seq2 = iaa.Sequential([
+    # iaa.Sometimes(0.1,
+    #     iaa.GaussianBlur(sigma=(0, 0.5))
+    # ),
+    # iaa.Sometimes(0.2,
+    #     iaa.ContrastNormalization((0.75, 1.5))
+    # ),
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        )
+    ),
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+            rotate=(-25, 25),
+            shear=(-8, 8)
+        )
+    ),
+    iaa.Sometimes(0.2,
+        iaa.Affine(
+            rotate=(-25, 25),
+        )
+    ),
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        )
+    ),
+    # iaa.Sometimes(0.2,
+    #     iaa.OneOf([
+    #         iaa.Dropout((0.01, 0.1), per_channel=0.5),
+    #         iaa.CoarseDropout(
+    #             (0.03, 0.15), size_percent=(0.02, 0.05),
+    #             per_channel=0.2
+    #         ),
+    #     ])
+    # ),
+    iaa.Flipud(1.0), # Horizonatl flips
+], random_order=True) # apply augmenters in random order
 
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
@@ -204,11 +241,11 @@ print(test_label.shape)
 
 # hyper
 num_epoch = 101
-batch_size = 32
+batch_size = 60
 print_size = 1
 
 learning_rate = 0.0005
-learnind_rate_decay = 0.001
+learnind_rate_decay = 0.01
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 proportion_rate = 1
@@ -290,14 +327,19 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        for batch_size_index in range(0,len(train_batch),batch_size//2):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
+        for batch_size_index in range(0,len(train_batch),batch_size//3):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//3]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//3]
 
             # online data augmentation here and standard normalization
-            images_aug = seq.augment_images(current_batch.astype(np.float32))
-            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
-            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            images_aug1 = seq.augment_images(current_batch.astype(np.float32))
+            images_aug2 = seq.augment_images(current_batch.astype(np.float32))
+            
+            temp_batch = np.vstack((images_aug1,images_aug2)).astype(np.float32)
+            current_batch = np.vstack((current_batch,temp_batch)).astype(np.float32)
+            temp_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label,temp_batch_label)).astype(np.float32)
+
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0))
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
@@ -323,8 +365,8 @@ with tf.Session() as sess:
 
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
-            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', 
-            train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//3)),' Current Acc: ', 
+            train_acca/(len(train_batch)/(batch_size//3) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
