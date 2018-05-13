@@ -27,15 +27,21 @@ def unpickle(file):
 
 # data aug
 seq = iaa.Sequential([
-    iaa.Crop(percent=(0, 0.1)), # random crops
+    # iaa.Crop(percent=(0, 0.1)), # random crops
     iaa.Sometimes(0.5,
         iaa.Flipud(0.2) # Vertical flips
     ),
-    iaa.Sometimes(0.1,
-        iaa.GaussianBlur(sigma=(0, 0.5))
-    ),
-    iaa.Sometimes(0.2,
-        iaa.ContrastNormalization((0.75, 1.5))
+    # iaa.Sometimes(0.1,
+    #     iaa.GaussianBlur(sigma=(0, 0.5))
+    # ),
+    # iaa.Sometimes(0.2,
+    #     iaa.ContrastNormalization((0.75, 1.5))
+    # ),
+    iaa.Sometimes(0.3,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        )
     ),
     iaa.Sometimes(0.01,
         iaa.Affine(
@@ -45,15 +51,25 @@ seq = iaa.Sequential([
             shear=(-8, 8)
         )
     ),
-    iaa.Sometimes(0.2,
-        iaa.OneOf([
-            iaa.Dropout((0.01, 0.1), per_channel=0.5),
-            iaa.CoarseDropout(
-                (0.03, 0.15), size_percent=(0.02, 0.05),
-                per_channel=0.2
-            ),
-        ])
+    iaa.Sometimes(0.3,
+        iaa.Affine(
+            rotate=(-25, 25),
+        )
     ),
+    iaa.Sometimes(0.2,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        )
+    ),
+    # iaa.Sometimes(0.2,
+    #     iaa.OneOf([
+    #         iaa.Dropout((0.01, 0.1), per_channel=0.5),
+    #         iaa.CoarseDropout(
+    #             (0.03, 0.15), size_percent=(0.02, 0.05),
+    #             per_channel=0.2
+    #         ),
+    #     ])
+    # ),
     iaa.Fliplr(1.0), # Horizonatl flips
 ], random_order=True) # apply augmenters in random order
 
