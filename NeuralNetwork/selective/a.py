@@ -28,7 +28,7 @@ def unpickle(file):
 # data aug
 seq = iaa.Sequential([
     # iaa.Crop(percent=(0, 0.1)), # random crops
-    iaa.Sometimes(0.5,
+    iaa.Sometimes(0.4,
         iaa.Flipud(0.2) # Vertical flips
     ),
     # iaa.Sometimes(0.1,
@@ -37,7 +37,7 @@ seq = iaa.Sequential([
     # iaa.Sometimes(0.2,
     #     iaa.ContrastNormalization((0.75, 1.5))
     # ),
-    iaa.Sometimes(0.3,
+    iaa.Sometimes(0.1,
         iaa.Affine(
             scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
             translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
@@ -51,12 +51,12 @@ seq = iaa.Sequential([
             shear=(-8, 8)
         )
     ),
-    iaa.Sometimes(0.5,
+    iaa.Sometimes(0.2,
         iaa.Affine(
             rotate=(-25, 25),
         )
     ),
-    iaa.Sometimes(0.6,
+    iaa.Sometimes(0.1,
         iaa.Affine(
             scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
         )
@@ -208,11 +208,11 @@ batch_size = 32
 print_size = 1
 
 learning_rate = 0.0005
-learnind_rate_decay = 0.01
+learnind_rate_decay = 0.001
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 proportion_rate = 1
-decay_rate = 0.5
+decay_rate = 3
 
 # define class
 l1 = CNN(3,3,128)
