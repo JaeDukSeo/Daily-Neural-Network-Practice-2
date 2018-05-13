@@ -195,8 +195,8 @@ learning_rate = 0.0005
 learnind_rate_decay = 0.01
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
-proportion_rate = 1
-decay_rate = 0.05
+proportion_rate = 0.5
+decay_rate = 1
 
 # define class
 l1 = CNN(3,3,100)
@@ -219,11 +219,8 @@ x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
-learning_rate_momen = tf.placeholder(tf.float32, shape=())
 learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
-learning_rate_momen_change =  learning_rate_momen * (1.0/(1.0+learnind_rate_decay*iter_variable))
-
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
 layer1 = l1.feedforward(x)
@@ -248,15 +245,15 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=False)
 grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',adam=False)
-grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,adam=True)
+grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*(grad9),learning_rate_change=learning_rate_change,adam=True)
 
 grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=False)
 grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=False)
-grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,adam=True)
+grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*(grad6),learning_rate_change=learning_rate_change,adam=True)
 
 grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=False)
 grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=False)
-grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,adam=True)
+grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*(grad3),learning_rate_change=learning_rate_change,adam=True)
 
 grad_update = grad9_up + grad8_up+ grad7_up + \
              grad6_up + grad5_up + grad4_up + \
@@ -292,7 +289,7 @@ with tf.Session() as sess:
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,
-            iter_variable:iter,learning_rate_dynamic:learning_rate,learning_rate_momen:0.01})
+            iter_variable:iter,learning_rate_dynamic:learning_rate})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],
             ' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
