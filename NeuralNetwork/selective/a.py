@@ -27,23 +27,13 @@ def unpickle(file):
 
 # data aug
 seq = iaa.Sequential([
-    iaa.Fliplr(1.0), # horizontal flips
     iaa.Crop(percent=(0, 0.1)), # random crops
-    iaa.Sometimes(0.4,
-        iaa.GaussianBlur(sigma=(0,0.5))
-    )
-], random_order=True) # apply augmenters in random order
-
-seq1 = iaa.Sequential([
-    iaa.Flipud(1.0), # Vertical flips
-    iaa.Crop(percent=(0, 0.1)), # random crops
-    iaa.Sometimes(0.4,
-        iaa.GaussianBlur(sigma=(0,0.5))
-    )
-], random_order=True) # apply augmenters in random order
-
-seq2 = iaa.Sequential([
-    iaa.Flipud(0.2), # Vertical flips
+    iaa.Sometimes(0.5,
+        iaa.Flipud(0.2) # Vertical flips
+    ),
+    iaa.Sometimes(0.1,
+        iaa.GaussianBlur(sigma=(0, 0.5))
+    ),
     iaa.Fliplr(1.0), # Horizonatl flips
 ], random_order=True) # apply augmenters in random order
 
@@ -103,23 +93,15 @@ class CNN():
 
         if adam:
             update_w.append(
-                tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
-            )
-            v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
-
-            def f1(): return v_t
-            def f2(): return self.v_hat_prev
-
-            v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
-            adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
-            adam_middel2 = adam_middel - learning_rate_change * 0.008 * self.w
-            update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel2  )  ))
-            update_w.append(
-                tf.assign( self.v_prev,v_t )
+                tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   )
             )
             update_w.append(
-                tf.assign( self.v_hat_prev,v_max )
-            )        
+                tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   )
+            )
+            m_hat = self.m / (1-beta1)
+            v_hat = self.v_prev / (1-beta2)
+            adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))       
         else:
             update_w.append(
                 tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
@@ -246,15 +228,15 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',adam=False)
 grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,adam=True)
 
 grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=True)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=True)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=False)
 grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,adam=True)
 
 grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=True)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=True)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=False)
 grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,adam=True)
 
 grad_update = grad9_up + grad8_up+ grad7_up + \
@@ -281,7 +263,7 @@ with tf.Session() as sess:
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
 
             # online data augmentation here and standard normalization
-            images_aug = seq2.augment_images(current_batch.astype(np.float32))
+            images_aug = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
