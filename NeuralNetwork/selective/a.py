@@ -34,6 +34,26 @@ seq = iaa.Sequential([
     iaa.Sometimes(0.1,
         iaa.GaussianBlur(sigma=(0, 0.5))
     ),
+    iaa.Sometimes(0.2,
+        iaa.ContrastNormalization((0.75, 1.5))
+    ),
+    iaa.Sometimes(0.01,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+            rotate=(-25, 25),
+            shear=(-8, 8)
+        )
+    ),
+    iaa.Sometimes(0.2,
+        iaa.OneOf([
+            iaa.Dropout((0.01, 0.1), per_channel=0.5),
+            iaa.CoarseDropout(
+                (0.03, 0.15), size_percent=(0.02, 0.05),
+                per_channel=0.2
+            ),
+        ])
+    ),
     iaa.Fliplr(1.0), # Horizonatl flips
 ], random_order=True) # apply augmenters in random order
 
@@ -69,7 +89,6 @@ class CNN():
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
         self.layerA = tf_elu(self.layer)
         return self.layerA 
-
     def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME',adam=True):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
@@ -96,10 +115,10 @@ class CNN():
                 tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   )
             )
             update_w.append(
-                tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   )
+                tf.assign( self.v_prev,self.v_prev*0.999 + (1-0.999) * (grad ** 2)   )
             )
             m_hat = self.m / (1-beta1)
-            v_hat = self.v_prev / (1-beta2)
+            v_hat = self.v_prev / (1-0.999)
             adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
             update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))       
         else:
@@ -172,8 +191,8 @@ num_epoch = 101
 batch_size = 32
 print_size = 1
 
-learning_rate = 0.0005
-learnind_rate_decay = 0.1
+learning_rate = 0.0008
+learnind_rate_decay = 0.08
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 proportion_rate = 1
