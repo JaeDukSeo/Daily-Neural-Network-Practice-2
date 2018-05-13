@@ -191,27 +191,27 @@ num_epoch = 101
 batch_size = 32
 print_size = 1
 
-learning_rate = 0.0008
-learnind_rate_decay = 0.08
+learning_rate = 0.0005
+learnind_rate_decay = 0.01
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 proportion_rate = 1
 decay_rate = 0.05
 
 # define class
-l1 = CNN(3,3,96)
-l2 = CNN(1,96,96)
-l3 = CNN(5,96,96)
+l1 = CNN(3,3,100)
+l2 = CNN(3,100,100)
+l3 = CNN(3,100,100)
 l1w,l2w,l3w = l1.getw(),l2.getw(),l3.getw()
 
-l4 = CNN(3,96,96)
-l5 = CNN(1,96,96)
-l6 = CNN(5,96,96)
+l4 = CNN(3,100,100)
+l5 = CNN(3,100,100)
+l6 = CNN(3,100,100)
 l4w,l5w,l6w = l4.getw(),l5.getw(),l6.getw()
 
-l7 = CNN(3,96,96)
-l8 = CNN(1,96,96)
-l9 = CNN(1,96,10)
+l7 = CNN(3,100,100)
+l8 = CNN(1,100,100)
+l9 = CNN(1,100,10)
 l7w,l8w,l9w = l7.getw(),l8.getw(),l9.getw()
 
 # graph
@@ -246,15 +246,15 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
-grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
+grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=False)
 grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',adam=False)
 grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,adam=True)
 
-grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=True)
+grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=False)
 grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=False)
 grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,adam=True)
 
-grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=True)
+grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=False)
 grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=False)
 grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,adam=True)
 
