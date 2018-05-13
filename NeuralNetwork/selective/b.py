@@ -26,10 +26,24 @@ def unpickle(file):
 
 # data aug
 seq = iaa.Sequential([
+    # iaa.Sometimes(0.1,
+    #     iaa.GaussianBlur(sigma=(0, 0.5))
+    # ),
+    # iaa.Sometimes(0.2,
+    #     iaa.ContrastNormalization((0.75, 1.5))
+    # ),
     iaa.Sometimes(0.1,
         iaa.Affine(
             scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
             translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        )
+    ),
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+            rotate=(-25, 25),
+            shear=(-8, 8)
         )
     ),
     iaa.Sometimes(0.2,
@@ -42,8 +56,62 @@ seq = iaa.Sequential([
             scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
         )
     ),
+    # iaa.Sometimes(0.2,
+    #     iaa.OneOf([
+    #         iaa.Dropout((0.01, 0.1), per_channel=0.5),
+    #         iaa.CoarseDropout(
+    #             (0.03, 0.15), size_percent=(0.02, 0.05),
+    #             per_channel=0.2
+    #         ),
+    #     ])
+    # ),
     iaa.Fliplr(1.0), # Horizonatl flips
 ], random_order=True) # apply augmenters in random order
+
+seq2 = iaa.Sequential([
+    # iaa.Sometimes(0.1,
+    #     iaa.GaussianBlur(sigma=(0, 0.5))
+    # ),
+    # iaa.Sometimes(0.2,
+    #     iaa.ContrastNormalization((0.75, 1.5))
+    # ),
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        )
+    ),
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+            rotate=(-25, 25),
+            shear=(-8, 8)
+        )
+    ),
+        iaa.Affine(
+            rotate=(-25, 25),
+        ),
+    iaa.Fliplr(1.0), # Horizonatl flips
+], random_order=True) # apply augmenters in random order
+
+# code from: https://github.com/tensorflow/tensorflow/issues/8246
+def tf_repeat(tensor, repeats):
+    """
+    Args:
+
+    input: A Tensor. 1-D or higher.
+    repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
+
+    Returns:
+    
+    A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
+    """
+    expanded_tensor = tf.expand_dims(tensor, -1)
+    multiples = [1] + repeats
+    tiled_tensor = tf.tile(expanded_tensor, multiples = multiples)
+    repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
+    return repeated_tesnor
 
 # class
 class CNN():
@@ -131,15 +199,19 @@ onehot_encoder = OneHotEncoder(sparse=True)
 train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
 train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
 train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
+
 test_batch = unpickle(lstFilesDCM[5])[b'data']
 test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
 test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
+
 # reshape data
 train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
 test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
+
 # rotate data
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+
 # standardize Normalize data per channel
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0))
 test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0))
@@ -151,31 +223,28 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-# hyper parameter
+# hyper
 num_epoch = 101
-batch_size = 50
+batch_size = 75
 print_size = 1
 
-learning_rate = 0.0009
-learnind_rate_decay = 0.1
+learning_rate = 0.0005
+learnind_rate_decay = 0.01
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
-proportion_rate = 0.8
-decay_rate = 10
+proportion_rate = 1
+decay_rate = 3
 
 # define class
-channel_size = 128
-l1 = CNN(3,3,channel_size)
-l2 = CNN(1,channel_size,channel_size)
-l3 = CNN(3,channel_size,channel_size)
-
-l4 = CNN(3,channel_size,channel_size)
-l5 = CNN(1,channel_size,channel_size)
-l6 = CNN(3,channel_size,channel_size)
-
-l7 = CNN(1,channel_size,channel_size)
-l8 = CNN(1,channel_size,channel_size)
-l9 = CNN(1,channel_size,10)
+l1 = CNN(3,3,128)
+l2 = CNN(3,128,128)
+l3 = CNN(3,128,128)
+l4 = CNN(3,128,128)
+l5 = CNN(3,128,128)
+l6 = CNN(3,128,128)
+l7 = CNN(3,128,128)
+l8 = CNN(1,128,128)
+l9 = CNN(1,128,10)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
@@ -206,19 +275,21 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
-grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
+grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=False)
 grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
-grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,adam=True)
+grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*(grad9),learning_rate_change=learning_rate_change,adam=False)
 
-grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=True)
+grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=False)
 grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=True)
-grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,adam=True)
+grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*(grad6),learning_rate_change=learning_rate_change,adam=False)
 
-grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=True)
+grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=False)
 grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=True)
-grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,adam=True)
+grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*(grad3),learning_rate_change=learning_rate_change,adam=False)
 
-grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
+grad_update = grad9_up + grad8_up+ grad7_up + \
+             grad6_up + grad5_up + grad4_up + \
+             grad3_up + grad2_up + grad1_up
 
 # sess
 with tf.Session() as sess:
@@ -235,14 +306,20 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        for batch_size_index in range(0,len(train_batch),batch_size//2):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
+        for batch_size_index in range(0,len(train_batch),batch_size//3):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//3]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//3]
 
             # online data augmentation here and standard normalization
             images_aug1 = seq.augment_images(current_batch.astype(np.float32))
-            current_batch = np.vstack((current_batch,images_aug1)).astype(np.float32)
-            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            images_aug2 = seq2.augment_images(current_batch.astype(np.float32))
+            
+            temp_batch = np.vstack((images_aug1,images_aug2)).astype(np.float32)
+            current_batch = np.vstack((current_batch,temp_batch)).astype(np.float32)
+
+            temp_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label,temp_batch_label)).astype(np.float32)
+
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0))
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
@@ -268,8 +345,8 @@ with tf.Session() as sess:
 
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
-            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', 
-            train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//3)),' Current Acc: ', 
+            train_acca/(len(train_batch)/(batch_size//3) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
