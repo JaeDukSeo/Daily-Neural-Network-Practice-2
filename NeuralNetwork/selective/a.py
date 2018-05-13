@@ -79,7 +79,7 @@ class CNN():
 
         update_w = []
 
-        if adam:
+        if not adam:
             update_w.append(
                 tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   )
             )
@@ -166,14 +166,14 @@ decay_rate = 10
 # define class
 channel_size = 128
 l1 = CNN(3,3,channel_size)
-l2 = CNN(1,channel_size,channel_size)
+l2 = CNN(3,channel_size,channel_size)
 l3 = CNN(3,channel_size,channel_size)
 
 l4 = CNN(3,channel_size,channel_size)
-l5 = CNN(1,channel_size,channel_size)
+l5 = CNN(3,channel_size,channel_size)
 l6 = CNN(3,channel_size,channel_size)
 
-l7 = CNN(1,channel_size,channel_size)
+l7 = CNN(3,channel_size,channel_size)
 l8 = CNN(1,channel_size,channel_size)
 l9 = CNN(1,channel_size,10)
 
