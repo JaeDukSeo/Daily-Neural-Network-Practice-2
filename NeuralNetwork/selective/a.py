@@ -43,7 +43,7 @@ seq1 = iaa.Sequential([
 ], random_order=True) # apply augmenters in random order
 
 seq2 = iaa.Sequential([
-    # iaa.Flipud(1.0), # Vertical flips
+    iaa.Flipud(0.2), # Vertical flips
     iaa.Fliplr(1.0), # Horizonatl flips
 ], random_order=True) # apply augmenters in random order
 
@@ -122,9 +122,23 @@ class CNN():
             )        
         else:
             update_w.append(
-                tf.assign( self.m,self.m*beta1 + learning_rate_change * grad   )
+                tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
             )
-            update_w.append(tf.assign(self.w,tf.subtract(self.w,self.m  )  ))
+            v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
+
+            def f1(): return v_t
+            def f2(): return self.v_hat_prev
+
+            v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
+            adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
+            adam_middel2 = adam_middel - learning_rate_change * 0.008 * self.w
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel2  )  ))
+            update_w.append(
+                tf.assign( self.v_prev,v_t )
+            )
+            update_w.append(
+                tf.assign( self.v_hat_prev,v_max )
+            )        
 
         return grad_pass,update_w   
 
@@ -186,12 +200,12 @@ decay_rate = 0.05
 # define class
 l1 = CNN(3,3,96)
 l2 = CNN(1,96,96)
-l3 = CNN(3,96,96)
+l3 = CNN(5,96,96)
 l1w,l2w,l3w = l1.getw(),l2.getw(),l3.getw()
 
 l4 = CNN(3,96,96)
 l5 = CNN(1,96,96)
-l6 = CNN(3,96,96)
+l6 = CNN(5,96,96)
 l4w,l5w,l6w = l4.getw(),l5.getw(),l6.getw()
 
 l7 = CNN(3,96,96)
@@ -203,12 +217,13 @@ l7w,l8w,l9w = l7.getw(),l8.getw(),l9.getw()
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
+iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_momen = tf.placeholder(tf.float32, shape=())
 learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
-iter_variable = tf.placeholder(tf.float32, shape=())
-decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
 learning_rate_momen_change =  learning_rate_momen * (1.0/(1.0+learnind_rate_decay*iter_variable))
+
+decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
@@ -231,16 +246,16 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_momen_change,padding='VALID',adam=False)
-grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_momen_change,adam=False)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
+grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,adam=True)
 
 grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=True)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_momen_change,adam=False)
-grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_momen_change,adam=False)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=True)
+grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,adam=True)
 
 grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=True)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_momen_change,adam=False)
-grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_momen_change,adam=False)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=True)
+grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,adam=True)
 
 grad_update = grad9_up + grad8_up+ grad7_up + \
              grad6_up + grad5_up + grad4_up + \
