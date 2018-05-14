@@ -140,16 +140,16 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter
-num_epoch = 21  
+num_epoch = 51  
 batch_size = 50
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
 
 learning_rate = 0.00025
-learnind_rate_decay = 0.01
+learnind_rate_decay = 0.09
 
 proportion_rate = 0.00001
-decay_rate = 1
+decay_rate = 0.09
 
 # define class
 channel_size = 164
@@ -172,7 +172,7 @@ y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
-decay_dilated_rate   = proportion_rate       
+decay_dilated_rate   = proportion_rate       * (1.0/(1.0+learnind_rate_decay*iter_variable))
 
 droprate1 = tf.placeholder(tf.float32, shape=())
 droprate2 = tf.placeholder(tf.float32, shape=())
@@ -221,7 +221,7 @@ grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + g
 # ===== manual ====
 
 # ====== adversal input ==========
-adversal_x = x + 0.08 * tf.sign(grad1)
+adversal_x = x + 0.008 * tf.sign(grad1) * (1.0/(1.0+decay_rate*iter_variable))
 
 layer1_ad = l1.feedforward(adversal_x,droprate=droprate1)
 layer2_ad = l2.feedforward(layer1_ad,droprate=droprate2)
@@ -276,10 +276,10 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        lower_bound = 0.5 * (iter+1)/num_epoch
-        random_drop1 = np.random.uniform(low=0.9+lower_bound,high=1.0)
-        random_drop2 = np.random.uniform(low=0.9+lower_bound,high=1.0)
-        random_drop3 = np.random.uniform(low=0.9+lower_bound,high=1.0)
+        lower_bound = 0.075 * (iter+1)/num_epoch
+        random_drop1 = np.random.uniform(low=0.925+lower_bound,high=1.000000000000001)
+        random_drop2 = np.random.uniform(low=0.925+lower_bound,high=1.000000000000001)
+        random_drop3 = np.random.uniform(low=0.925+lower_bound,high=1.000000000000001)
 
         for batch_size_index in range(0,len(train_batch),batch_size//2):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
@@ -287,17 +287,17 @@ with tf.Session() as sess:
 
             # data aug
             seq = iaa.Sequential([  
-                iaa.Sometimes(0.1 + lower_bound ,
+                iaa.Sometimes(  (0.1 + lower_bound * 6) ,
                     iaa.Affine(
                         translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
                     )
                 ),
-                iaa.Sometimes(0.2 + lower_bound,
+                iaa.Sometimes( (0.2 + lower_bound * 6),
                     iaa.Affine(
                         rotate=(-25, 25),
                     )
                 ),
-                iaa.Sometimes(0.1 + lower_bound,
+                iaa.Sometimes( (0.1 + lower_bound * 6),
                     iaa.Affine(
                         scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
                     )
@@ -317,10 +317,10 @@ with tf.Session() as sess:
 
             if iter % 2 == 0:
                 sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,
-                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:1.0,droprate2:1.0,droprate3:1.0})
+                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3})
             else:
                 sess_result = sess.run([cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,adversal_x],feed_dict={x:current_batch,y:current_batch_label,
-                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:1.0,droprate2:1.0,droprate3:1.0})
+                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3})
 
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],
             ' Current Acc: ', sess_result[1],end='\r')
@@ -340,7 +340,7 @@ with tf.Session() as sess:
 
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
-            print("Lower Bound : ",lower_bound,' Random  Lower: ',lower_bound ,
+            print("Lower Bound : ",lower_bound,' Drop Lower: ',0.95+lower_bound ,' Random Image :',lower_bound * 6, 
             '\n',"Drop 1 : ",random_drop1," Drop 2: ",random_drop2," Drop 3: ",random_drop3)
             
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', 
@@ -350,8 +350,8 @@ with tf.Session() as sess:
             test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/batch_size))
-        train_cot.append(train_cota/(len(train_batch)/batch_size))
+        train_acc.append(train_acca/(len(train_batch)/batch_size//2))
+        train_cot.append(train_cota/(len(train_batch)/batch_size//2))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
