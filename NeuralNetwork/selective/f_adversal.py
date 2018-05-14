@@ -257,7 +257,7 @@ grad3_ad,grad3_up_ad = l3.backprop(grad4_ad,learning_rate_change=learning_rate_c
 grad2_ad,grad2_up_ad = l2.backprop(grad3_ad,learning_rate_change=learning_rate_change,adam=True,reg=True)
 grad1_ad,grad1_up_ad = l1.backprop(grad2_ad+decay_dilated_rate*grad3_ad,learning_rate_change=learning_rate_change,awsgrad=True)
 
-grad_update = grad9_up_ad + grad8_up_ad+ grad7_up_ad + grad6_up_ad + grad5_up_ad + grad4_up_ad + grad3_up_ad + grad2_up_ad + grad1_up_ad
+grad_update_ad = grad9_up_ad + grad8_up_ad+ grad7_up_ad + grad6_up_ad + grad5_up_ad + grad4_up_ad + grad3_up_ad + grad2_up_ad + grad1_up_ad
 # ===== adversal manual ====
 
 
@@ -292,7 +292,7 @@ with tf.Session() as sess:
                         translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
                     )
                 ),
-                iaa.Sometimes(0.15 + lower_bound,
+                iaa.Sometimes(0.2 + lower_bound,
                     iaa.Affine(
                         rotate=(-25, 25),
                     )
@@ -321,7 +321,7 @@ with tf.Session() as sess:
             else:
                 sess_result = sess.run([cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,adversal_x],feed_dict={x:current_batch,y:current_batch_label,
                 iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:1.0,droprate2:1.0,droprate3:1.0})
-                
+
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],
             ' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
