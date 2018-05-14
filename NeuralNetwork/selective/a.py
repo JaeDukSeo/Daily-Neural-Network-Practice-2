@@ -7,10 +7,9 @@ from scipy.misc import imresize
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
-from tensorflow.examples.tutorials.mnist import input_data
 from imgaug import augmenters as iaa
 import imgaug as ia
-
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 np.random.seed(678)
 tf.set_random_seed(678)
 ia.seed(678)
@@ -24,15 +23,21 @@ def unpickle(file):
         dict = pickle.load(fo, encoding='bytes')
     return dict
 
+# ===== Rules that I have learned =====
+# 1. Data augmentation horizontal flip
+# 2. kernel size is 3 
+# 3. LR decay is also good 
+# 4. 3 block is good
+# ===== Rules that I have learned =====
+
 # data aug
 seq = iaa.Sequential([
     iaa.Sometimes(0.1,
         iaa.Affine(
-            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
             translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
         )
     ),
-    iaa.Sometimes(0.2,
+    iaa.Sometimes(0.1,
         iaa.Affine(
             rotate=(-25, 25),
         )
@@ -58,7 +63,7 @@ class CNN():
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
         self.layerA = tf_elu(self.layer)
         return self.layerA 
-    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME',adam=True):
+    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME',adam=True,RMSprop=False):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -78,18 +83,25 @@ class CNN():
         )
 
         update_w = []
-
-        if not adam:
+        if  adam:
             update_w.append(
                 tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   )
             )
             update_w.append(
-                tf.assign( self.v_prev,self.v_prev*0.999 + (1-0.999) * (grad ** 2)   )
+                tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   )
             )
             m_hat = self.m / (1-beta1)
-            v_hat = self.v_prev / (1-0.999)
+            v_hat = self.v_prev / (1-beta2)
             adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
-            update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))       
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
+
+        elif RMSprop:
+            update_w.append(
+                tf.assign( self.v_prev,self.v_prev*0.9 + (1-0.9) * (grad ** 2)   )
+            )
+            RMSprop = learning_rate_change/(tf.sqrt(self.v_prev)+ adam_e)
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(RMSprop,grad)  )))    
+
         else:
             update_w.append(
                 tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
@@ -101,17 +113,11 @@ class CNN():
 
             v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
             adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
-            adam_middel2 = adam_middel - learning_rate_change * 0.008 * self.w
-            update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel2  )  ))
-            update_w.append(
-                tf.assign( self.v_prev,v_t )
-            )
-            update_w.append(
-                tf.assign( self.v_hat_prev,v_max )
-            )        
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )  ))
+            update_w.append(tf.assign( self.v_prev,v_t ))
+            update_w.append(tf.assign( self.v_hat_prev,v_max ))        
 
         return grad_pass,update_w   
-
 # # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
 lstFilesDCM = []  # create an empty list
@@ -152,16 +158,16 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter
-num_epoch = 101
+num_epoch = 21
 batch_size = 50
 print_size = 1
 
-learning_rate = 0.0009
-learnind_rate_decay = 0.1
+learning_rate = 0.0008
+learnind_rate_decay = 0.3
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 proportion_rate = 0.8
-decay_rate = 10
+decay_rate = 10 
 
 # define class
 channel_size = 128
@@ -206,17 +212,17 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
-grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',adam=True)
-grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,adam=True)
+grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',adam=False,RMSprop=False)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',adam=False,RMSprop=False)
+grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,adam=False,RMSprop=False)
 
-grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=True)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=True)
-grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,adam=True)
+grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=False,RMSprop=False)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=False,RMSprop=False)
+grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,adam=False,RMSprop=False)
 
-grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=True)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=True)
-grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,adam=True)
+grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,stride=2,adam=False,RMSprop=False)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=False,RMSprop=False)
+grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,adam=False,RMSprop=False)
 
 grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
 
