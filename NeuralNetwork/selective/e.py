@@ -33,7 +33,6 @@ def unpickle(file):
 # 4. 3 block is good
 # ===== Rules that I have learned =====
 
-
 # class
 class CNN():
     
@@ -142,19 +141,19 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter
-num_epoch = 51  
+num_epoch = 21  
 batch_size = 50
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
 
-learning_rate = 0.0002
+learning_rate = 0.00025
 learnind_rate_decay = 0.01
 
 proportion_rate = 0.00001
 decay_rate = 1
 
 # define class
-channel_size = 156
+channel_size = 164
 l1 = CNN(3,3,channel_size,tf_elu,d_tf_elu)
 l2 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 l3 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
@@ -185,12 +184,12 @@ layer2 = l2.feedforward(layer1,droprate=droprate2)
 layer3 = l3.feedforward(layer2,stride=2,droprate=droprate3)
 
 layer4 = l4.feedforward(layer3,droprate=droprate2)
-layer5 = l5.feedforward(layer4+decay_dilated_rate*layer3,droprate=droprate3)
-layer6 = l6.feedforward(layer5,stride=2,droprate=droprate1)
+layer5 = l5.feedforward(layer4,droprate=droprate3)
+layer6 = l6.feedforward(layer5+decay_dilated_rate*layer4,stride=2,droprate=droprate1)
 
 layer7 = l7.feedforward(layer6,droprate=droprate3)
-layer8 = l8.feedforward(layer7+decay_dilated_rate*layer6,padding='VALID',droprate=droprate1)
-layer9 = l9.feedforward(layer8,padding='VALID',droprate=droprate2)
+layer8 = l8.feedforward(layer7,padding='VALID',droprate=droprate1)
+layer9 = l9.feedforward(layer8+decay_dilated_rate*layer7,padding='VALID',droprate=droprate2)
 
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
@@ -209,7 +208,7 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',awsgrad=True)
 grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',adam=True,reg=True)
-grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,awsgrad=True)
+grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change=learning_rate_change,awsgrad=True)
 
 grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,stride=2,adam=True)
 grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,awsgrad=True,reg=True)
@@ -237,7 +236,7 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        lower_bound = 0.1 * (iter+1)/num_epoch
+        lower_bound = 0.5 * (iter+1)/num_epoch
         random_drop1 = np.random.uniform(low=0.9+lower_bound,high=1.0)
         random_drop2 = np.random.uniform(low=0.9+lower_bound,high=1.0)
         random_drop3 = np.random.uniform(low=0.9+lower_bound,high=1.0)
@@ -248,22 +247,22 @@ with tf.Session() as sess:
 
             # data aug
             seq = iaa.Sequential([  
-                iaa.Sometimes(0.15 + lower_bound,
+                iaa.Sometimes(0.1 + lower_bound ,
                     iaa.Affine(
                         translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
                     )
                 ),
-                iaa.Sometimes(0.2+ lower_bound,
+                iaa.Sometimes(0.15 + lower_bound,
                     iaa.Affine(
                         rotate=(-25, 25),
                     )
                 ),
-                iaa.Sometimes(0.15+ lower_bound,
+                iaa.Sometimes(0.1 + lower_bound,
                     iaa.Affine(
                         scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
                     )
                 ),
-                iaa.Fliplr(1.0), # Horizonatl flips
+                iaa.Fliplr(1.0), # Horizontal flips
             ], random_order=True) # apply augmenters in random order
 
             # online data augmentation here and standard normalization
@@ -277,7 +276,7 @@ with tf.Session() as sess:
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,
-            iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3})
+            iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:1.0,droprate2:1.0,droprate3:1.0})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],
             ' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
@@ -296,7 +295,7 @@ with tf.Session() as sess:
 
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
-            print("Lower Bound : ",lower_bound,' Drop Out Lower: ',lower_bound + 0.9,
+            print("Lower Bound : ",lower_bound,' Random  Lower: ',lower_bound ,
             '\n',"Drop 1 : ",random_drop1," Drop 2: ",random_drop2," Drop 3: ",random_drop3)
             
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', 
