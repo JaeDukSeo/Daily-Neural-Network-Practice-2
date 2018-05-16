@@ -162,18 +162,18 @@ print(test_label.shape)
 
 # hyper parameter
 num_epoch = 101  
-batch_size = 80
+batch_size = 50
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
 
-learning_rate = 0.0001
+learning_rate = 0.0003
 learnind_rate_decay = 0
 
 proportion_rate = 0.0000001
 decay_rate = 0
 
 # define class
-channel_size = 256
+channel_size = 164
 l1 = CNN(3,3,channel_size,tf_elu,d_tf_elu)
 l2 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 l3 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
@@ -242,10 +242,8 @@ grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + g
 
 # ====== adversal input ==========
 adversal_input = x + 0.01  * tf.sign(grad1)
-concat_input = tf.concat([x,adversal_input],axis=0)
-yy = tf.concat([y,y],axis=0)
 
-layer1_ad = l1.feedforward(concat_input,droprate=droprate1)
+layer1_ad = l1.feedforward(adversal_input,droprate=droprate1)
 layer2_ad = l2.feedforward(layer1_ad,droprate=droprate2)
 layer3_ad = l3.feedforward(layer2_ad+decay_dilated_rate*layer1_ad,droprate=droprate3)
 
@@ -261,26 +259,26 @@ layer9_ad = l9.feedforward(layer8_ad+decay_dilated_rate*layer7_ad,droprate=dropr
 
 final_global_ad = tf.reduce_mean(layer9_ad,[1,2])
 final_soft_ad = tf_softmax(final_global_ad)
-cost_ad = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global_ad,labels=yy) )
-correct_prediction_ad = tf.equal(tf.argmax(final_soft_ad, 1), tf.argmax(yy, 1))
+cost_ad = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global_ad,labels=y) )
+correct_prediction_ad = tf.equal(tf.argmax(final_soft_ad, 1), tf.argmax(y, 1))
 accuracy_ad = tf.reduce_mean(tf.cast(correct_prediction_ad, tf.float32))
 # ====== adversal input ==========
 
 # ===== adversal manual ====
-grad_prepare_ad = tf.reshape(final_soft_ad-yy,[batch_size_dynamic*2,1,1,10])
-grad9_ad,grad9_up_ad = l9.backprop(grad_prepare_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic*2)
-grad8_ad,grad8_up_ad = l8.backprop(grad9_ad,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic*2)
-grad7_ad,grad7_up_ad = l7.backprop(grad8_ad+decay_dilated_rate*grad9_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic*2)
+grad_prepare_ad = tf.reshape(final_soft_ad-y,[batch_size_dynamic,1,1,10])
+grad9_ad,grad9_up_ad = l9.backprop(grad_prepare_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
+grad8_ad,grad8_up_ad = l8.backprop(grad9_ad,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
+grad7_ad,grad7_up_ad = l7.backprop(grad8_ad+decay_dilated_rate*grad9_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 
 grad6_Input_ad = tf_repeat(grad7_ad,[1,2,2,1])
-grad6_ad,grad6_up_ad = l6.backprop(grad6_Input_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic*2)
-grad5_ad,grad5_up_ad = l5.backprop(grad6_ad,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic*2)
-grad4_ad,grad4_up_ad = l4.backprop(grad5_ad+decay_dilated_rate*grad6_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic*2)
+grad6_ad,grad6_up_ad = l6.backprop(grad6_Input_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
+grad5_ad,grad5_up_ad = l5.backprop(grad6_ad,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
+grad4_ad,grad4_up_ad = l4.backprop(grad5_ad+decay_dilated_rate*grad6_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 
 grad3_Input_ad = tf_repeat(grad4_ad,[1,2,2,1])
-grad3_ad,grad3_up_ad = l3.backprop(grad3_Input_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic*2)
-grad2_ad,grad2_up_ad = l2.backprop(grad3_ad,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic*2)
-grad1_ad,grad1_up_ad = l1.backprop(grad2_ad+decay_dilated_rate*grad3_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic*2)
+grad3_ad,grad3_up_ad = l3.backprop(grad3_Input_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
+grad2_ad,grad2_up_ad = l2.backprop(grad3_ad,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
+grad1_ad,grad1_up_ad = l1.backprop(grad2_ad+decay_dilated_rate*grad3_ad,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 
 grad_update_ad = grad9_up_ad + grad8_up_ad+ grad7_up_ad + grad6_up_ad + grad5_up_ad + grad4_up_ad + grad3_up_ad + grad2_up_ad + grad1_up_ad
 # ===== adversal manual ====
@@ -340,7 +338,7 @@ with tf.Session() as sess:
                 images_aug = seq.augment_images(current_batch.astype(np.float32))
                 current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
                 current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-                input_sess_array = [cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,concat_input]
+                input_sess_array = [cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,adversal_input]
                 input_feed_dict={x:current_batch,y:current_batch_label,
                 iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size}
 
