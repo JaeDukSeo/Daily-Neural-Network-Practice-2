@@ -223,8 +223,8 @@ final_soft = tf_softmax(final_global)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-auto_train = tf.train.MomentumOptimizer(learning_rate=0.05,momentum=0.9).minimize(cost)
+# 0.0003
+auto_train = tf.train.MomentumOptimizer(learning_rate=0.005,momentum=0.9).minimize(cost)
 
 # ===== manual ====
 grad_prepare = tf.reshape(final_soft-y, [ batch_size_dynamic ,1,1,10] )
