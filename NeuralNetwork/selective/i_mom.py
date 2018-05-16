@@ -224,6 +224,8 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+auto_train = tf.train.MomentumOptimizer(learning_rate=0.05,momentum=0.9).minimize(cost)
+
 # ===== manual ====
 grad_prepare = tf.reshape(final_soft-y, [ batch_size_dynamic ,1,1,10] )
 grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
@@ -365,9 +367,11 @@ with tf.Session() as sess:
 
             elif data_input_type == 0 :
                 images_aug = seq.augment_images(current_batch.astype(np.float32))
+
                 current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
                 current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-                input_sess_array = [cost,accuracy,correct_prediction,grad_update]
+
+                input_sess_array = [cost,accuracy,correct_prediction,auto_train]
                 input_feed_dict= {x:current_batch,y:current_batch_label,
                 iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size}
 

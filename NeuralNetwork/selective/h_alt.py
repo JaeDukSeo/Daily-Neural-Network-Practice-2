@@ -206,17 +206,21 @@ droprate3 = tf.placeholder(tf.float32, shape=())
 
 layer1 = l1.feedforward(x,droprate=droprate1)
 layer2 = l2.feedforward(layer1,droprate=droprate2)
-layer3 = l3.feedforward(layer2,droprate=droprate3)
 
-layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer4 = l4.feedforward(layer4_Input,droprate=droprate2)
-layer5 = l5.feedforward(layer4,droprate=droprate3)
+layer3_Input = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer3 = l3.feedforward(layer3_Input,droprate=droprate3)
+layer4 = l4.feedforward(layer3,droprate=droprate2)
+
+layer5_Input = tf.nn.avg_pool(layer4,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer5 = l5.feedforward(layer5_Input,droprate=droprate3)
 layer6 = l6.feedforward(layer5,droprate=droprate1)
 
 layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
 layer7 = l7.feedforward(layer7_Input,droprate=droprate3)
 layer8 = l8.feedforward(layer7,droprate=droprate1)
-layer9 = l9.feedforward(layer8,droprate=droprate2)
+
+layer9_Input = tf.nn.avg_pool(layer8,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer9 = l9.feedforward(layer9_Input,droprate=droprate2)
 
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
@@ -227,17 +231,21 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # ===== manual ====
 grad_prepare = tf.reshape(final_soft-y, [ batch_size_dynamic ,1,1,10] )
 grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
+
+grad8_Input = tf_repeat(grad9,[1,2,2,1])
+grad8,grad8_up = l8.backprop(grad8_Input,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
 grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
 grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
-grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 
-grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
+grad4_Input = tf_repeat(grad5,[1,2,2,1])
+grad4,grad4_up = l4.backprop(grad4_Input,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
+grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
+
+grad2_Input = tf_repeat(grad3,[1,2,2,1])
+grad2,grad2_up = l2.backprop(grad2_Input,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
 grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 
 grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
