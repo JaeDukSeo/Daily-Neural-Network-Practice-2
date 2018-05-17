@@ -163,8 +163,8 @@ beta1,beta2,adam_e = 0.9,0.9,1e-9
 learning_rate = 0.0003
 learnind_rate_decay = 0
 
-proportion_rate = 0.0000001
-decay_rate = 0
+proportion_rate = 0.0001
+decay_rate = 10
 
 # define class
 # channel_size = 164
@@ -210,21 +210,21 @@ layer0 = l0.feedforward(x,droprate=droprate1)
 
 layer1a = l1_a.feedforward(layer0,droprate=droprate1)
 layer1 = l1.feedforward(layer1a,droprate=droprate1)
-layer2 = l2.feedforward(layer1,droprate=droprate2)
+layer2 = l2.feedforward(layer1,droprate=droprate2,stride=2)
 layer3 = l3.feedforward(layer2,droprate=droprate3)
 layer4 = l4.feedforward(layer3,droprate=droprate2)
 
 layer5_Input = tf.nn.avg_pool(layer4,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
 layer5a = l5_a.feedforward(layer5_Input,droprate=droprate1)
-layer5 = l5.feedforward(layer5a,droprate=droprate3,stride=2)
+layer5 = l5.feedforward(layer5a,droprate=droprate3) # here
 layer6 = l6.feedforward(layer5,droprate=droprate2)
 layer7 = l7.feedforward(layer6,droprate=droprate2)
 layer8 = l8.feedforward(layer7,droprate=droprate1)
 
 layer9_Input = tf.nn.avg_pool(layer8,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
 layer9a = l9_a.feedforward(layer9_Input,droprate=droprate1)
-layer9  = l9.feedforward(layer9a,droprate=droprate1,stride=2)
-layer10 = l10.feedforward(layer9,droprate=droprate3)
+layer9  = l9.feedforward(layer9a,droprate=droprate1) # here
+layer10 = l10.feedforward(layer9,droprate=droprate3,stride=2)
 layer11 = l11.feedforward(layer10,droprate=droprate2)
 layer12 = l12.feedforward(layer11,droprate=droprate3)
 
@@ -243,7 +243,7 @@ grad13,grad13_up = l13.backprop(grad_prepare,learning_rate_change=learning_rate_
 
 grad12,grad12_up = l12.backprop(grad13,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
 grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
-grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
+grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True,stride=2)
 grad9,grad9_up = l9.backprop(grad10,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
 grad9_a,grad9_a_up = l9_a.backprop(grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
 
@@ -257,13 +257,17 @@ grad5_a,grad5_a_up = l5_a.backprop(grad5,learning_rate_change=learning_rate_chan
 grad4_Input = tf_repeat(grad5_a,[1,2,2,1])
 grad4,grad4_up = l4.backprop(grad4_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
 grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True,stride=2)
 grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
 grad1_a,grad1_a_up = l1_a.backprop(grad1,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
 
 grad0,grad0_up = l0.backprop(grad1_a,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
 
-sys.exit()
+grad_update = grad13_up + \
+              grad12_up + grad11_up + grad10_up + grad9_up + grad9_a_up + \
+              grad8_up + grad7_up + grad6_up + grad5_up + grad5_a_up + \
+              grad4_up + grad3_up + grad2_up + grad1_up + grad1_a_up + \
+              grad0_up               
 
 # sess
 with tf.Session() as sess:
@@ -292,58 +296,23 @@ with tf.Session() as sess:
 
             # data aug
             seq = iaa.Sequential([  
-                iaa.Sometimes(  (0.1 + lower_bound * 6) ,
-                    iaa.Affine(
-                        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
-                    )
-                ),
                 iaa.Sometimes( (0.2 + lower_bound * 6),
-                    iaa.Affine(
-                        rotate=(-25, 25),
-                    )
-                ),
-                iaa.Sometimes( (0.1 + lower_bound * 6),
-                    iaa.Affine(
-                        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+                    iaa.CropAndPad(
+                        percent=(0, 0.2),
+                        pad_mode=["constant", "edge"],
+                        pad_cval=(0, 128)
                     )
                 ),
                 iaa.Fliplr(1.0), # Horizontal flips
             ], random_order=True) # apply augmenters in random order
-            seq_lite1 = iaa.Sequential([  
-                iaa.Fliplr(0.5), # Horizontal flips,
-            ], random_order=True) # apply augmenters in random order
-            seq_lite2 = iaa.Sequential([  
-                iaa.Flipud(0.5), # Horizontal flips
-            ], random_order=True) # apply augmenters in random order
 
-            if data_input_type == 2 :
-                images_aug = seq.augment_images(current_batch.astype(np.float32))
-                current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
-                current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-                input_sess_array = [cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,concat_input]
-                input_feed_dict={x:current_batch,y:current_batch_label,
-                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size}
+            images_aug = seq.augment_images(current_batch.astype(np.float32))
+            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            input_sess_array = [cost,accuracy,correct_prediction,grad_update]
+            input_feed_dict= {x:current_batch,y:current_batch_label,
+            iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size}
 
-            elif data_input_type == 0 :
-                images_aug = seq.augment_images(current_batch.astype(np.float32))
-                current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
-                current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-                input_sess_array = [cost,accuracy,correct_prediction,auto_train]
-                input_feed_dict= {x:current_batch,y:current_batch_label,
-                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size}
-
-            elif data_input_type == 1 :
-                current_batch = seq_lite1.augment_images(current_batch.astype(np.float32))
-                input_sess_array = [cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,concat_input]
-                input_feed_dict ={x:current_batch,y:current_batch_label,
-                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size//2}
-
-            elif data_input_type == 3 :
-                current_batch = seq_lite2.augment_images(current_batch.astype(np.float32))
-                input_sess_array = [cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,concat_input]
-                input_feed_dict ={x:current_batch,y:current_batch_label,
-                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size//2}
-                
             # online data augmentation here and standard normalization
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+ 1e-20)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+ 1e-20)
