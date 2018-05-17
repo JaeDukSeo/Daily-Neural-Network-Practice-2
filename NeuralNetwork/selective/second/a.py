@@ -98,7 +98,7 @@ class CNN():
             v_hat = self.v_prev / (1-beta2)
             adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
             adam_middel = tf.multiply(adam_middel,m_hat)
-            if reg: adam_middel = adam_middel - learning_rate_change * 0.001 * self.w
+            if reg: adam_middel = adam_middel - learning_rate_change * 0.00001 * self.w
             update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )) )    
 
         if awsgrad:
@@ -108,7 +108,7 @@ class CNN():
             def f2(): return self.v_hat_prev
             v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
             adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
-            if reg: adam_middel = adam_middel - learning_rate_change * 0.001 * self.w
+            if reg: adam_middel = adam_middel - learning_rate_change * 0.00001 * self.w
             update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )  ))
             update_w.append(tf.assign( self.v_prev,v_t ))
             update_w.append(tf.assign( self.v_hat_prev,v_max ))        
@@ -116,12 +116,13 @@ class CNN():
         if mom:
             update_w.append(tf.assign( self.m,self.m*beta1 + learning_rate* (grad)   ))
             adam_middel = self.m
-            if reg: adam_middel = adam_middel - learning_rate_change * 0.001 * self.w
+            if reg: adam_middel = adam_middel - learning_rate_change * 0.00001 * self.w
             update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel )) )    
 
         return grad_pass,update_w  
-# # data
-PathDicom = "../../Dataset/cifar-10-batches-py/"
+
+# data
+PathDicom = "../../../Dataset/cifar-10-batches-py/"
 lstFilesDCM = []  # create an empty list
 for dirName, subdirList, fileList in os.walk(PathDicom):
     for filename in fileList:
@@ -150,9 +151,9 @@ train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
 # standardize Normalize data per channel
-test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
-test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0)+ 1e-20)
-test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0)+ 1e-20)
+test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0))
+test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0))
+test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0))
 
 # print out the data shape
 print(train_batch.shape)
@@ -162,34 +163,47 @@ print(test_label.shape)
 
 # hyper parameter
 num_epoch = 21  
-batch_size = 128
+batch_size = 50
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
 
-learning_rate = 0.0001
+learning_rate = 0.0003
 learnind_rate_decay = 0
-proportion_rate = 0.0001
-decay_rate = 10
+
+proportion_rate = 0.0000001
+decay_rate = 0
 
 # define class
-channel_size = 256
-l1 = CNN(3,3,channel_size,tf_elu,d_tf_elu)
+# channel_size = 164
+channel_size = 156
+l0 = CNN(3,3,channel_size,tf_elu,d_tf_elu)
+
+l1_a = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l1 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 l2 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 l3 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l4 = CNN(1,channel_size,channel_size,tf_elu,d_tf_elu)
 
-l4 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l5_a = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 l5 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 l6 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
-
 l7 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 l8 = CNN(1,channel_size,channel_size,tf_elu,d_tf_elu)
-l9 = CNN(1,channel_size,10,tf_elu,d_tf_elu)
+
+l9_a = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l9 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l10 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l11 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l12 = CNN(1,channel_size,channel_size,tf_elu,d_tf_elu)
+
+l13 = CNN(1,channel_size,10,tf_elu,d_tf_elu)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 batch_size_dynamic= tf.placeholder(tf.int32, shape=())
+
 iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
@@ -199,44 +213,39 @@ droprate1 = tf.placeholder(tf.float32, shape=())
 droprate2 = tf.placeholder(tf.float32, shape=())
 droprate3 = tf.placeholder(tf.float32, shape=())
 
-layer1 = l1.feedforward(x,droprate=droprate1)
+layer0 = l0.feedforward(x,droprate=droprate1)
+
+layer1a = l1_a.feedforward(layer0,droprate=droprate1)
+# layer1_Input = tf.nn.avg_pool(layer0,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer1 = l1.feedforward(layer1a,droprate=droprate1)
 layer2 = l2.feedforward(layer1,droprate=droprate2)
-layer3 = l3.feedforward(layer2+decay_dilated_rate * layer1,droprate=droprate3)
+layer3 = l3.feedforward(layer2,droprate=droprate3)
+layer4 = l4.feedforward(layer3,droprate=droprate2)
 
-layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer4 = l4.feedforward(layer4_Input,droprate=droprate3)
-layer5 = l5.feedforward(layer4,droprate=droprate1)
-layer6 = l6.feedforward(layer5+decay_dilated_rate * layer4_Input,droprate=droprate2)
+layer5_Input = tf.nn.avg_pool(layer4,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer5a = l5_a.feedforward(layer5_Input,droprate=droprate1)
+layer5 = l5.feedforward(layer5a,droprate=droprate3,stride=2)
+layer6 = l6.feedforward(layer5,droprate=droprate2)
+layer7 = l7.feedforward(layer6,droprate=droprate2)
+layer8 = l8.feedforward(layer7,droprate=droprate1)
 
-layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer7 = l7.feedforward(layer7_Input,droprate=droprate2)
-layer8 = l8.feedforward(layer7,droprate=droprate3)
-layer9 = l9.feedforward(layer8+decay_dilated_rate * layer7_Input,droprate=droprate1)
+layer9_Input = tf.nn.avg_pool(layer8,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer9a = l9_a.feedforward(layer9_Input,droprate=droprate1)
+layer9  = l9.feedforward(layer9a,droprate=droprate1,stride=2)
+layer10 = l10.feedforward(layer9,droprate=droprate3)
+layer11 = l11.feedforward(layer10,droprate=droprate2)
+layer12 = l12.feedforward(layer11,droprate=droprate3)
 
-final_global = tf.reduce_mean(layer9,[1,2])
+layer13 = l13.feedforward(layer12)
+
+final_global = tf.reduce_mean(layer13,[1,2])
 final_soft = tf_softmax(final_global)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# ===== manual ====
-grad_prepare = tf.reshape(final_soft-y, [ batch_size_dynamic ,1,1,10] )
-grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic,reg=True)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
-grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate * grad9,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic,reg=True)
+auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_change*10,momentum=0.9).minimize(cost)
 
-grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic,reg=True)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
-grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate * grad6,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic,reg=True)
-
-grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic,reg=True)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
-grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate * grad3,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic,reg=True)
-
-grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
-# ===== manual ====
 
 # sess
 with tf.Session() as sess:
@@ -254,10 +263,10 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        lower_bound = 0.1 * (iter+1)/num_epoch
-        random_drop1 = np.random.uniform(low=0.9+lower_bound,high=1.000000000000001)
-        random_drop2 = np.random.uniform(low=0.9+lower_bound,high=1.000000000000001)
-        random_drop3 = np.random.uniform(low=0.9+lower_bound,high=1.000000000000001)
+        lower_bound = 0.025 * (iter+1)/num_epoch
+        random_drop1 = np.random.uniform(low=0.975+lower_bound,high=1.000000000000001)
+        random_drop2 = np.random.uniform(low=0.975+lower_bound,high=1.000000000000001)
+        random_drop3 = np.random.uniform(low=0.975+lower_bound,high=1.000000000000001)
 
         for batch_size_index in range(0,len(train_batch),batch_size//2):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
@@ -265,19 +274,58 @@ with tf.Session() as sess:
 
             # data aug
             seq = iaa.Sequential([  
-                iaa.Sometimes( (0.5 + 5*lower_bound),
-                    iaa.CropAndPad(percent=(-0.35, 0.35))
+                iaa.Sometimes(  (0.1 + lower_bound * 6) ,
+                    iaa.Affine(
+                        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+                    )
+                ),
+                iaa.Sometimes( (0.2 + lower_bound * 6),
+                    iaa.Affine(
+                        rotate=(-25, 25),
+                    )
+                ),
+                iaa.Sometimes( (0.1 + lower_bound * 6),
+                    iaa.Affine(
+                        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+                    )
                 ),
                 iaa.Fliplr(1.0), # Horizontal flips
             ], random_order=True) # apply augmenters in random order
+            seq_lite1 = iaa.Sequential([  
+                iaa.Fliplr(0.5), # Horizontal flips,
+            ], random_order=True) # apply augmenters in random order
+            seq_lite2 = iaa.Sequential([  
+                iaa.Flipud(0.5), # Horizontal flips
+            ], random_order=True) # apply augmenters in random order
 
-            images_aug = seq.augment_images(current_batch.astype(np.float32))
-            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
-            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            input_sess_array = [cost,accuracy,correct_prediction,grad_update]
-            input_feed_dict= {x:current_batch,y:current_batch_label,
-            iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:current_batch.shape[0]}
+            if data_input_type == 2 :
+                images_aug = seq.augment_images(current_batch.astype(np.float32))
+                current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+                current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+                input_sess_array = [cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,concat_input]
+                input_feed_dict={x:current_batch,y:current_batch_label,
+                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size}
 
+            elif data_input_type == 0 :
+                images_aug = seq.augment_images(current_batch.astype(np.float32))
+                current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+                current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+                input_sess_array = [cost,accuracy,correct_prediction,auto_train]
+                input_feed_dict= {x:current_batch,y:current_batch_label,
+                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size}
+
+            elif data_input_type == 1 :
+                current_batch = seq_lite1.augment_images(current_batch.astype(np.float32))
+                input_sess_array = [cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,concat_input]
+                input_feed_dict ={x:current_batch,y:current_batch_label,
+                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size//2}
+
+            elif data_input_type == 3 :
+                current_batch = seq_lite2.augment_images(current_batch.astype(np.float32))
+                input_sess_array = [cost_ad,accuracy_ad,correct_prediction_ad,grad_update_ad,concat_input]
+                input_feed_dict ={x:current_batch,y:current_batch_label,
+                iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:batch_size//2}
+                
             # online data augmentation here and standard normalization
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+ 1e-20)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+ 1e-20)
@@ -321,6 +369,8 @@ with tf.Session() as sess:
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
+        # data_input_type = data_input_type + 1
+        # if data_input_type == 4: data_input_type = 0 
 
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
