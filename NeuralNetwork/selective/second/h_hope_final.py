@@ -62,6 +62,7 @@ class CNN():
         self.act,self.d_act = act,d_act
 
     def getw(self): return self.w
+
     def feedforward(self,input,stride=1,padding='SAME',droprate=1.0):
         self.input  = input
         self.layer  = tf.nn.dropout(tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) ,droprate)
@@ -115,6 +116,7 @@ class CNN():
 
         return grad_pass,update_w  
 
+# Pre Processed Data
 data_dir = "../../../Dataset/"
 train_batch,train_label,test_batch,test_label  = get_cifar10_data(data_dir)
 
@@ -128,9 +130,9 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # standardize Normalize data per channel
-# test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
-# test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0)+ 1e-20)
-# test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0)+ 1e-20)
+test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
+test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0)+ 1e-20)
+test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0)+ 1e-20)
 
 
 
@@ -140,19 +142,19 @@ num_epoch = 21
 batch_size = 50
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
-decouple_weight   = 0.008
+decouple_weight   = 0.08
 
-learning_rate = 0.00025
+learning_rate = 0.0002
 learnind_rate_decay = 0.01
 
-proportion_rate = 0.001
-decay_rate = 1
+proportion_rate = 0.0001
+decay_rate = 0.01
 
 
 
 
 # define class
-channel_size = 164
+channel_size = 192
 l1 = CNN(3,3,channel_size,tf_elu,d_tf_elu)
 l2 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 l3 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
@@ -189,12 +191,14 @@ layer1 = l1.feedforward(x,droprate=droprate1)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2,stride=2,droprate=droprate3)
 
-layer4 = l4.feedforward(layer3,droprate=droprate2)
-layer5 = l5.feedforward(layer4)
+layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer4 = l4.feedforward(layer4_Input)
+layer5 = l5.feedforward(layer4,droprate=droprate2)
 layer6 = l6.feedforward(layer5+decay_dilated_rate*layer4,stride=2,droprate=droprate3)
 
-layer7 = l7.feedforward(layer6,droprate=droprate1)
-layer8 = l8.feedforward(layer7,padding='VALID')
+layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer7 = l7.feedforward(layer7_Input)
+layer8 = l8.feedforward(layer7,droprate=droprate1,padding='VALID')
 layer9 = l9.feedforward(layer8+decay_dilated_rate*layer7,padding='VALID')
 
 final_global = tf.reduce_mean(layer9,[1,2])
@@ -210,15 +214,19 @@ grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_cha
 grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',adam=True,reg=True)
 grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
 
-grad6,grad6_up = l6.backprop(grad7,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,stride=2,adam=True)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
-grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True)
+grad6_Input = tf_repeat(grad7,[1,2,2,1])
+grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,stride=2,adam=True,reg=True)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
+grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
 
-grad3,grad3_up = l3.backprop(grad4,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,stride=2,awsgrad=True)
+grad3_Input = tf_repeat(grad4,[1,2,2,1])
+grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,stride=2,awsgrad=True)
 grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
 grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*grad3,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
 
-grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
+grad_update = grad9_up + grad8_up + grad7_up  + \
+              grad6_up + grad5_up + grad4_up + \
+              grad3_up + grad2_up + grad1_up
 # ===== manual ====
 
 
@@ -242,42 +250,48 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        lower_bound = 0.13 * (iter+1)/num_epoch
-        random_drop1 = np.random.uniform(low=0.87+lower_bound,high=1.000000000000001)
-        random_drop2 = np.random.uniform(low=0.87+lower_bound,high=1.000000000000001)
-        random_drop3 = np.random.uniform(low=0.87+lower_bound,high=1.000000000000001)
+        lower_bound = 0.05 * (iter+1)/num_epoch
+        random_drop1 = np.random.uniform(low=0.95+lower_bound,high=1.000000000000001)
+        random_drop2 = np.random.uniform(low=0.95+lower_bound,high=1.000000000000001)
+        random_drop3 = np.random.uniform(low=0.95+lower_bound,high=1.000000000000001)
+
+
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
 
             # online data augmentation here and standard normalization
-            # current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
-            # current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0))
-            # current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
-            # current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+ 1e-20)
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+ 1e-20)
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+ 1e-20)
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,
-            iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,batch_size_dynamic:current_batch.shape[0]})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],
-            ' Current Acc: ', sess_result[1],end='\r')
+            iter_variable:iter,learning_rate_dynamic:learning_rate,batch_size_dynamic:current_batch.shape[0],
+            droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
+
+
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
             sess_result = sess.run([cost,accuracy,correct_prediction],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,
             droprate1:1.0,droprate2:1.0,droprate3:1.0,batch_size_dynamic:current_batch.shape[0]})
-            print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
-            ' Current Acc: ', sess_result[1],end='\r')
+            print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
 
+
+
         if iter % print_size==0:
-            print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
+            print("\n----------")
+            print("Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
+            print("decay_dilated_rate : ", proportion_rate * (1.0/(1.0+decay_rate*iter)) )
             print("Drop 1 : ",random_drop1," Drop 2: ",random_drop2," Drop 3: ",random_drop3)
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
