@@ -225,13 +225,13 @@ layer1 = l1.feedforward(layer10,droprate=droprate3)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2,droprate=droprate3)
 
-layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,3,3,1],strides=[1,1,1,1],padding="VALID")
 layer40 = l40.feedforward(layer4_Input)
 layer4 = l4.feedforward(layer40,droprate=droprate3)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5,droprate=droprate3)
 
-layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
+layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,3,3,1],strides=[1,1,1,1],padding="VALID")
 layer7 = l7.feedforward(layer7_Input)
 layer8 = l8.feedforward(layer7,droprate=droprate3)
 layer9 = l9.feedforward(layer8)
@@ -301,7 +301,7 @@ with tf.Session() as sess:
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
             input_sess_array = [cost,accuracy,correct_prediction,grad_update]
             input_feed_dict={x:current_batch,y:current_batch_label,
-            iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:1.0,droprate2:1.0,droprate3:0.8,batch_size_dynamic:batch_size}
+            iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:1.0,droprate2:1.0,droprate3:0.9,batch_size_dynamic:batch_size}
                 
             # online data augmentation here and standard normalization
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+ 1e-20)
@@ -333,9 +333,6 @@ with tf.Session() as sess:
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter))," Data: ",data_input_type )
             
-            print("Lower Bound : ",lower_bound,' Drop Lower: ',0.95+lower_bound ,' Random Image :',lower_bound * 6, 
-            '\n',"Drop 1 : ",random_drop1," Drop 2: ",random_drop2," Drop 3: ",random_drop3)
-            
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', 
             train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
 
@@ -349,8 +346,6 @@ with tf.Session() as sess:
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
-        # data_input_type = data_input_type + 1
-        # if data_input_type == 4: data_input_type = 0 
 
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
