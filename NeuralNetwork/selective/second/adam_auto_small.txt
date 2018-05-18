@@ -1,0 +1,189 @@
+Current Iter :  0  current batch:  9950  Current cost:  1.2530688  Current Acc:  0.466
+----------
+Learning Rate :  0.0001
+decay_dilated_rate :  0.0001
+decouple_weight :  1
+Drop 1 :  0.9908280702129724  Drop 2:  0.9780611360667186  Drop 3:  0.9994403818210409
+Train Current cost:  1.7116273494958878  Current Acc:  0.372789999993518
+Test Current cost:  1.3824794363975526  Current Acc:  0.5072000004351139
+----------
+Current Iter :  1  current batch:  9950  Current cost:  1.1536305  Current Acc:  0.6262
+----------
+Learning Rate :  9.990009990009991e-05
+decay_dilated_rate :  9.900990099009902e-05
+decouple_weight :  1
+Drop 1 :  0.9847926883671896  Drop 2:  0.9819913543298645  Drop 3:  0.9814766127348877
+Train Current cost:  1.3828264592587949  Current Acc:  0.5009900003299117
+Test Current cost:  1.1512446174025535  Current Acc:  0.5936000031232834
+----------
+Current Iter :  2  current batch:  9950  Current cost:  0.9674919  Current Acc:  0.6462
+----------
+Learning Rate :  9.98003992015968e-05
+decay_dilated_rate :  9.80392156862745e-05
+decouple_weight :  1
+Drop 1 :  0.9919314686164805  Drop 2:  0.984741675553832  Drop 3:  0.9793366016281777
+Train Current cost:  1.169183643490076  Current Acc:  0.5847600027024746
+Test Current cost:  0.9992915561795235  Current Acc:  0.6477000044286251
+----------
+Current Iter :  3  current batch:  9950  Current cost:  0.9547609  Current Acc:  0.6684
+----------
+Learning Rate :  9.97008973080758e-05
+decay_dilated_rate :  9.70873786407767e-05
+decouple_weight :  1
+Drop 1 :  0.996201317117527  Drop 2:  0.9958670029468998  Drop 3:  0.9918384681619811
+Train Current cost:  1.0210943795591594  Current Acc:  0.6372000031173229
+Test Current cost:  0.876897647678852  Current Acc:  0.6905000060796738
+----------
+Current Iter :  4  current batch:  9950  Current cost:  0.7325284  Current Acc:  0.6866
+----------
+Learning Rate :  9.960159362549801e-05
+decay_dilated_rate :  9.615384615384615e-05
+decouple_weight :  1
+Drop 1 :  0.9904610439140299  Drop 2:  0.9993196315216235  Drop 3:  0.9868712219357415
+Train Current cost:  0.9060844677239657  Current Acc:  0.6815800027251243
+Test Current cost:  0.8168126256763935  Current Acc:  0.7095000034570694
+----------
+Current Iter :  5  current batch:  9950  Current cost:  0.70411605  Current Acc:  0.788
+----------
+Learning Rate :  9.950248756218908e-05
+decay_dilated_rate :  9.523809523809524e-05
+decouple_weight :  1
+Drop 1 :  0.9974098114270088  Drop 2:  0.9835091504632272  Drop 3:  0.9854960408911088
+Train Current cost:  0.8252960852086544  Current Acc:  0.7099400011748076
+Test Current cost:  0.7617995363473892  Current Acc:  0.7422999992966652
+----------
+Current Iter :  6  current batch:  9950  Current cost:  0.6762064  Current Acc:  0.7828
+----------
+Learning Rate :  9.940357852882704e-05
+decay_dilated_rate :  9.433962264150943e-05
+decouple_weight :  1
+Drop 1 :  0.9922296664445028  Drop 2:  0.9929525521591506  Drop 3:  0.9855024374331218
+Train Current cost:  0.7618943220227957  Current Acc:  0.7338300004601479
+Test Current cost:  0.6870542687177658  Current Acc:  0.7599999985098839
+----------
+Current Iter :  7  current batch:  9950  Current cost:  0.64609313  Current Acc:  0.722
+----------
+Learning Rate :  9.9304865938431e-05
+decay_dilated_rate :  9.345794392523365e-05
+decouple_weight :  1
+Drop 1 :  0.990883236862017  Drop 2:  0.9865436864487509  Drop 3:  0.9924179577069239
+Train Current cost:  0.7064899849891663  Current Acc:  0.7525699996352195
+Test Current cost:  0.6501984512805938  Current Acc:  0.7708999964594841
+----------
+Current Iter :  8  current batch:  9950  Current cost:  0.5678029  Current Acc:  0.7622
+----------
+Learning Rate :  9.920634920634922e-05
+decay_dilated_rate :  9.259259259259259e-05
+decouple_weight :  1
+Drop 1 :  0.9873739154310432  Drop 2:  0.9904983700596223  Drop 3:  0.9922591063021168
+Train Current cost:  0.6619887564703822  Current Acc:  0.7703399987369776
+Test Current cost:  0.6137741135060787  Current Acc:  0.7855999970436096
+----------
+Current Iter :  9  current batch:  9950  Current cost:  0.5831823  Current Acc:  0.7824
+----------
+Learning Rate :  9.910802775024779e-05
+decay_dilated_rate :  9.174311926605505e-05
+decouple_weight :  1
+Drop 1 :  0.998010952903237  Drop 2:  0.9946661557401552  Drop 3:  0.989514856919631
+Train Current cost:  0.6138302516639232  Current Acc:  0.7871399985253811
+Test Current cost:  0.591388256251812  Current Acc:  0.7900999948382378
+----------
+Current Iter :  10  current batch:  9950  Current cost:  0.5039788  Current Acc:  0.8428
+----------
+Learning Rate :  9.900990099009902e-05
+decay_dilated_rate :  9.090909090909092e-05
+decouple_weight :  1
+Drop 1 :  0.997878450529904  Drop 2:  0.9907619574172448  Drop 3:  0.9995176859286973
+Train Current cost:  0.5771195642873644  Current Acc:  0.7993599970638752
+Test Current cost:  0.5406930646300316  Current Acc:  0.813099993467331
+----------
+Current Iter :  11  current batch:  9950  Current cost:  0.45442954  Current Acc:  0.864
+----------
+Learning Rate :  9.891196834817015e-05
+decay_dilated_rate :  9.009009009009008e-05
+decouple_weight :  1
+Drop 1 :  0.9907184912260618  Drop 2:  0.9913013867416735  Drop 3:  0.9909564056589707
+Train Current cost:  0.5435130080208183  Current Acc:  0.8105799961388112
+Test Current cost:  0.580665417611599  Current Acc:  0.7948999953269958
+----------
+Current Iter :  12  current batch:  9950  Current cost:  0.5192403  Current Acc:  0.8846
+----------
+Learning Rate :  9.881422924901186e-05
+decay_dilated_rate :  8.928571428571429e-05
+decouple_weight :  1
+Drop 1 :  0.9953904848788973  Drop 2:  0.9943562015560833  Drop 3:  0.9983512119697486
+Train Current cost:  0.517256383433938  Current Acc:  0.8202899957299232
+Test Current cost:  0.5008274657279252  Current Acc:  0.8268999940156937
+----------
+Current Iter :  13  current batch:  9950  Current cost:  0.43593517  Current Acc:  0.888
+----------
+Learning Rate :  9.871668311944721e-05
+decay_dilated_rate :  8.849557522123895e-05
+decouple_weight :  1
+Drop 1 :  0.9990311970911926  Drop 2:  0.9999936409695537  Drop 3:  0.9990488614109897
+Train Current cost:  0.488662749260664  Current Acc:  0.8306199948191643
+Test Current cost:  0.48414647042751313  Current Acc:  0.8354999938607216
+----------
+Current Iter :  14  current batch:  9950  Current cost:  0.4527563  Current Acc:  0.82848
+----------
+Learning Rate :  9.861932938856017e-05
+decay_dilated_rate :  8.771929824561403e-05
+decouple_weight :  1
+Drop 1 :  0.9974904017079336  Drop 2:  0.9984085465974851  Drop 3:  0.9940987246654857
+Train Current cost:  0.46782255098596215  Current Acc:  0.8376099960207939
+Test Current cost:  0.5199413408339023  Current Acc:  0.8187999945878982
+----------
+Current Iter :  15  current batch:  9950  Current cost:  0.45604745  Current Acc:  0.8626
+----------
+Learning Rate :  9.852216748768475e-05
+decay_dilated_rate :  8.695652173913045e-05
+decouple_weight :  1
+Drop 1 :  0.9956736022728082  Drop 2:  0.9992269207751135  Drop 3:  0.9951651361949071
+Train Current cost:  0.4451426742374897  Current Acc:  0.844599995046854
+Test Current cost:  0.4878406745940447  Current Acc:  0.83489999294281
+----------
+Current Iter :  16  current batch:  9950  Current cost:  0.49483207  Current Acc:  0.8426
+----------
+Learning Rate :  9.842519685039371e-05
+decay_dilated_rate :  8.620689655172414e-05
+decouple_weight :  1
+Drop 1 :  0.9985367960261495  Drop 2:  0.9960577402758807  Drop 3:  0.9969085145719776
+Train Current cost:  0.4256650376878679  Current Acc:  0.8513899957835674
+Test Current cost:  0.4941982766240835  Current Acc:  0.831099993288517
+----------
+Current Iter :  17  current batch:  9950  Current cost:  0.3930303  Current Acc:  0.8644
+----------
+Learning Rate :  9.832841691248773e-05
+decay_dilated_rate :  8.547008547008548e-05
+decouple_weight :  1
+Drop 1 :  0.9981063926891577  Drop 2:  0.9967699235853312  Drop 3:  0.997955028696435
+Train Current cost:  0.4055202788412571  Current Acc:  0.8589499953687191
+Test Current cost:  0.4614511032402515  Current Acc:  0.8413999941945076
+----------
+Current Iter :  18  current batch:  9950  Current cost:  0.41885677  Current Acc:  0.8846
+----------
+Learning Rate :  9.823182711198429e-05
+decay_dilated_rate :  8.474576271186441e-05
+decouple_weight :  1
+Drop 1 :  0.9988277359537037  Drop 2:  0.9997352504846319  Drop 3:  0.9976221025466514
+Train Current cost:  0.3848415418714285  Current Acc:  0.8658799957633019
+Test Current cost:  0.4417469397187233  Current Acc:  0.8488999935984611
+----------
+Current Iter :  19  current batch:  9950  Current cost:  0.37487793  Current Acc:  0.8888
+----------
+Learning Rate :  9.813542688910698e-05
+decay_dilated_rate :  8.403361344537815e-05
+decouple_weight :  1
+Drop 1 :  0.9992665127237724  Drop 2:  0.9994532648634192  Drop 3:  0.9994645956019106
+Train Current cost:  0.3681453435588628  Current Acc:  0.8726399951577186
+Test Current cost:  0.4322284909337759  Current Acc:  0.8528999930620194
+----------
+Current Iter :  20  current batch:  9950  Current cost:  0.31507853  Current Acc:  0.8668
+----------
+Learning Rate :  9.80392156862745e-05
+decay_dilated_rate :  8.333333333333334e-05
+decouple_weight :  1
+Drop 1 :  1.0000000000000007  Drop 2:  1.0000000000000009  Drop 3:  1.0000000000000007
+Train Current cost:  0.35687191303819416  Current Acc:  0.8759499955475331
+Test Current cost:  0.4198721272498369  Current Acc:  0.8599999955296517
+----------
