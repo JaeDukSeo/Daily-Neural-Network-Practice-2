@@ -303,6 +303,7 @@ with tf.Session() as sess:
             images_aug = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            
             input_sess_array = [cost,accuracy,correct_prediction,grad_update]
             input_feed_dict= {x:current_batch,y:current_batch_label,
             iter_variable:iter,learning_rate_dynamic:learning_rate,batch_size_dynamic:batch_size}
