@@ -155,7 +155,7 @@ print(test_label.shape)
 
 # hyper parameter
 num_epoch = 21  
-batch_size = 50
+batch_size = 32
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
 decouple_weight   = 1

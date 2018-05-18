@@ -232,7 +232,7 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 
-# # ===== manual ====
+# # ===== manual ==== HAVE TO FINISH 
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 
 grad10,grad10_up = l10.backprop(grad_prepare,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True,reg=True)
@@ -240,14 +240,14 @@ grad10,grad10_up = l10.backprop(grad_prepare,learning_rate_change=learning_rate_
 grad9,grad9_up = l9.backprop(grad10,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True)
 grad8_Div = grad9.shape[3]//2
 grad8_Div2 = grad9.shape[3]//4
-grad8,grad8_up = l8.backprop(grad9[:,:,:,:grad8_Div]+grad9[:,:,:,grad8_Div:],
+grad8,grad8_up = l8.backprop(grad9[:,:,:,:grad8_Div],
 learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',adam=True,reg=True)
 grad7_Div = grad8.shape[3]//2
-grad7,grad7_up = l7.backprop(grad8[:,:,:,:grad7_Div]+grad8[:,:,:,grad7_Div:] + \
+grad7,grad7_up = l7.backprop(grad9[:,:,:,grad8_Div:grad8_Div2]  + grad8[:,:,:,:grad7_Div] + \
 decay_dilated_rate * (grad9[:,:,:,:grad8_Div2]+grad9[:,:,:,grad8_Div2:grad8_Div2*2]+grad9[:,:,:,grad8_Div2*2:grad8_Div2*3]+grad9[:,:,:,grad8_Div2*3:] ) ,
 learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
 
-grad6_Input = tf_repeat(grad7,[1,2,2,1])
+grad6_Input = tf_repeat(grad9[:,:,:,grad8_Div+grad8_Div2:] + grad7,[1,2,2,1])
 grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
 grad5_Div = grad6.shape[3]//2
 grad5_Div2 = grad6.shape[3]//4
