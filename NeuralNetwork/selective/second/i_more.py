@@ -160,7 +160,7 @@ print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
 decouple_weight   = 1
 
-learning_rate = 0.0003
+learning_rate = 0.0001
 learnind_rate_decay = 0.001
 
 proportion_rate = 0.0001
@@ -170,7 +170,7 @@ decay_rate = 0.01
 
 
 # define class
-channel_size = 96
+channel_size = 128
 
 l0 = CNN(3,3,channel_size,tf_elu,d_tf_elu)
 
@@ -275,7 +275,6 @@ auto_train  = tf.train.AdamOptimizer(learning_rate=learning_rate_change).minimiz
 #               grad0_up
 # ===== manual ====
 
-sys.exit()
 
 # sess
 with tf.Session() as sess:
