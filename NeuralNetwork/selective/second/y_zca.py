@@ -10,6 +10,11 @@ from skimage.transform import resize
 from imgaug import augmenters as iaa
 import imgaug as ia
 
+from scipy import linalg
+from sklearn.base import TransformerMixin, BaseEstimator
+from sklearn.utils.validation import check_is_fitted
+from sklearn.utils import check_array, as_float_array
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 np.random.seed(678)
 tf.set_random_seed(678)
@@ -17,21 +22,12 @@ ia.seed(678)
 
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater_equal(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less(x,0),tf.float32) * x) + 1.0)
-# def tf_elu(x): return tf.nn.relu(x)
-# def d_tf_elu(x): return tf.cast(tf.greater_equal(x,0),tf.float32)
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
     import pickle
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     return dict
-
-# ===== Rules that I have learned =====
-# 1. Data augmentation horizontal flip
-# 2. kernel size is 3 
-# 3. LR decay is also good 
-# 4. 3 block is good
-# ===== Rules that I have learned =====
 
 # data aug
 seq = iaa.Sequential([  
@@ -42,6 +38,43 @@ iaa.CropAndPad(
 ),
 iaa.Fliplr(1.0), # Horizontal flips
 ], random_order=True) # apply augmenters in random order
+
+# Code from: https://stackoverflow.com/questions/31528800/how-to-implement-zca-whitening-python
+class ZCA(BaseEstimator, TransformerMixin):
+    def __init__(self, regularization=1e-6, copy=False):
+        self.regularization = regularization
+        self.copy = copy
+
+    def fit(self, X, y=None):
+        """Compute the mean, whitening and dewhitening matrices.
+        Parameters
+        ----------
+        X : array-like with shape [n_samples, n_features]
+            The data used to compute the mean, whitening and dewhitening
+            matrices.
+        """
+        X = check_array(X, accept_sparse=False, copy=self.copy,ensure_2d=True)
+        self.mean_ = X.mean(axis=0)
+        X_ = X - self.mean_
+        cov = np.dot(X_.T, X_) / (X_.shape[0]-1)
+        U, S, _ = linalg.svd(cov)
+        s = np.sqrt(S.clip(self.regularization))
+        s_inv = np.diag(1./s)
+        s = np.diag(s)
+        self.whiten_ = np.dot(np.dot(U, s_inv), U.T)
+        self.dewhiten_ = np.dot(np.dot(U, s), U.T)
+        return self
+
+    def transform(self, X, y=None, copy=None):
+        """Perform ZCA whitening
+        Parameters
+        ----------
+        X : array-like with shape [n_samples, n_features]
+            The data to whiten along the features axis.
+        """
+        check_is_fitted(self, 'mean_')
+        X = as_float_array(X, copy=self.copy)
+        return np.dot(X - self.mean_, self.whiten_.T)
 
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
@@ -61,7 +94,7 @@ def tf_repeat(tensor, repeats):
     repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
     return repeated_tesnor
 
-# class
+# Convolution Layer
 class CNN():
     
     def __init__(self,k,inc,out,act,d_act):
@@ -148,9 +181,17 @@ onehot_encoder = OneHotEncoder(sparse=True)
 train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
 train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
 train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
+
 test_batch = unpickle(lstFilesDCM[5])[b'data']
 test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
 test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
+
+print(train_batch.shape)
+print(train_label.shape)
+print(test_batch.shape)
+trf = ZCA().fit(test_batch)
+print(test_label.shape)
+print('------------')
 train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
 test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 
@@ -159,10 +200,6 @@ train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
 # standardize Normalize data per channel
-# test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0)) 
-# test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / (test_batch[:,:,:,1].max(axis=0) - test_batch[:,:,:,1].min(axis=0)) 
-# test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / (test_batch[:,:,:,2].max(axis=0) - test_batch[:,:,:,2].min(axis=0)) 
-
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
 test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0)+ 1e-20)
 test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0)+ 1e-20)
@@ -172,6 +209,8 @@ print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
+
+sys.exit()
 
 # hyper parameter
 num_epoch = 101  
