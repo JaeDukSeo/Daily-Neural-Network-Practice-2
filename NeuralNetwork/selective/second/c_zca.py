@@ -130,10 +130,10 @@ print(test_label.shape)
 num_epoch = 21  
 batch_size = 50
 print_size = 1
-beta1,beta2,adam_e = 0.9,0.9,1e-9
+beta1,beta2,adam_e = 0.9,0.99,1e-9
 
 learning_rate = 0.0003
-learnind_rate_decay = 0.5
+learnind_rate_decay = 0.01
 
 proportion_rate = 0.001
 decay_rate = 1
@@ -167,17 +167,17 @@ droprate1 = tf.placeholder(tf.float32, shape=())
 droprate2 = tf.placeholder(tf.float32, shape=())
 droprate3 = tf.placeholder(tf.float32, shape=())
 
-layer1 = l1.feedforward(x)
-layer2 = l2.feedforward(layer1,droprate=droprate3)
-layer3 = l3.feedforward(layer2 + decay_dilated_rate * (layer1))
+layer1 = l1.feedforward(x,droprate=droprate1)
+layer2 = l2.feedforward(layer1,droprate=droprate2)
+layer3 = l3.feedforward(layer2 + decay_dilated_rate * (layer1),droprate=droprate3)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer4 = l4.feedforward(layer4_Input)
-layer5 = l5.feedforward(layer4,droprate=droprate3)
-layer6 = l6.feedforward(layer5+ decay_dilated_rate * (layer4))
+layer4 = l4.feedforward(layer4_Input,droprate=droprate3)
+layer5 = l5.feedforward(layer4,droprate=droprate2)
+layer6 = l6.feedforward(layer5+ decay_dilated_rate * (layer4),droprate=droprate1)
 
 layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer7 = l7.feedforward(layer7_Input)
+layer7 = l7.feedforward(layer7_Input,droprate=droprate2)
 layer8 = l8.feedforward(layer7,droprate=droprate3)
 layer9 = l9.feedforward(layer8+ decay_dilated_rate * (layer7))
 
@@ -229,6 +229,11 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
+        lower_bound = 0.05 * (iter+1)/num_epoch
+        random_drop1 = np.random.uniform(low=0.95+lower_bound,high=1.000000000000001)
+        random_drop2 = np.random.uniform(low=0.95+lower_bound,high=1.000000000000001)
+        random_drop3 = np.random.uniform(low=0.95+lower_bound,high=1.000000000000001)
+
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
@@ -241,7 +246,10 @@ with tf.Session() as sess:
 
             input_sess_array = [cost,accuracy,correct_prediction,grad_update]
             input_feed_dict={x:current_batch,y:current_batch_label,
-            iter_variable:iter,learning_rate_dynamic:learning_rate,droprate1:0.95,droprate2:0.95,droprate3:0.95,batch_size_dynamic:current_batch.shape[0]}
+            iter_variable:iter,learning_rate_dynamic:learning_rate,
+            droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3,
+            batch_size_dynamic:current_batch.shape[0]}
+
             sess_result = sess.run(input_sess_array,feed_dict=input_feed_dict)
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
@@ -259,10 +267,13 @@ with tf.Session() as sess:
             test_cota = sess_result[0] + test_cota
 
         if iter % print_size==0:
-            print('\n---------Current Iter : ',iter,' ------------------')
-            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size) ),end='\n')
-            print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
-            print('---------------------------')
+            print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)))
+            print("Drop 1 : ",random_drop1," Drop 2: ",random_drop2," Drop 3: ",random_drop3)
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', 
+            train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
+            print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', 
+            test_acca/(len(test_batch)/batch_size),end='\n')
+            print("----------")
 
         train_acc.append(train_acca/(len(train_batch)/batch_size))
         train_cot.append(train_cota/(len(train_batch)/batch_size))
