@@ -22,8 +22,8 @@ sess = tf.Session()
 # Print the result
 print('----------------------')
 print(matrix)
-print(matrix.mean())
-print("Result: ", sess.run(result,feed_dict={x:matrix_expand}))
+print("Numpy Result: ",matrix.mean())
+print("TF Result: ", sess.run(result,feed_dict={x:matrix_expand}))
 print('---------------------')
 
 # Close the session
