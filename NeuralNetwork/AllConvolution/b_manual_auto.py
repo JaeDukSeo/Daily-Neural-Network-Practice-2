@@ -11,7 +11,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 from imgaug import augmenters as iaa
 import imgaug as ia
 
-np.random.seed(678)
+np.random.seed(678) 
 tf.set_random_seed(678)
 ia.seed(678)
 

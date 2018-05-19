@@ -57,7 +57,7 @@ class CNN():
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
         self.layerA = tf_elu(self.layer)
         return self.layerA 
-        
+
     def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME'):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
@@ -145,18 +145,17 @@ proportion_rate = 0.8
 decay_rate = 10 
 
 # define class
-channel_size = 128
-l1 = CNN(3,3,channel_size)
-l2 = CNN(3,channel_size,channel_size)
-l3 = CNN(3,channel_size,channel_size)
+l1 = CNN(3,3,96)
+l2 = CNN(3,96,96)
+l3 = CNN(3,96,192)
 
-l4 = CNN(3,channel_size,channel_size)
-l5 = CNN(3,channel_size,channel_size)
-l6 = CNN(3,channel_size,channel_size)
+l4 = CNN(3,192,192)
+l5 = CNN(3,192,192)
+l6 = CNN(3,192,192)
 
-l7 = CNN(3,channel_size,channel_size)
-l8 = CNN(1,channel_size,channel_size)
-l9 = CNN(1,channel_size,10)
+l7 = CNN(3,192,192)
+l8 = CNN(1,192,192)
+l9 = CNN(1,192,10)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
@@ -169,13 +168,15 @@ decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
-layer3 = l3.feedforward(layer2,stride=2)
+layer3 = l3.feedforward(layer2)
 
+layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer3)
 layer5 = l5.feedforward(layer4)
-layer6 = l6.feedforward(layer5,stride=2)
+layer6 = l6.feedforward(layer5)
 
-layer7 = l7.feedforward(layer6)
+layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer7 = l7.feedforward(layer7_Input)
 layer8 = l8.feedforward(layer7,padding='VALID')
 layer9 = l9.feedforward(layer8,padding='VALID')
 
@@ -186,7 +187,7 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_change*10,momentum=0.9).minimize(cost)
+auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_change*30,momentum=0.9).minimize(cost)
 
 # sess
 with tf.Session() as sess:
@@ -238,8 +239,8 @@ with tf.Session() as sess:
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/batch_size//2))
-        train_cot.append(train_cota/(len(train_batch)/batch_size//2))
+        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
