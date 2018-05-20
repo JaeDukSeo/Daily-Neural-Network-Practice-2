@@ -271,7 +271,7 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# ===== manual ==== HAVE TO FINISH 
+# ===== manual ==== 
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 
 grad17,grad17_up = l17.backprop(grad_prepare,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True,reg=True)
@@ -332,22 +332,9 @@ with tf.Session(config=tf.ConfigProto(device_count={'GPU': 0})) as sess:
         for batch_size_index in range(0,len(train_batch),batch_size//2):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
-
-            print(current_batch.shape)
-            print(current_batch_label.shape)
-
             # resize the image and perform augmentation and standard normalization
             current_batch = np.asarray([cv2.resize(x.astype(np.float32),(126,126),interpolation=cv2.INTER_LANCZOS4) for x in current_batch ])
             images_aug = seq.augment_images(current_batch.astype(np.float32))
-
-            for x in range(5):
-                plt.imshow(current_batch[x,:,:,:].astype(int))
-                plt.show()
-                plt.imshow(images_aug[x,:,:,:].astype(int))
-                plt.show()
-                
-
-
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+ 1e-20)
@@ -355,13 +342,10 @@ with tf.Session(config=tf.ConfigProto(device_count={'GPU': 0})) as sess:
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+ 1e-20)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
-            print(current_batch.shape)
-            print(current_batch_label.shape)
             sys.exit()
 
             sess_result = sess.run([cost,accuracy,correct_prediction,auto_train],feed_dict={x:current_batch,y:current_batch_label,
-            iter_variable:iter,learning_rate_dynamic:learning_rate,batch_size_dynamic:current_batch.shape[0],
-            droprate1:0.9,droprate2:1.0,droprate3:1.0})
+            iter_variable:iter,learning_rate_dynamic:learning_rate,batch_size_dynamic:current_batch.shape[0],droprate1:0.9,droprate2:1.0,droprate3:1.0})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -386,8 +370,8 @@ with tf.Session(config=tf.ConfigProto(device_count={'GPU': 0})) as sess:
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/batch_size))
-        train_cot.append(train_cota/(len(train_batch)/batch_size))
+        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
