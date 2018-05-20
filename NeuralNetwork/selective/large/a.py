@@ -26,33 +26,36 @@ def unpickle(file):
 
 # Data Augmentation code from: http://imgaug.readthedocs.io/en/latest/source/examples_basics.html#a-standard-use-case
 seq = iaa.Sequential([
-    iaa.Fliplr(0.5), # horizontal flips
-    iaa.Crop(percent=(0, 0.1)), # random crops
+    iaa.Fliplr(1.0), # horizontal flips
+    iaa.Flipud(0.4), # horizontal flips
+    iaa.Crop(percent=(0, 0.2)), # random crops
     # Small gaussian blur with random sigma between 0 and 0.5.
     # But we only blur about 50% of all images.
     iaa.Sometimes(0.5,
-        iaa.GaussianBlur(sigma=(0, 0.5))
+        iaa.GaussianBlur(sigma=(0, 0.05))
     ),
     # Strengthen or weaken the contrast in each image.
-    iaa.ContrastNormalization((0.75, 1.5)),
+    iaa.ContrastNormalization((0.75, 0.9)),
     # Add gaussian noise.
     # For 50% of all images, we sample the noise once per pixel.
     # For the other 50% of all images, we sample the noise per pixel AND
     # channel. This can change the color (not only brightness) of the
     # pixels.
-    iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5),
+    iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*100), per_channel=0.2),
     # Make some images brighter and some darker.
     # In 20% of all cases, we sample the multiplier once per channel,
     # which can end up changing the color of the images.
-    iaa.Multiply((0.8, 1.2), per_channel=0.2),
+    iaa.Multiply((0.8, 0.9), per_channel=0.2),
     # Apply affine transformations to each image.
     # Scale/zoom them, translate/move them, rotate them and shear them.
+    iaa.Sometimes(0.5,
     iaa.Affine(
         scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
         translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
         rotate=(-25, 25),
         shear=(-8, 8)
     )
+    ),
 ], random_order=True) # apply augmenters in random order
 
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
@@ -166,13 +169,8 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-train_batch_large = np.zeros((train_batch.shape[0],126,126,3))
-test_batch_large = np.zeros((test_batch.shape[0],126,126,3))
-
 # Image Large with cv2 INTER_LANCZOS4
-for x in range(len(test_batch)): 
-    test_batch_large[x,:,:,:] = cv2.resize(test_batch[x,:,:,:].astype(np.float32),(126,126),interpolation=cv2.INTER_LANCZOS4)
-test_batch_large = test_batch_large.astype(np.float32)
+test_batch = np.asarray([cv2.resize(x.astype(np.float32),(126,126),interpolation=cv2.INTER_LANCZOS4) for x in test_batch ])
 
 # standardize Normalize data per channel
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
@@ -180,9 +178,9 @@ test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) 
 test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0)+ 1e-20)
 
 print('--- Afer Image Resize (Only Test Image) -----')
-print(train_batch_large.shape)
+print(train_batch.shape)
 print(train_label.shape)
-print(test_batch_large.shape)
+print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter
@@ -279,55 +277,40 @@ grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 grad17,grad17_up = l17.backprop(grad_prepare,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True,reg=True)
 grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad15_Input = tf_repeat(grad16,[1,2,2,1])
+grad15,grad15_up = l15.backprop(grad15_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad14,grad14_up = l14.backprop(grad15,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad13,grad13_up = l13.backprop(grad14,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad12_Input = tf_repeat(grad13,[1,2,2,1])
+grad12,grad12_up = l12.backprop(grad12_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad9_Input = tf_repeat(grad10,[1,2,2,1])
+grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad6_Input = tf_repeat(grad7,[1,2,2,1])
+grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad3_Input = tf_repeat(grad4,[1,2,2,1])
+grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
 grad_update = grad17_up + grad16_up + \
+              grad15_up + grad14_up + grad13_up  + \
+              grad12_up + grad11_up + grad10_up  + \
               grad9_up + grad8_up + grad7_up  + \
               grad6_up + grad5_up + grad4_up  + \
-              grad3_up + grad2_up + grad1_up  + \
-              grad3_up + grad2_up + grad1_up  + \
               grad3_up + grad2_up + grad1_up  
 
-sys.exit()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # sess
-with tf.Session() as sess:
+with tf.Session(config=tf.ConfigProto(device_count={'GPU': 0})) as sess:
 
     sess.run(tf.global_variables_initializer())
     
@@ -346,23 +329,35 @@ with tf.Session() as sess:
         random_drop2 = np.random.uniform(low=0.985+lower_bound,high=1.000000000000001)
         random_drop3 = np.random.uniform(low=0.985+lower_bound,high=1.000000000000001)
 
-
-
         for batch_size_index in range(0,len(train_batch),batch_size//2):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
 
+            print(current_batch.shape)
+            print(current_batch_label.shape)
 
-
+            # resize the image and perform augmentation and standard normalization
+            current_batch = np.asarray([cv2.resize(x.astype(np.float32),(126,126),interpolation=cv2.INTER_LANCZOS4) for x in current_batch ])
             images_aug = seq.augment_images(current_batch.astype(np.float32))
+
+            for x in range(5):
+                plt.imshow(current_batch[x,:,:,:].astype(int))
+                plt.show()
+                plt.imshow(images_aug[x,:,:,:].astype(int))
+                plt.show()
+                
+
+
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            # online data augmentation here and standard normalization
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+ 1e-20)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+ 1e-20)
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+ 1e-20)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
+            print(current_batch.shape)
+            print(current_batch_label.shape)
+            sys.exit()
 
             sess_result = sess.run([cost,accuracy,correct_prediction,auto_train],feed_dict={x:current_batch,y:current_batch_label,
             iter_variable:iter,learning_rate_dynamic:learning_rate,batch_size_dynamic:current_batch.shape[0],
