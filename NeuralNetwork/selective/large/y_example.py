@@ -24,7 +24,7 @@ def unpickle(file):
         dict = pickle.load(fo, encoding='bytes')
     return dict
 
-# Data Augmentation code from: http://imgaug.readthedocs.io/en/latest/source/examples_basics.html#a-standard-use-case
+# Data Augmentation
 seq = iaa.Sequential([
     iaa.Fliplr(0.5), # horizontal flips
     iaa.Crop(percent=(0, 0.1)), # random crops
@@ -160,33 +160,48 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.int32)
 
-print('--- Before Image Resize -----')
+# standardize Normalize data per channel
+# test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
+# test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0)+ 1e-20)
+# test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0)+ 1e-20)
+
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
 train_batch_large = np.zeros((train_batch.shape[0],126,126,3))
-test_batch_large = np.zeros((test_batch.shape[0],126,126,3))
+test_batch_large = np.zeros((test_batch.shape[0],128,128,3))
+print(test_batch_large.sum())
+
+
+
 
 # Image Large with cv2 INTER_LANCZOS4
 for x in range(len(test_batch)): 
-    test_batch_large[x,:,:,:] = cv2.resize(test_batch[x,:,:,:].astype(np.float32),(126,126),interpolation=cv2.INTER_LANCZOS4)
-test_batch_large = test_batch_large.astype(np.float32)
+    test_batch_large[x,:,:,:] = cv2.resize(test_batch[x,:,:,:].astype(np.float32),(128,128),interpolation = cv2.INTER_LANCZOS4)
+test_batch_large = test_batch_large.astype(np.int32)
 
-# standardize Normalize data per channel
-test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
-test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0)+ 1e-20)
-test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0)+ 1e-20)
 
-print('--- Afer Image Resize (Only Test Image) -----')
+
+
+
 print(train_batch_large.shape)
 print(train_label.shape)
+print(test_batch_large.sum())
 print(test_batch_large.shape)
 print(test_label.shape)
 
+for x in range(10):
+    plt.imshow(test_batch_large[x,:,:,:])
+    plt.savefig(str(x)+'INTER_LANCZOS4.png')
+
+sys.exit()
+
+
+
 # hyper parameter
-num_epoch = 21 
+num_epoch = 301 
 batch_size =50
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
@@ -198,120 +213,14 @@ learnind_rate_decay = 0.001
 proportion_rate = 0.0001
 decay_rate = 0.01
 
-# define layers
 
-l1 = CNN(2,3,320,tf_elu,d_tf_elu)
-l2 = CNN(2,320,320,tf_elu,d_tf_elu)
-l3 = CNN(2,320,640,tf_elu,d_tf_elu)
 
-l4 = CNN(2,640,640,tf_elu,d_tf_elu)
-l5 = CNN(2,640,640,tf_elu,d_tf_elu)
-l6 = CNN(2,640,960,tf_elu,d_tf_elu)
 
-l7 = CNN(2,960,960,tf_elu,d_tf_elu)
-l8 = CNN(2,960,960,tf_elu,d_tf_elu)
-l9 = CNN(2,960,1280,tf_elu,d_tf_elu)
 
-l10 = CNN(2,1280,1280,tf_elu,d_tf_elu)
-l11 = CNN(2,1280,1280,tf_elu,d_tf_elu)
-l12 = CNN(2,1280,1600,tf_elu,d_tf_elu)
 
-l13 = CNN(2,1600,1600,tf_elu,d_tf_elu)
-l14 = CNN(2,1600,1600,tf_elu,d_tf_elu)
-l15 = CNN(2,1600,1920,tf_elu,d_tf_elu)
 
-l16 = CNN(2,1920,1920,tf_elu,d_tf_elu)
-l17 = CNN(1,1920,10,tf_elu,d_tf_elu)
 
-# define graph
-x = tf.placeholder(shape=[None,126,126,3],dtype=tf.float32)
-y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
-batch_size_dynamic= tf.placeholder(tf.int32, shape=())
-
-iter_variable = tf.placeholder(tf.float32, shape=())
-learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
-learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
-decay_dilated_rate   = proportion_rate       * (1.0/(1.0+decay_rate*iter_variable))
-
-droprate1 = tf.placeholder(tf.float32, shape=())
-droprate2 = tf.placeholder(tf.float32, shape=())
-droprate3 = tf.placeholder(tf.float32, shape=())
-
-layer1 = l1.feedforward(x)
-layer2 = l2.feedforward(layer1)
-layer3 = l3.feedforward(layer2)
-
-layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer4 = l4.feedforward(layer4_Input)
-layer5 = l5.feedforward(layer4)
-layer6 = l6.feedforward(layer5)
-
-layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer7 = l7.feedforward(layer7_Input)
-layer8 = l8.feedforward(layer7)
-layer9 = l9.feedforward(layer8)
-
-layer10_Input = tf.nn.avg_pool(layer9,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer10 = l10.feedforward(layer10_Input)
-layer111 = l11.feedforward(layer10)
-layer112 = l12.feedforward(layer111)
-
-layer13_Input = tf.nn.avg_pool(layer112,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer113 = l13.feedforward(layer13_Input)
-layer114 = l14.feedforward(layer113)
-layer115 = l15.feedforward(layer114)
-
-layer16_Input = tf.nn.avg_pool(layer115,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer16 = l16.feedforward(layer16_Input)
-layer17 = l17.feedforward(layer16,padding='VALID')
-
-final_global = tf.reduce_mean(layer17,[1,2])
-final_soft = tf_softmax(final_global)
-
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y)  )
-correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-# ===== manual ==== HAVE TO FINISH 
-grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
-
-grad17,grad17_up = l17.backprop(grad_prepare,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True,reg=True)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-
-grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-
-grad_update = grad17_up + grad16_up + \
-              grad9_up + grad8_up + grad7_up  + \
-              grad6_up + grad5_up + grad4_up  + \
-              grad3_up + grad2_up + grad1_up  + \
-              grad3_up + grad2_up + grad1_up  + \
-              grad3_up + grad2_up + grad1_up  
-
-sys.exit()
 
 
 
