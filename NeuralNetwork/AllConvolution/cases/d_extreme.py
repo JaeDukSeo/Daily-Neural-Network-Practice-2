@@ -160,7 +160,7 @@ learnind_rate_decay = 0.001
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 proportion_rate = 0.08
-decay_rate = 0.001
+decay_rate = 0.05
 
 # define class
 l1 = CNN(3,3,96)
