@@ -198,28 +198,28 @@ decay_rate = 0.01
 
 # define layers
 
-l1 = CNN(2,3,320,tf_elu,d_tf_elu)
-l2 = CNN(2,320,320,tf_elu,d_tf_elu)
-l3 = CNN(2,320,640,tf_elu,d_tf_elu)
+l1 = CNN(2,3,96,tf_elu,d_tf_elu)
+l2 = CNN(2,96,96,tf_elu,d_tf_elu)
+l3 = CNN(2,96,128,tf_elu,d_tf_elu)
 
-l4 = CNN(2,640,640,tf_elu,d_tf_elu)
-l5 = CNN(2,640,640,tf_elu,d_tf_elu)
-l6 = CNN(2,640,960,tf_elu,d_tf_elu)
+l4 = CNN(2,128,128,tf_elu,d_tf_elu)
+l5 = CNN(2,128,128,tf_elu,d_tf_elu)
+l6 = CNN(2,128,164,tf_elu,d_tf_elu)
 
-l7 = CNN(2,960,960,tf_elu,d_tf_elu)
-l8 = CNN(2,960,960,tf_elu,d_tf_elu)
-l9 = CNN(2,960,1280,tf_elu,d_tf_elu)
+l7 = CNN(2,164,164,tf_elu,d_tf_elu)
+l8 = CNN(2,164,164,tf_elu,d_tf_elu)
+l9 = CNN(2,164,320,tf_elu,d_tf_elu)
 
-l10 = CNN(2,1280,1280,tf_elu,d_tf_elu)
-l11 = CNN(2,1280,1280,tf_elu,d_tf_elu)
-l12 = CNN(2,1280,1600,tf_elu,d_tf_elu)
+l10 = CNN(2,320,320,tf_elu,d_tf_elu)
+l11 = CNN(2,320,320,tf_elu,d_tf_elu)
+l12 = CNN(2,320,640,tf_elu,d_tf_elu)
 
-l13 = CNN(2,1600,1600,tf_elu,d_tf_elu)
-l14 = CNN(2,1600,1600,tf_elu,d_tf_elu)
-l15 = CNN(2,1600,1920,tf_elu,d_tf_elu)
+l13 = CNN(2,640,640,tf_elu,d_tf_elu)
+l14 = CNN(2,640,640,tf_elu,d_tf_elu)
+l15 = CNN(2,640,960,tf_elu,d_tf_elu)
 
-l16 = CNN(2,1920,1920,tf_elu,d_tf_elu)
-l17 = CNN(1,1920,10,tf_elu,d_tf_elu)
+l16 = CNN(2,960,960,tf_elu,d_tf_elu)
+l17 = CNN(1,960,10,tf_elu,d_tf_elu)
 
 # define graph
 x = tf.placeholder(shape=[None,126,126,3],dtype=tf.float32)
@@ -270,47 +270,48 @@ final_soft = tf_softmax(final_global)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y)  )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change).minimize(cost)
 
 # ===== manual ==== 
-grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
+# grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 
-grad17,grad17_up = l17.backprop(grad_prepare,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True,reg=True)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad17,grad17_up = l17.backprop(grad_prepare,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True,reg=True)
+# grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad15_Input = tf_repeat(grad16,[1,2,2,1])
-grad15,grad15_up = l15.backprop(grad15_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad14,grad14_up = l14.backprop(grad15,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad13,grad13_up = l13.backprop(grad14,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad15_Input = tf_repeat(grad16,[1,2,2,1])
+# grad15,grad15_up = l15.backprop(grad15_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad14,grad14_up = l14.backprop(grad15,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad13,grad13_up = l13.backprop(grad14,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad12_Input = tf_repeat(grad13,[1,2,2,1])
-grad12,grad12_up = l12.backprop(grad12_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad12_Input = tf_repeat(grad13,[1,2,2,1])
+# grad12,grad12_up = l12.backprop(grad12_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad9_Input = tf_repeat(grad10,[1,2,2,1])
-grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad9_Input = tf_repeat(grad10,[1,2,2,1])
+# grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad6_Input = tf_repeat(grad7,[1,2,2,1])
+# grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
-grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad3_Input = tf_repeat(grad4,[1,2,2,1])
+# grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
+# grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic)
 
-grad_update = grad17_up + grad16_up + \
-              grad15_up + grad14_up + grad13_up  + \
-              grad12_up + grad11_up + grad10_up  + \
-              grad9_up + grad8_up + grad7_up  + \
-              grad6_up + grad5_up + grad4_up  + \
-              grad3_up + grad2_up + grad1_up  
+# grad_update = grad17_up + grad16_up + \
+#               grad15_up + grad14_up + grad13_up  + \
+#               grad12_up + grad11_up + grad10_up  + \
+#               grad9_up + grad8_up + grad7_up  + \
+#               grad6_up + grad5_up + grad4_up  + \
+#               grad3_up + grad2_up + grad1_up  
 
 # sess
-with tf.Session(config=tf.ConfigProto(device_count={'GPU': 0})) as sess:
+with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     
@@ -342,7 +343,6 @@ with tf.Session(config=tf.ConfigProto(device_count={'GPU': 0})) as sess:
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+ 1e-20)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
-            sys.exit()
 
             sess_result = sess.run([cost,accuracy,correct_prediction,auto_train],feed_dict={x:current_batch,y:current_batch_label,
             iter_variable:iter,learning_rate_dynamic:learning_rate,batch_size_dynamic:current_batch.shape[0],droprate1:0.9,droprate2:1.0,droprate3:1.0})
