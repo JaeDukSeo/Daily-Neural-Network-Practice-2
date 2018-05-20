@@ -171,7 +171,7 @@ layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4 = l4.feedforward(layer3)
+layer4 = l4.feedforward(layer4_Input)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5)
 

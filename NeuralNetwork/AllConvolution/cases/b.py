@@ -171,7 +171,7 @@ layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4 = l4.feedforward(layer3)
+layer4 = l4.feedforward(layer4_Input)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5)
 
@@ -186,7 +186,6 @@ final_soft = tf_softmax(final_global)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change).minimize(cost)
 
 # sess
