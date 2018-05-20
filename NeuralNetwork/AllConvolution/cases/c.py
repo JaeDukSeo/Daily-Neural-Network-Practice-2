@@ -23,6 +23,7 @@ def unpickle(file):
         dict = pickle.load(fo, encoding='bytes')
     return dict
 
+
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
     """
@@ -109,7 +110,6 @@ class CNN():
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )  ))
         update_w.append(tf.assign( self.v_prev,v_t ))
         update_w.append(tf.assign( self.v_hat_prev,v_max ))        
-
         return grad_pass,update_w   
 # # data
 PathDicom = "../../../Dataset/cifar-10-batches-py/"
