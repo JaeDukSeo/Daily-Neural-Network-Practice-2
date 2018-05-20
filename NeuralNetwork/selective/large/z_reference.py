@@ -24,36 +24,18 @@ def unpickle(file):
         dict = pickle.load(fo, encoding='bytes')
     return dict
 
-# Data Augmentation
-seq = iaa.Sequential([
-    iaa.Fliplr(0.5), # horizontal flips
-    iaa.Crop(percent=(0, 0.1)), # random crops
-    # Small gaussian blur with random sigma between 0 and 0.5.
-    # But we only blur about 50% of all images.
-    iaa.Sometimes(0.5,
-        iaa.GaussianBlur(sigma=(0, 0.5))
-    ),
-    # Strengthen or weaken the contrast in each image.
-    iaa.ContrastNormalization((0.75, 1.5)),
-    # Add gaussian noise.
-    # For 50% of all images, we sample the noise once per pixel.
-    # For the other 50% of all images, we sample the noise per pixel AND
-    # channel. This can change the color (not only brightness) of the
-    # pixels.
-    iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5),
-    # Make some images brighter and some darker.
-    # In 20% of all cases, we sample the multiplier once per channel,
-    # which can end up changing the color of the images.
-    iaa.Multiply((0.8, 1.2), per_channel=0.2),
-    # Apply affine transformations to each image.
-    # Scale/zoom them, translate/move them, rotate them and shear them.
-    iaa.Affine(
-        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
-        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
-        rotate=(-25, 25),
-        shear=(-8, 8)
-    )
-], random_order=True) # apply augmenters in random order
+# code from: https://github.com/tscohen/gconv_experiments
+def get_cifar10_data(datadir):
+    processed_datadir = os.path.join(datadir, 'preprocessed')
+
+    train = np.load(os.path.join(processed_datadir, 'train.npz'))
+    val = np.load(os.path.join(processed_datadir, 'test.npz'))
+    train_data = train['data']
+    train_labels = train['labels']
+    test_data = val['data']
+    test_labels = val['labels']
+
+    return train_data, train_labels, test_data, test_labels
 
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
@@ -105,7 +87,6 @@ class CNN():
         )
 
         update_w = []
-
         if  adam:
             update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
             update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
@@ -113,7 +94,7 @@ class CNN():
             v_hat = self.v_prev / (1-beta2)
             adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
             adam_middel = tf.multiply(adam_middel,m_hat)
-            if reg: adam_middel = adam_middel - learning_rate_change * decouple_weight  * self.w
+            if not reg: adam_middel = adam_middel - learning_rate_change * decouple_weight  * self.w
             update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )) )    
 
         if awsgrad:
@@ -123,7 +104,7 @@ class CNN():
             def f2(): return self.v_hat_prev
             v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
             adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
-            if reg: adam_middel = adam_middel - learning_rate_change * decouple_weight  * self.w
+            if not reg: adam_middel = adam_middel - learning_rate_change * decouple_weight  * self.w
             update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )  ))
             update_w.append(tf.assign( self.v_prev,v_t ))
             update_w.append(tf.assign( self.v_hat_prev,v_max ))        
@@ -152,7 +133,6 @@ train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.floa
 test_batch = unpickle(lstFilesDCM[5])[b'data']
 test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
 test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
-
 train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
 test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 
@@ -170,10 +150,6 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-sys.exit()
-
-
-
 # hyper parameter
 num_epoch = 301 
 batch_size =50
@@ -187,27 +163,119 @@ learnind_rate_decay = 0.001
 proportion_rate = 0.0001
 decay_rate = 0.01
 
+# define class
+channel_size = 128
 
+l0 = CNN(3,3,channel_size,tf_elu,d_tf_elu)
+l0w = l0.getw()
 
+l1 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l2 = CNN(3,channel_size*2,channel_size*2,tf_elu,d_tf_elu)
+l3 = CNN(3,channel_size*4,channel_size,tf_elu,d_tf_elu)
+l1w,l2w,l3w = l1.getw(),l2.getw(),l3.getw()
 
+l4 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l5 = CNN(3,channel_size*2,channel_size*2,tf_elu,d_tf_elu)
+l6 = CNN(3,channel_size*4,channel_size,tf_elu,d_tf_elu)
+l4w,l5w,l6w = l4.getw(),l5.getw(),l6.getw()
 
+l7 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l8 = CNN(1,channel_size*2,channel_size*2,tf_elu,d_tf_elu)
+l9 = CNN(1,channel_size*4,channel_size,tf_elu,d_tf_elu)
+l7w,l8w,l9w = l7.getw(),l8.getw(),l9.getw()
 
+l10 = CNN(1,channel_size,10,tf_elu,d_tf_elu)
+l10w = l0.getw()
 
+# graph
+x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
+y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
+batch_size_dynamic= tf.placeholder(tf.int32, shape=())
 
+iter_variable = tf.placeholder(tf.float32, shape=())
+learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
+learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
+decay_dilated_rate   = proportion_rate       * (1.0/(1.0+decay_rate*iter_variable))
 
+droprate1 = tf.placeholder(tf.float32, shape=())
+droprate2 = tf.placeholder(tf.float32, shape=())
+droprate3 = tf.placeholder(tf.float32, shape=())
 
+layer0 = l0.feedforward(x)
 
+layer1 = l1.feedforward(layer0,droprate=droprate1)
+layer2 = l2.feedforward(tf.concat([layer1,layer0],axis=3))
+layer3 = l3.feedforward(tf.concat([layer2,layer1,layer0],axis=3))
 
+layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID") *0.6+ \
+tf.nn.max_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID") *0.4
+layer4 = l4.feedforward(layer4_Input,droprate=droprate1)
+layer5 = l5.feedforward(tf.concat([layer4,layer4_Input],axis=3))
+layer6 = l6.feedforward(tf.concat([layer5,layer4,layer4_Input],axis=3))
 
+layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID") *0.6 + \
+tf.nn.max_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID") *0.4
+layer7 = l7.feedforward(layer7_Input)
+layer8 = l8.feedforward(tf.concat([layer7,layer7_Input],axis=3),padding='VALID')
+layer9 = l9.feedforward(tf.concat([layer8,layer7,layer7_Input],axis=3),padding='VALID')
 
+layer10 = l10.feedforward(layer9,padding='VALID')
 
+final_global = tf.reduce_mean(layer10,[1,2])
+final_soft = tf_softmax(final_global)
 
+reg_l2 = tf.nn.l2_loss(l0w) + \
+         tf.nn.l2_loss(l1w) + tf.nn.l2_loss(l2w) + tf.nn.l2_loss(l3w) + \
+         tf.nn.l2_loss(l4w) + tf.nn.l2_loss(l5w) + tf.nn.l2_loss(l6w) + \
+         tf.nn.l2_loss(l7w) + tf.nn.l2_loss(l8w) + tf.nn.l2_loss(l9w) + \
+         tf.nn.l2_loss(l10w)
 
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y)  )
+correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+auto_train = tf.train.MomentumOptimizer(learning_rate=0.0001,momentum=0.9).minimize(cost)
 
+# # ===== manual ==== HAVE TO FINISH 
+# grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 
+# grad10,grad10_up = l10.backprop(grad_prepare,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True,reg=True)
 
+# grad9,grad9_up = l9.backprop(grad10,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True)
+# grad8_Div = grad9.shape[3]//2
+# grad8_Div2 = grad9.shape[3]//4
+# grad8,grad8_up = l8.backprop(grad9[:,:,:,:grad8_Div],learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',adam=True,reg=True)
+# grad7_Div = grad8.shape[3]//2
+# grad7,grad7_up = l7.backprop(grad9[:,:,:,grad8_Div:grad8_Div+grad8_Div2] + grad8[:,:,:,:grad7_Div],learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
+
+# grad6_Input = grad9[:,:,:,grad8_Div+grad8_Div2:] + grad8[:,:,:,grad7_Div:] + grad7
+# grad6_Input = tf_repeat(grad6_Input,[1,2,2,1])
+# grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
+# grad5_Div = grad6.shape[3]//2
+# grad5_Div2 = grad6.shape[3]//4
+# grad5,grad5_up = l5.backprop(grad6[:,:,:,:grad5_Div],learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
+# grad4_Div = grad5.shape[3]//2
+# grad4,grad4_up = l4.backprop(grad6[:,:,:,grad5_Div:grad5_Div+grad5_Div2:]+grad5[:,:,:,:grad4_Div],learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
+
+# grad3_Input = grad6[:,:,:,grad5_Div+grad5_Div2:] + grad5[:,:,:,grad4_Div:] + grad4
+# grad3_Input = tf_repeat(grad3_Input,[1,2,2,1])
+# grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
+# grad2_Div = grad3.shape[3]//2
+# grad2_Div2 = grad3.shape[3]//4
+# grad2,grad2_up = l2.backprop(grad3[:,:,:,:grad2_Div],learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
+# grad1_Div = grad2.shape[3]//2
+# grad1,grad1_up = l1.backprop(grad3[:,:,:,grad2_Div:grad2_Div+grad2_Div2] + grad2[:,:,:,:grad1_Div],learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
+
+# grad1_Input = grad3[:,:,:,grad2_Div+grad2_Div2:] + grad2[:,:,:,grad1_Div:] + grad1
+# grad0,grad0_up = l0.backprop(grad1_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
+
+# grad_update = grad10_up + \
+#               grad9_up + grad8_up + grad7_up  + \
+#               grad6_up + grad5_up + grad4_up  + \
+#               grad3_up + grad2_up + grad1_up  + \
+            #   grad0_up
+# ===== manual ====
 
 # sess
 with tf.Session() as sess:
@@ -235,7 +303,15 @@ with tf.Session() as sess:
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
 
-
+            # data aug
+            seq = iaa.Sequential([  
+                iaa.CropAndPad(
+                        percent=(0, 0.2),
+                        pad_mode=["constant"],
+                        pad_cval=(0, 128)
+                ),
+                iaa.Fliplr(1.0), # Horizontal flips
+            ], random_order=True) # apply augmenters in random order
 
             images_aug = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
