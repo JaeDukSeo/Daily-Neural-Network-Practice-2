@@ -158,17 +158,44 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 
 # reshape data rotate data
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
-test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.int32)
 
 # standardize Normalize data per channel
-test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
-test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0)+ 1e-20)
-test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0)+ 1e-20)
+# test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
+# test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0)+ 1e-20)
+# test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0)+ 1e-20)
 
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
+
+train_batch_large = np.zeros((train_batch.shape[0],126,126,3))
+test_batch_large = np.zeros((test_batch.shape[0],128,128,3))
+print(test_batch_large.sum())
+
+
+
+
+# go with INTER_LANCZOS4
+# for x in range(len(test_batch)): 
+for x in range(10):
+    test_batch_large[x,:,:,:] = cv2.resize(test_batch[x,:,:,:].astype(np.float32),(128,128),interpolation = cv2.INTER_LANCZOS4)
+test_batch_large = test_batch_large.astype(np.int32)
+
+
+
+
+
+print(train_batch_large.shape)
+print(train_label.shape)
+print(test_batch_large.sum())
+print(test_batch_large.shape)
+print(test_label.shape)
+
+for x in range(10):
+    plt.imshow(test_batch_large[x,:,:,:])
+    plt.savefig(str(x)+'INTER_LANCZOS4.png')
 
 sys.exit()
 
