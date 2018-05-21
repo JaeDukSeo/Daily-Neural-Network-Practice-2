@@ -28,7 +28,7 @@ def unpickle(file):
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # horizontal flips
     # iaa.Flipud(0.4), # horizontal flips
-    # iaa.Crop(percent=(0, 0.2)), # random crops
+    iaa.Crop(percent=(0, 0.2)), # random crops
     # Small gaussian blur with random sigma between 0 and 0.5.
     # But we only blur about 50% of all images.
     # iaa.Sometimes(0.5,
@@ -48,7 +48,7 @@ seq = iaa.Sequential([
     # iaa.Multiply((0.8, 0.9), per_channel=0.2),
     # Apply affine transformations to each image.
     # Scale/zoom them, translate/move them, rotate them and shear them.
-    iaa.Sometimes(0.8,
+    iaa.Sometimes(0.5,
     iaa.Affine(
         scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
         translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
@@ -84,39 +84,46 @@ class CNN():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
-
     def getw(self): return self.w
 
-    def feedforward(self,input,stride=1,padding='SAME',droprate=1.0):
+    def feedforward(self,input,stride=1,padding='SAME',droprate=1.0,res=False):
         self.input  = input
         self.layer  = tf.nn.dropout(tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) ,droprate)
         self.layerA = self.act(self.layer)
+        if res: return self.layerA + input
         return self.layerA 
 
-    def backprop(self,gradient,learning_rate_change,batch_size_dynamic,stride=1,padding='SAME',adam=False,awsgrad=False,reg=False):
+    def backprop(self,gradient,learning_rate_change,batch_size_dynamic,stride=1,padding='SAME',mom=False,adam=False,awsgrad=False,reg=False):
         grad_part_1 = gradient 
         grad_part_2 = self.d_act(self.layer) 
         grad_part_3 = self.input
         grad_middle = grad_part_1 * grad_part_2
 
         grad = tf.nn.conv2d_backprop_filter(
-            input = grad_part_3,filter_sizes = self.w.shape,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding
+            input = grad_part_3,
+            filter_sizes = self.w.shape,out_backprop = grad_middle,
+            strides=[1,stride,stride,1],padding=padding
         )
 
         grad_pass = tf.nn.conv2d_backprop_input(
-            input_sizes = [batch_size_dynamic] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding
+            input_sizes = [batch_size_dynamic] + list(grad_part_3.shape[1:]),
+            filter= self.w,out_backprop = grad_middle,
+            strides=[1,stride,stride,1],padding=padding
         )
 
         update_w = []
-
         if  adam:
-            update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
-            update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
+            update_w.append(
+                tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   )
+            )
+            update_w.append(
+                tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   )
+            )
             m_hat = self.m / (1-beta1)
             v_hat = self.v_prev / (1-beta2)
             adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
             adam_middel = tf.multiply(adam_middel,m_hat)
-            if reg: adam_middel = adam_middel - learning_rate_change * decouple_weight  * self.w
+            if reg: adam_middel = adam_middel - learning_rate_change * 0.00001 * self.w
             update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )) )    
 
         if awsgrad:
@@ -126,10 +133,16 @@ class CNN():
             def f2(): return self.v_hat_prev
             v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
             adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
-            if reg: adam_middel = adam_middel - learning_rate_change * decouple_weight  * self.w
+            if reg: adam_middel = adam_middel - learning_rate_change * 0.00001 * self.w
             update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )  ))
             update_w.append(tf.assign( self.v_prev,v_t ))
             update_w.append(tf.assign( self.v_hat_prev,v_max ))        
+
+        if mom:
+            update_w.append(tf.assign( self.m,self.m*beta1 + learning_rate* (grad)   ))
+            adam_middel = self.m
+            if reg: adam_middel = adam_middel - learning_rate_change * 0.00001 * self.w
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel )) )    
 
         return grad_pass,update_w  
 
@@ -170,7 +183,7 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # Image Large with cv2 INTER_LANCZOS4
-test_batch = np.asarray([cv2.resize(x.astype(np.float32),(126,126),interpolation=cv2.INTER_LANCZOS4) for x in test_batch ])
+test_batch = np.asarray([cv2.resize(x.astype(np.float32),(64,64),interpolation=cv2.INTER_LANCZOS4) for x in test_batch ])
 
 # standardize Normalize data per channel
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
@@ -184,45 +197,34 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter
-num_epoch = 301 
-batch_size =50
+num_epoch = 21 
+batch_size = 50
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
-decouple_weight   = 0.0001
+decouple_weight   = 0.000008
 
-learning_rate = 0.0002
+learning_rate = 0.0001
 learnind_rate_decay = 0.001
 
 proportion_rate = 0.0001
 decay_rate = 0.01
 
-# define layers
+# define class
+channel_size = 156
+l1 = CNN(3,3,channel_size,tf_elu,d_tf_elu)
+l2 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l3 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 
-l1 = CNN(2,3,96,tf_elu,d_tf_elu)
-l2 = CNN(2,96,96,tf_elu,d_tf_elu)
-l3 = CNN(2,96,128,tf_elu,d_tf_elu)
+l4 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l5 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l6 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
 
-l4 = CNN(2,128,128,tf_elu,d_tf_elu)
-l5 = CNN(2,128,128,tf_elu,d_tf_elu)
-l6 = CNN(2,128,164,tf_elu,d_tf_elu)
-
-l7 = CNN(2,164,164,tf_elu,d_tf_elu)
-l8 = CNN(2,164,164,tf_elu,d_tf_elu)
-l9 = CNN(2,164,320,tf_elu,d_tf_elu)
-
-l10 = CNN(2,320,320,tf_elu,d_tf_elu)
-l11 = CNN(2,320,320,tf_elu,d_tf_elu)
-l12 = CNN(2,320,640,tf_elu,d_tf_elu)
-
-l13 = CNN(2,640,640,tf_elu,d_tf_elu)
-l14 = CNN(2,640,640,tf_elu,d_tf_elu)
-l15 = CNN(2,640,960,tf_elu,d_tf_elu)
-
-l16 = CNN(2,960,960,tf_elu,d_tf_elu)
-l17 = CNN(1,960,10,tf_elu,d_tf_elu)
+l7 = CNN(3,channel_size,channel_size,tf_elu,d_tf_elu)
+l8 = CNN(1,channel_size,channel_size,tf_elu,d_tf_elu)
+l9 = CNN(1,channel_size,10,tf_elu,d_tf_elu)
 
 # define graph
-x = tf.placeholder(shape=[None,126,126,3],dtype=tf.float32)
+x = tf.placeholder(shape=[None,64,64,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 batch_size_dynamic= tf.placeholder(tf.int32, shape=())
@@ -236,79 +238,44 @@ droprate1 = tf.placeholder(tf.float32, shape=())
 droprate2 = tf.placeholder(tf.float32, shape=())
 droprate3 = tf.placeholder(tf.float32, shape=())
 
-layer1 = l1.feedforward(x)
-layer2 = l2.feedforward(layer1)
-layer3 = l3.feedforward(layer2)
+layer1 = l1.feedforward(x,droprate=droprate1)
+layer2 = l2.feedforward(layer1,droprate=droprate2)
+layer3 = l3.feedforward(layer2+decay_dilated_rate*layer1,droprate=droprate3,stride=2)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer4 = l4.feedforward(layer4_Input)
-layer5 = l5.feedforward(layer4)
-layer6 = l6.feedforward(layer5)
+layer4 = l4.feedforward(layer4_Input,droprate=droprate2)
+layer5 = l5.feedforward(layer4,droprate=droprate3)
+layer6 = l6.feedforward(layer5+decay_dilated_rate*layer4,droprate=droprate1)
 
 layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer7 = l7.feedforward(layer7_Input)
-layer8 = l8.feedforward(layer7)
-layer9 = l9.feedforward(layer8)
+layer7 = l7.feedforward(layer7_Input,droprate=droprate3)
+layer8 = l8.feedforward(layer7,droprate=droprate1)
+layer9 = l9.feedforward(layer8+decay_dilated_rate*layer7,droprate=droprate2)
 
-layer10_Input = tf.nn.avg_pool(layer9,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer10 = l10.feedforward(layer10_Input)
-layer111 = l11.feedforward(layer10)
-layer112 = l12.feedforward(layer111)
-
-layer13_Input = tf.nn.avg_pool(layer112,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer113 = l13.feedforward(layer13_Input)
-layer114 = l14.feedforward(layer113)
-layer115 = l15.feedforward(layer114)
-
-layer16_Input = tf.nn.avg_pool(layer115,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
-layer16 = l16.feedforward(layer16_Input)
-layer17 = l17.feedforward(layer16,padding='VALID')
-
-final_global = tf.reduce_mean(layer17,[1,2])
+final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
-
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y)  )
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change).minimize(cost)
 
-# ===== manual ==== 
-grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
-
-grad17,grad17_up = l17.backprop(grad_prepare,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True,reg=True)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
-
-grad15_Input = tf_repeat(grad16,[1,2,2,1])
-grad15,grad15_up = l15.backprop(grad15_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
-grad14,grad14_up = l14.backprop(grad15,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
-grad13,grad13_up = l13.backprop(grad14+decay_dilated_rate*grad15,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
-
-grad12_Input = tf_repeat(grad13,[1,2,2,1])
-grad12,grad12_up = l12.backprop(grad12_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True)
-grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
-grad10,grad10_up = l10.backprop(grad11+decay_dilated_rate*grad12,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True)
-
-grad9_Input = tf_repeat(grad10,[1,2,2,1])
-grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True)
-grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
+# ===== manual ====
+grad_prepare = tf.reshape(final_soft-y, [ batch_size_dynamic ,1,1,10] )
+grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
+grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
-grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
+grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
+grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*grad6,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
-grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*grad3,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
+grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic,stride=2)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,adam=True,batch_size_dynamic=batch_size_dynamic)
+grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*grad3,learning_rate_change=learning_rate_change,awsgrad=True,batch_size_dynamic=batch_size_dynamic)
 
-grad_update = grad17_up + grad16_up + \
-              grad15_up + grad14_up + grad13_up  + \
-              grad12_up + grad11_up + grad10_up  + \
-              grad9_up + grad8_up + grad7_up  + \
-              grad6_up + grad5_up + grad4_up  + \
-              grad3_up + grad2_up + grad1_up  
+grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
+# ===== manual ====
 
 # sess
 with tf.Session() as sess:
@@ -334,7 +301,7 @@ with tf.Session() as sess:
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
             # resize the image and perform augmentation and standard normalization
-            current_batch = np.asarray([cv2.resize(x.astype(np.float32),(126,126),interpolation=cv2.INTER_LANCZOS4) for x in current_batch ])
+            current_batch = np.asarray([cv2.resize(x.astype(np.float32),(64,64),interpolation=cv2.INTER_LANCZOS4) for x in current_batch ])
             images_aug = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
@@ -345,7 +312,7 @@ with tf.Session() as sess:
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,
-            iter_variable:iter,learning_rate_dynamic:learning_rate,batch_size_dynamic:current_batch.shape[0],droprate1:random_drop1,droprate2:random_drop2,droprate3:random_drop3})
+            iter_variable:iter,learning_rate_dynamic:learning_rate,batch_size_dynamic:current_batch.shape[0],droprate1:0.9,droprate2:1.0,droprate3:1.0})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -393,14 +360,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case Train.png")
+    plt.savefig("Case a Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case Test.png")
+    plt.savefig("Case a Test.png")
 
 
 
