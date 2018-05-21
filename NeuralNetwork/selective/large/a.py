@@ -48,7 +48,7 @@ seq = iaa.Sequential([
     # iaa.Multiply((0.8, 0.9), per_channel=0.2),
     # Apply affine transformations to each image.
     # Scale/zoom them, translate/move them, rotate them and shear them.
-    iaa.Sometimes(0.8,
+    iaa.Sometimes(0.7,
     iaa.Affine(
         scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
         translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
@@ -161,7 +161,7 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 
 # reshape data rotate data
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
-test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.int32)
+test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
 print('--- Before Image Resize -----')
 print(train_batch.shape)
@@ -170,7 +170,8 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # Image Large with cv2 INTER_LANCZOS4
-test_batch = np.asarray([cv2.resize(x.astype(np.float32),(126,126),interpolation=cv2.INTER_LANCZOS4) for x in test_batch ])
+image_resize = 126
+test_batch = np.asarray([cv2.resize(x.astype(np.float32),(image_resize,image_resize),interpolation=cv2.INTER_LANCZOS4) for x in test_batch ])
 
 # standardize Normalize data per channel
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0)+ 1e-20)
@@ -188,12 +189,12 @@ num_epoch = 301
 batch_size =50
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-9
-decouple_weight   = 0.0001
+decouple_weight   = 0.00001
 
-learning_rate = 0.0002
+learning_rate = 0.0001
 learnind_rate_decay = 0.001
 
-proportion_rate = 0.0001
+proportion_rate = 0.00001
 decay_rate = 0.01
 
 # define layers
@@ -222,7 +223,7 @@ l16 = CNN(2,960,960,tf_elu,d_tf_elu)
 l17 = CNN(1,960,10,tf_elu,d_tf_elu)
 
 # define graph
-x = tf.placeholder(shape=[None,126,126,3],dtype=tf.float32)
+x = tf.placeholder(shape=[None,image_resize,image_resize,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 batch_size_dynamic= tf.placeholder(tf.int32, shape=())
@@ -238,27 +239,27 @@ droprate3 = tf.placeholder(tf.float32, shape=())
 
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
-layer3 = l3.feedforward(layer2)
+layer3 = l3.feedforward(layer2+decay_dilated_rate*layer1)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
 layer4 = l4.feedforward(layer4_Input)
 layer5 = l5.feedforward(layer4)
-layer6 = l6.feedforward(layer5)
+layer6 = l6.feedforward(layer5+decay_dilated_rate*layer4)
 
 layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
 layer7 = l7.feedforward(layer7_Input)
 layer8 = l8.feedforward(layer7)
-layer9 = l9.feedforward(layer8)
+layer9 = l9.feedforward(layer8+decay_dilated_rate*layer7)
 
 layer10_Input = tf.nn.avg_pool(layer9,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
 layer10 = l10.feedforward(layer10_Input)
 layer111 = l11.feedforward(layer10)
-layer112 = l12.feedforward(layer111)
+layer112 = l12.feedforward(layer111+decay_dilated_rate*layer10)
 
 layer13_Input = tf.nn.avg_pool(layer112,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
 layer113 = l13.feedforward(layer13_Input)
 layer114 = l14.feedforward(layer113)
-layer115 = l15.feedforward(layer114)
+layer115 = l15.feedforward(layer114+decay_dilated_rate*layer113)
 
 layer16_Input = tf.nn.avg_pool(layer115,ksize=[1,2,2,1],strides=[1,2,2,1],padding="VALID")
 layer16 = l16.feedforward(layer16_Input)
@@ -276,7 +277,7 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
 
 grad17,grad17_up = l17.backprop(grad_prepare,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,padding='VALID',awsgrad=True,reg=True)
-grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
+grad16,grad16_up = l16.backprop(grad17,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True)
 
 grad15_Input = tf_repeat(grad16,[1,2,2,1])
 grad15,grad15_up = l15.backprop(grad15_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
@@ -289,14 +290,14 @@ grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change
 grad10,grad10_up = l10.backprop(grad11+decay_dilated_rate*grad12,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True)
 
 grad9_Input = tf_repeat(grad10,[1,2,2,1])
-grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True)
-grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
+grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
+grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
-grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True,reg=True)
+grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True,reg=True)
+grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*grad6,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,adam=True)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
 grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,batch_size_dynamic=batch_size_dynamic,awsgrad=True)
@@ -333,8 +334,9 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),batch_size//2):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
+
             # resize the image and perform augmentation and standard normalization
-            current_batch = np.asarray([cv2.resize(x.astype(np.float32),(126,126),interpolation=cv2.INTER_LANCZOS4) for x in current_batch ])
+            current_batch = np.asarray([cv2.resize(x.astype(np.float32),(image_resize,image_resize),interpolation=cv2.INTER_LANCZOS4) for x in current_batch ])
             images_aug = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
