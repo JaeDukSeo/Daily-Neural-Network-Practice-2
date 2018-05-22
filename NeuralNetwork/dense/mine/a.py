@@ -57,8 +57,8 @@ def tf_repeat(tensor, repeats):
 # class
 class CNN():
     
-    def __init__(self,k,inc,out):
-        self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
+    def __init__(self,k,inc,out,std_value):
+        self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=std_value))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
 
@@ -219,46 +219,46 @@ beta1,beta2,adam_e = 0.9,0.9,1e-8
 decouple_weigth = 0.00001
 
 mom_plus = 0.0001
-learning_rate = 0.0003
+learning_rate = 0.0008
 learning_rate_decay = 0.0
 
 proportion_rate = 0.009
 decay_rate = 0.0
 
-channel_size = 64
+channel_size = 96
 
 # 32 * 32 the first
-l0 = CNN(3,3,channel_size)
+l0 = CNN(3,3,channel_size,std_value=0.05)
 
 # 32 * 32
-l1 = CNN(3,channel_size,channel_size)
-l2 = CNN(3,channel_size*2,channel_size*2)
-l3 = CNN(3,channel_size*4,channel_size)
+l1 = CNN(3,channel_size,channel_size,std_value=0.05)
+l2 = CNN(3,channel_size*2,channel_size*2,std_value=0.01)
+l3 = CNN(3,channel_size*4,channel_size,std_value=0.03)
 
 # 16 * 16
-l4 = CNN(3,channel_size,channel_size)
-l5 = CNN(3,channel_size*2,channel_size*2)
-l6 = CNN(3,channel_size*4,channel_size)
+l4 = CNN(3,channel_size,channel_size,std_value=0.05)
+l5 = CNN(3,channel_size*2,channel_size*2,std_value=0.01)
+l6 = CNN(3,channel_size*4,channel_size,std_value=0.02)
 
 # 8 * 8
-l7 = CNN(3,channel_size,channel_size)
-l8 = CNN(3,channel_size*2,channel_size*2)
-l9 = CNN(3,channel_size*4,channel_size)
+l7 = CNN(3,channel_size,channel_size,std_value=0.05)
+l8 = CNN(3,channel_size*2,channel_size*2,std_value=0.01)
+l9 = CNN(3,channel_size*4,channel_size,std_value=0.04)
 
 # 4 * 4
-l10 = CNN(3,channel_size,channel_size)
-l11 = CNN(3,channel_size*2,channel_size*2)
-l12 = CNN(3,channel_size*4,channel_size)
+l10 = CNN(3,channel_size,channel_size,std_value=0.03)
+l11 = CNN(3,channel_size*2,channel_size*2,std_value=0.01)
+l12 = CNN(3,channel_size*4,channel_size,std_value=0.05)
 
 # 2 * 2
-l13 = CNN(3,channel_size,channel_size)
-l14 = CNN(3,channel_size*2,channel_size*2)
-l15 = CNN(3,channel_size*4,channel_size)
+l13 = CNN(3,channel_size,channel_size,std_value=0.05)
+l14 = CNN(3,channel_size*2,channel_size*2,std_value=0.01)
+l15 = CNN(3,channel_size*4,channel_size,std_value=0.03)
 
 # 1 * 1
-l16 = CNN(1,channel_size,channel_size)
-l17 = CNN(1,channel_size*2,channel_size*2)
-l18 = CNN(1,channel_size*4,10)
+l16 = CNN(1,channel_size,channel_size,std_value=0.03)
+l17 = CNN(1,channel_size*2,channel_size*2,std_value=0.01)
+l18 = CNN(1,channel_size*4,10,std_value=0.05)
 
 
 # graph
@@ -275,38 +275,28 @@ layer0 = l0.feedforward(x,phase=phase)
 layer1 = l1.feedforward(layer0,phase=phase)
 layer2 = l2.feedforward(tf.concat([layer1,layer0],axis=3),phase=phase)
 layer3 = l3.feedforward(tf.concat([layer2,layer1,layer0],axis=3),phase=phase)
-# layer3 = tf.nn.dropout(layer3,0.5)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-# layer4_Input =  tf.layers.batch_normalization(layer4_Input, center=True, scale=True, training=phase)
 layer4 = l4.feedforward(layer4_Input,phase=phase)
 layer5 = l5.feedforward(tf.concat([layer4,layer4_Input],axis=3),phase=phase)
 layer6 = l6.feedforward(tf.concat([layer5,layer4,layer4_Input],axis=3),phase=phase)
-# layer6 = tf.nn.dropout(layer6,0.5)
 
 layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-# layer7_Input =  tf.layers.batch_normalization(layer7_Input, center=True, scale=True, training=phase)
 layer7 = l7.feedforward(layer7_Input,phase=phase)
 layer8 = l8.feedforward(tf.concat([layer7,layer7_Input],axis=3),phase=phase)
 layer9 = l9.feedforward(tf.concat([layer8,layer7,layer7_Input],axis=3),phase=phase)
-# layer9 = tf.nn.dropout(layer9,0.5)
 
 layer10_Input = tf.nn.avg_pool(layer9,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-# layer10_Input =  tf.layers.batch_normalization(layer10_Input, center=True, scale=True, training=phase)
 layer10 = l10.feedforward(layer10_Input,phase=phase)
 layer11 = l11.feedforward(tf.concat([layer10,layer10_Input],axis=3),phase=phase)
 layer12 = l12.feedforward(tf.concat([layer11,layer10,layer10_Input],axis=3),phase=phase)
-# layer12 = tf.nn.dropout(layer12,0.5)
 
 layer13_Input = tf.nn.avg_pool(layer12,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-# layer13_Input =  tf.layers.batch_normalization(layer13_Input, center=True, scale=True, training=phase)
 layer13 = l13.feedforward(layer13_Input,phase=phase)
 layer14 = l14.feedforward(tf.concat([layer13,layer13_Input],axis=3),phase=phase)
 layer15 = l15.feedforward(tf.concat([layer14,layer13,layer13_Input],axis=3),phase=phase)
-# layer15 = tf.nn.dropout(layer15,0.5)
 
 layer16_Input = tf.nn.avg_pool(layer15,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-# layer16_Input =  tf.layers.batch_normalization(layer16_Input, center=True, scale=True, training=phase)
 layer16 = l16.feedforward(layer16_Input,phase=phase)
 layer17 = l17.feedforward(tf.concat([layer16,layer16_Input],axis=3),phase=phase)
 layer18 = l18.feedforward(tf.concat([layer17,layer16,layer16_Input],axis=3),phase=phase)
@@ -320,6 +310,10 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change,beta2=0.9).minimize(cost)
+
+
+
+
 
 # # ==== Manual Back Prop ======
 # grad_prepare = tf.reshape(final_soft-y,[batch_size*2,1,1,10])
