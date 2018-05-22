@@ -29,9 +29,9 @@ def unpickle(file):
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # horizontal flips
     iaa.Affine(
-        scale={"x": (1.0, 1.2), "y": (1.0, 1.2)},
+        scale={"x": (0.9, 1.2), "y": (0.9, 1.2)},
         translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
-        rotate=(-15, 15),
+        rotate=(-25, 25),
         shear=(-4, 4)
     ),
 ], random_order=True) # apply augmenters in random order
@@ -230,7 +230,7 @@ decouple_weigth = 0.0001
 learning_rate = 0.0003
 learning_rate_decay = 0.0
 
-proportion_rate = 0.05
+proportion_rate = 0.9
 decay_rate = 0.0
 
 # define class
@@ -270,18 +270,18 @@ decay_dilated_rate = proportion_rate  * (1.0/(1.0+decay_rate*iter_variable))
 layer0 = l0.feedforward(x)
 
 layer1 = l1.feedforward(layer0)
-layer2 = l2.feedforward(layer1)
-layer3 = l3.feedforward(layer2)
+layer2 = l2.feedforward(layer1+decay_dilated_rate*(layer0) )
+layer3 = l3.feedforward(layer2+decay_dilated_rate*(layer0 + layer1))
 
-layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4_Input = tf.nn.avg_pool(layer3+decay_dilated_rate*(layer0 + layer1 + layer2),ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer4_Input)
-layer5 = l5.feedforward(layer4)
-layer6 = l6.feedforward(layer5)
+layer5 = l5.feedforward(layer4+decay_dilated_rate*(layer4_Input))
+layer6 = l6.feedforward(layer5+decay_dilated_rate*(layer4_Input + layer4))
 
-layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer7_Input = tf.nn.avg_pool(layer6+decay_dilated_rate*(layer4_Input + layer4 + layer5),ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7 = l7.feedforward(layer7_Input)
-layer8 = l8.feedforward(layer7,padding='VALID')
-layer9 = l9.feedforward(layer8,padding='VALID')
+layer8 = l8.feedforward(layer7+decay_dilated_rate*(layer7_Input ),padding='VALID')
+layer9 = l9.feedforward(layer8+decay_dilated_rate*(layer7_Input + layer7),padding='VALID')
 
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
@@ -298,12 +298,12 @@ grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_cha
 grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',amsgrad=False,reg=True)
 grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change=learning_rate_change,reg=True)
 
-grad6_Input = tf_repeat(grad7,[1,2,2,1])
+grad6_Input = tf_repeat(grad7+decay_dilated_rate*(grad9+grad8),[1,2,2,1])
 grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
 grad5,grad5_up = l5.backprop(grad6+decay_dilated_rate*grad6_Input,learning_rate_change=learning_rate_change,reg=True)
 grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*(grad6+grad6_Input),learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
 
-grad3_Input = tf_repeat(grad4,[1,2,2,1])
+grad3_Input = tf_repeat(grad4+decay_dilated_rate*(grad6+grad5),[1,2,2,1])
 grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,reg=True)
 grad2,grad2_up = l2.backprop(grad3+decay_dilated_rate*grad3_Input,learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
 grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*(grad3+grad3_Input),learning_rate_change=learning_rate_change,reg=True)
@@ -331,10 +331,10 @@ with tf.Session() as sess:
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
 
             # online data augmentation here and standard normalization
-            # images_aug = seq.augment_images(current_batch.astype(np.float32))
-            # current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
-            # current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            # current_batch,current_batch_label = shuffle(current_batch,current_batch_label)
+            images_aug = seq.augment_images(current_batch.astype(np.float32))
+            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            current_batch,current_batch_label = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
