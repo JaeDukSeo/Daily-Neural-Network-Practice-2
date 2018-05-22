@@ -27,34 +27,11 @@ def unpickle(file):
 # Data Augmentation code from: http://imgaug.readthedocs.io/en/latest/source/examples_basics.html#a-standard-use-case
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # horizontal flips
-    # iaa.Flipud(0.4), # horizontal flips
-    # iaa.Crop(percent=(0, 0.2)), # random crops
-    # Small gaussian blur with random sigma between 0 and 0.5.
-    # But we only blur about 50% of all images.
-    # iaa.Sometimes(0.5,
-    #     iaa.GaussianBlur(sigma=(0, 0.05))
-    # ),
-    # Strengthen or weaken the contrast in each image.
-    # iaa.ContrastNormalization((0.75, 0.9)),
-    # Add gaussian noise.
-    # For 50% of all images, we sample the noise once per pixel.
-    # For the other 50% of all images, we sample the noise per pixel AND
-    # channel. This can change the color (not only brightness) of the
-    # pixels.
-    # iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*100), per_channel=0.2),
-    # Make some images brighter and some darker.
-    # In 20% of all cases, we sample the multiplier once per channel,
-    # which can end up changing the color of the images.
-    # iaa.Multiply((0.8, 0.9), per_channel=0.2),
-    # Apply affine transformations to each image.
-    # Scale/zoom them, translate/move them, rotate them and shear them.
-    iaa.Sometimes(0.7,
     iaa.Affine(
         scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
         translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
         rotate=(-25, 25),
         shear=(-8, 8)
-    )
     ),
 ], random_order=True) # apply augmenters in random order
 
@@ -80,6 +57,7 @@ def tf_repeat(tensor, repeats):
 class CNN():
     
     def __init__(self,k,inc,out,act,d_act):
+        
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
