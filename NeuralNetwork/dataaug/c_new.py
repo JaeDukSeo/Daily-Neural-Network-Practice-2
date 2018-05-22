@@ -132,14 +132,22 @@ class CNN():
             update_w.append(tf.assign( self.v_prev,v_t ))
             update_w.append(tf.assign( self.v_hat_prev,v_max ))        
         else: 
-            update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
-            update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
-            m_hat = self.m / (1-beta1)
-            v_hat = self.v_prev / (1-beta2)
-            adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
-            adam_middel = tf.multiply(adam_middel,m_hat)
+
+            # === ADAM =====
+            # update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+            # update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
+            # m_hat = self.m / (1-beta1)
+            # v_hat = self.v_prev / (1-beta2)
+            # adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
+            # adam_middel = tf.multiply(adam_middel,m_hat)
+            # if reg: adam_middel = adam_middel - learning_rate_change * decouple_weigth * self.w
+            # update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )) ) 
+
+            # === MoM ====
+            update_w.append(tf.assign( self.m, self.m*0.9 +  learning_rate_change * mom_plus  * (grad)   ))
+            adam_middel = self.m
             if reg: adam_middel = adam_middel - learning_rate_change * decouple_weigth * self.w
-            update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )) ) 
+            update_w.append(tf.assign( self.w, tf.subtract(self.w,adam_middel)  ))
         return grad_pass,update_w   
 
 class batch_norm():
@@ -170,7 +178,10 @@ class batch_norm():
 
         gammax = self.gamma * self.xhat + self.beta
         return gammax
-        
+
+    def backprop(self,gradient):
+        return 1
+
 # # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
 lstFilesDCM = []  # create an empty list
@@ -210,9 +221,6 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # Normalize the image range from 0 to 1
-test_batch = test_batch / 255.0
-train_batch = train_batch / 255.0
-
 test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / ( test_batch[:,:,:,0].max(axis=0) -test_batch[:,:,:,0].min(axis=0) )
 test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / ( test_batch[:,:,:,1].max(axis=0)-test_batch[:,:,:,1].min(axis=0) )
 test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / ( test_batch[:,:,:,2].max(axis=0) -test_batch[:,:,:,2].min(axis=0) )
@@ -230,12 +238,13 @@ train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].mean(axis=0
 train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].mean(axis=0)) / ( train_batch[:,:,:,2].std(axis=0) + 1e-10)
 
 # hyper
-num_epoch = 101
-batch_size = 80
+num_epoch = 21
+batch_size = 25
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 decouple_weigth = 0.0001
 
+mom_plus = 0.0001
 learning_rate = 0.0003
 learning_rate_decay = 0.0
 
@@ -247,7 +256,7 @@ b1 = batch_norm()
 b2 = batch_norm()
 b3 = batch_norm()
 
-channel_size = 128
+channel_size = 96
 l0 = CNN(3,3,channel_size)
 
 l1 = CNN(3,channel_size,channel_size)
@@ -279,18 +288,18 @@ decay_dilated_rate = proportion_rate  * (1.0/(1.0+decay_rate*iter_variable))
 layer0 = l0.feedforward(x)
 
 layer1 = l1.feedforward(layer0)
-layer2 = l2.feedforward(layer1+decay_dilated_rate*(layer0) )
-layer3 = l3.feedforward(layer2+decay_dilated_rate*(layer0 + layer1))
+layer2 = l2.feedforward(layer1 )
+layer3 = l3.feedforward(layer2)
 
-layer4_Input = tf.nn.avg_pool(layer3+decay_dilated_rate*(layer0 + layer1 + layer2),ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer4_Input)
-layer5 = l5.feedforward(layer4+decay_dilated_rate*(layer4_Input))
-layer6 = l6.feedforward(layer5+decay_dilated_rate*(layer4_Input + layer4))
+layer5 = l5.feedforward(layer4)
+layer6 = l6.feedforward(layer5)
 
-layer7_Input = tf.nn.avg_pool(layer6+decay_dilated_rate*(layer4_Input + layer4 + layer5),ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7 = l7.feedforward(layer7_Input)
-layer8 = l8.feedforward(layer7+decay_dilated_rate*(layer7_Input ),padding='VALID')
-layer9 = l9.feedforward(layer8+decay_dilated_rate*(layer7_Input + layer7),padding='VALID')
+layer8 = l8.feedforward(layer7,padding='VALID')
+layer9 = l9.feedforward(layer8,padding='VALID')
 
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
@@ -303,19 +312,19 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # ==== Manual Back Prop ======
 grad_prepare = tf.reshape(final_soft-y,[batch_size*2,1,1,10])
-grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',reg=True)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',amsgrad=False,reg=True)
-grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change=learning_rate_change,reg=True)
+grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',amsgrad=False)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID')
+grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,amsgrad=False)
 
-grad6_Input = tf_repeat(grad7+decay_dilated_rate*(grad9+grad8),[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
-grad5,grad5_up = l5.backprop(grad6+decay_dilated_rate*grad6_Input,learning_rate_change=learning_rate_change,reg=True)
-grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*(grad6+grad6_Input),learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
+grad6_Input = tf_repeat(grad7,[1,2,2,1])
+grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,amsgrad=False)
+grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
 
-grad3_Input = tf_repeat(grad4+decay_dilated_rate*(grad6+grad5),[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,reg=True)
-grad2,grad2_up = l2.backprop(grad3+decay_dilated_rate*grad3_Input,learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
-grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*(grad3+grad3_Input),learning_rate_change=learning_rate_change,reg=True)
+grad3_Input = tf_repeat(grad4,[1,2,2,1])
+grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,amsgrad=False)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
+grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,amsgrad=False)
 
 grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
 # ==== Manual Back Prop ======
