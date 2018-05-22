@@ -115,7 +115,7 @@ class CNN():
         )
 
         grad_pass = tf.nn.conv2d_backprop_input(
-            input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
+            input_sizes = [batch_size*2] + list(grad_part_3.shape[1:]),
             filter= self.w,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding
         )
 
@@ -222,7 +222,7 @@ train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].mean(axis=0
 
 # hyper
 num_epoch = 101
-batch_size = 50
+batch_size = 25
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 decouple_weigth = 0.0001
@@ -238,7 +238,7 @@ b1 = batch_norm()
 b2 = batch_norm()
 b3 = batch_norm()
 
-channel_size = 96
+channel_size = 128
 l0 = CNN(3,3,channel_size)
 
 l1 = CNN(3,channel_size,channel_size)
@@ -293,7 +293,7 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 # auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change,beta2=0.9).minimize(cost)
 
 # ==== Manual Back Prop ======
-grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
+grad_prepare = tf.reshape(final_soft-y,[batch_size*2,1,1,10])
 grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',reg=True)
 grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',amsgrad=False,reg=True)
 grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change=learning_rate_change,reg=True)
