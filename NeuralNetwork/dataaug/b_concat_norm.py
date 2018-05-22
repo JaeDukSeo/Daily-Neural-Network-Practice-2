@@ -230,8 +230,8 @@ decouple_weigth = 0.0001
 learning_rate = 0.0003
 learning_rate_decay = 0.0
 
-proportion_rate = 1200
-decay_rate = 800
+proportion_rate = 0.05
+decay_rate = 0.0
 
 # define class
 b1 = batch_norm()
@@ -265,7 +265,7 @@ y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate * (1.0/(1.0+learning_rate_decay*iter_variable))
-decay_dilated_rate = proportion_rate / (1.0+decay_rate*iter_variable)
+decay_dilated_rate = proportion_rate  * (1.0/(1.0+decay_rate*iter_variable))
 
 layer0 = l0.feedforward(x)
 
@@ -300,13 +300,13 @@ grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*grad9,learning_rate_change
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
 grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,reg=True)
-grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*grad6,learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
+grad5,grad5_up = l5.backprop(grad6+decay_dilated_rate*grad6_Input,learning_rate_change=learning_rate_change,reg=True)
+grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*(grad6+grad6_Input),learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
 grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,reg=True)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
-grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*grad3,learning_rate_change=learning_rate_change,reg=True)
+grad2,grad2_up = l2.backprop(grad3+decay_dilated_rate*grad3_Input,learning_rate_change=learning_rate_change,amsgrad=False,reg=True)
+grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*(grad3+grad3_Input),learning_rate_change=learning_rate_change,reg=True)
 
 grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
 # ==== Manual Back Prop ======
@@ -342,27 +342,24 @@ with tf.Session() as sess:
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
-        current_batch = test_batch
-        current_batch_label = test_label
-        sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
-        print("Current Iter : ",iter, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
-        # print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
-        test_acca = sess_result[1] + test_acca
-        test_cota = sess_result[0] + test_cota
+        for test_batch_index in range(0,len(test_batch),batch_size):
+            current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
+            current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
+            sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+            test_acca = sess_result[1] + test_acca
+            test_cota = sess_result[0] + test_cota
 
         if iter % print_size==0:
             print("\n---------- LR : ", learning_rate * (1.0/(1.0+learning_rate_decay*iter)) )
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size)),end='\n')
-            print('Test Current cost: ', test_cota/(len(test_batch)),' Current Acc: ', test_acca/(len(test_batch)),end='\n')
-            # print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
+            print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
         train_acc.append(train_acca/(len(train_batch)/(batch_size)))
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
-        # test_acc.append(test_acca/(len(test_batch)/batch_size))
-        # test_cot.append(test_cota/(len(test_batch)/batch_size))
-        test_acc.append(test_acca/(len(test_batch)))    
-        test_cot.append(test_cota/(len(test_batch)))
+        test_acc.append(test_acca/(len(test_batch)/batch_size))
+        test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
 
