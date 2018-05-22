@@ -103,7 +103,7 @@ class CNN():
         # return  self.layerA +  0.9 * tf.atan(self.layerA) *self.layer #
         # return  self.layerA +  0.9 * tf.erf(self.layerA) *self.layer #         
         
-    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME',amsgrad=True,reg=False):
+    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME',amsgrad=False,adam=False,mom=False,reg=False):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -121,6 +121,8 @@ class CNN():
 
         update_w = []
         if amsgrad:
+            
+            # === AMSGrad =====
             update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   ))
             v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
             def f1(): return v_t
@@ -131,18 +133,19 @@ class CNN():
             update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,self.m))))
             update_w.append(tf.assign( self.v_prev,v_t ))
             update_w.append(tf.assign( self.v_hat_prev,v_max ))        
-        else: 
 
+        elif adam: 
             # === ADAM =====
-            # update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
-            # update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
-            # m_hat = self.m / (1-beta1)
-            # v_hat = self.v_prev / (1-beta2)
-            # adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
-            # adam_middel = tf.multiply(adam_middel,m_hat)
-            # if reg: adam_middel = adam_middel - learning_rate_change * decouple_weigth * self.w
-            # update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )) ) 
+            update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+            update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
+            m_hat = self.m / (1-beta1)
+            v_hat = self.v_prev / (1-beta2)
+            adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
+            adam_middel = tf.multiply(adam_middel,m_hat)
+            if reg: adam_middel = adam_middel - learning_rate_change * decouple_weigth * self.w
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )) ) 
 
+        elif mom:
             # === MoM ====
             update_w.append(tf.assign( self.m, self.m*0.9 +  learning_rate_change * mom_plus  * (grad)   ))
             adam_middel = self.m
@@ -242,7 +245,7 @@ num_epoch = 21
 batch_size = 25
 print_size = 1
 beta1,beta2,adam_e = 0.9,0.9,1e-8
-decouple_weigth = 0.0001
+decouple_weigth = 0.00001
 
 mom_plus = 0.0001
 learning_rate = 0.0003
@@ -256,7 +259,7 @@ b1 = batch_norm()
 b2 = batch_norm()
 b3 = batch_norm()
 
-channel_size = 96
+channel_size = 156
 l0 = CNN(3,3,channel_size)
 
 l1 = CNN(3,channel_size,channel_size)
@@ -312,19 +315,19 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 # ==== Manual Back Prop ======
 grad_prepare = tf.reshape(final_soft-y,[batch_size*2,1,1,10])
-grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',amsgrad=False)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID')
-grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change,amsgrad=False)
+grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',mom=True)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',amsgrad=True)
+grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*(grad9),learning_rate_change=learning_rate_change,adam=True,reg=False)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change,amsgrad=False)
-grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
+grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,mom=True)
+grad5,grad5_up = l5.backprop(grad6+decay_dilated_rate*(grad6_Input),learning_rate_change=learning_rate_change,amsgrad=True)
+grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*(grad6+grad6_Input),learning_rate_change=learning_rate_change,adam=True,reg=False)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,amsgrad=False)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
-grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change,amsgrad=False)
+grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,mom=True)
+grad2,grad2_up = l2.backprop(grad3+decay_dilated_rate*(grad3_Input),learning_rate_change=learning_rate_change,amsgrad=True)
+grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*(grad3+grad3_Input),learning_rate_change=learning_rate_change,adam=True,reg=False)
 
 grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
 # ==== Manual Back Prop ======
