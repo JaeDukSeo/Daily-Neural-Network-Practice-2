@@ -168,9 +168,9 @@ class batch_norm():
         grad_mean = tf.sum(grad_norm * -1.0 * grad_var_prep, axis=0) + grad_var * tf.reduce_mean(-2. * grad_mean_prep, axis=0)
         
         grad_pass = (grad_norm * grad_var_prep) + (grad_var * 2 * grad_mean_prep / self.input.shape[0]) + (grad_mean / self.input.shape[0])
+        update_w = []
 
-
-        return 1
+        return 1,1
 
 # # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
@@ -281,6 +281,7 @@ grad6_BN,grad6_BN_up = b2.backprop(grad6_Input)
 grad6,grad6_up = l6.backprop(grad6_BN,learning_rate_change=learning_rate_change)
 grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
 grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
+sys.exit()
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
 grad3_BN,grad3_BN_up = b1.backprop(grad3_Input)
