@@ -99,7 +99,7 @@ class CNN():
             def f2(): return self.v_hat_prev
             v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
             adam_middel = learning_rate_change/(tf.sqrt(v_max) + adam_e)
-            if reg: adam_middel = adam_middel - learning_rate_change * decouple_weigth * self.w
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,self.m))))
             update_w.append(tf.assign( self.v_prev,v_t ))
             update_w.append(tf.assign( self.v_hat_prev,v_max ))        
 
@@ -330,7 +330,7 @@ with tf.Session() as sess:
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,
-            shake_value:np.random.uniform(low=0.0,high=1.0,size=(batch_size,1,1,1) ) ,shake_value_backprop:np.random.uniform(low=0.0,high=1.0,size=(batch_size,1,1,1) )  })
+            shake_value:np.random.uniform(low=0.0,high=0.5,size=(batch_size,1,1,1) ) ,shake_value_backprop:np.random.uniform(low=0.0,high=0.5,size=(batch_size,1,1,1) )  })
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -341,8 +341,7 @@ with tf.Session() as sess:
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0) + 1e-10)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0) + 1e-10)
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0) + 1e-10)
-            sess_result = sess.run([cost,accuracy,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,
-            shake_value:np.random.uniform(low=0.0,high=0.5,size=()),shake_value_backprop:np.random.uniform(low=0.0,high=0.5,size=()) })
+            sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,shake_value:np.ones(shape=(batch_size,1,1,1))*0.25 })
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
