@@ -7,6 +7,7 @@
 # Main differences:
 # - Use the standard momentum optimizer with a fixed learning rate schedule rather than learning
 #   rate annealing.
+
 # - For the first block where the stride is 1 but the number of input and output features are
 #   different, use a single 2d convolution rather than two of them.
 import numpy as np
