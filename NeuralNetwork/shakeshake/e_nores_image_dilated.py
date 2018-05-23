@@ -169,12 +169,11 @@ print_size = 1
 learning_rate = 0.0003
 learning_rate_decay = 0.0
 
-proportion_rate = 0.009
+proportion_rate = 0.09
 decay_rate = 0.0
 
 mom_plus = 0.0001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
-decouple_weigth = 0.00001
 
 # define class
 channel_size = 16
@@ -262,31 +261,31 @@ grad10,grad10_up = l10.backprop(grad_prepare,learning_rate_change=learning_rate_
 grad9a,grad9a_up = l9a.backprop(grad10,learning_rate_change=learning_rate_change,padding='VALID')* shake_value_backprop
 grad9b,grad9b_up = l9b.backprop(grad10,learning_rate_change=learning_rate_change,padding='VALID')* (1.0-shake_value_backprop)
 grad8_Input = grad9a + grad9b
-grad8a,grad8a_up = l8a.backprop(grad8_Input,learning_rate_change=learning_rate_change,padding='VALID')* shake_value_backprop
-grad8b,grad8b_up = l8b.backprop(grad8_Input,learning_rate_change=learning_rate_change,padding='VALID')* (1.0-shake_value_backprop)
+grad8a,grad8a_up = l8a.backprop(grad8_Input+decay_dilated_rate*grad10,learning_rate_change=learning_rate_change,padding='VALID')* shake_value_backprop
+grad8b,grad8b_up = l8b.backprop(grad8_Input+decay_dilated_rate*grad10,learning_rate_change=learning_rate_change,padding='VALID')* (1.0-shake_value_backprop)
 grad7_Input = grad8a + grad8b
-grad7a,grad7a_up = l7a.backprop(grad7_Input,learning_rate_change=learning_rate_change,stride=2)* shake_value_backprop
-grad7b,grad7b_up = l7b.backprop(grad7_Input,learning_rate_change=learning_rate_change,stride=2)* (1.0-shake_value_backprop)
+grad7a,grad7a_up = l7a.backprop(grad7_Input+decay_dilated_rate*(grad10+grad8_Input),learning_rate_change=learning_rate_change,stride=2)* shake_value_backprop
+grad7b,grad7b_up = l7b.backprop(grad7_Input+decay_dilated_rate*(grad10+grad8_Input),learning_rate_change=learning_rate_change,stride=2)* (1.0-shake_value_backprop)
 
 grad6_Input = grad7a + grad7b
 grad6a,grad6a_up = l6a.backprop(grad6_Input,learning_rate_change=learning_rate_change)* shake_value_backprop
 grad6b,grad6b_up = l6b.backprop(grad6_Input,learning_rate_change=learning_rate_change)* (1.0-shake_value_backprop)
 grad5_Input = grad6a + grad6b
-grad5a,grad5a_up = l5a.backprop(grad5_Input,learning_rate_change=learning_rate_change)* shake_value_backprop
-grad5b,grad5b_up = l5b.backprop(grad5_Input,learning_rate_change=learning_rate_change)* (1.0-shake_value_backprop)
+grad5a,grad5a_up = l5a.backprop(grad5_Input+decay_dilated_rate*grad6_Input,learning_rate_change=learning_rate_change)* shake_value_backprop
+grad5b,grad5b_up = l5b.backprop(grad5_Input+decay_dilated_rate*grad6_Input,learning_rate_change=learning_rate_change)* (1.0-shake_value_backprop)
 grad4_Input = grad5a + grad5b
-grad4a,grad4a_up = l4a.backprop(grad4_Input,learning_rate_change=learning_rate_change,stride=2)* shake_value_backprop
-grad4b,grad4b_up = l4b.backprop(grad4_Input,learning_rate_change=learning_rate_change,stride=2)* (1.0-shake_value_backprop)
+grad4a,grad4a_up = l4a.backprop(grad4_Input+decay_dilated_rate*(grad6_Input+grad5_Input),learning_rate_change=learning_rate_change,stride=2)* shake_value_backprop
+grad4b,grad4b_up = l4b.backprop(grad4_Input+decay_dilated_rate*(grad6_Input+grad5_Input),learning_rate_change=learning_rate_change,stride=2)* (1.0-shake_value_backprop)
 
 grad3_Input = grad4a + grad4b
 grad3a,grad3a_up = l3a.backprop(grad3_Input,learning_rate_change=learning_rate_change)* shake_value_backprop
 grad3b,grad3b_up = l3b.backprop(grad3_Input,learning_rate_change=learning_rate_change)* (1.0-shake_value_backprop)
 grad2_Input = grad3a + grad3b
-grad2a,grad2a_up = l2a.backprop(grad2_Input,learning_rate_change=learning_rate_change)* shake_value_backprop
-grad2b,grad2b_up = l2b.backprop(grad2_Input,learning_rate_change=learning_rate_change)* (1.0-shake_value_backprop)
+grad2a,grad2a_up = l2a.backprop(grad2_Input+decay_dilated_rate*grad3_Input,learning_rate_change=learning_rate_change)* shake_value_backprop
+grad2b,grad2b_up = l2b.backprop(grad2_Input+decay_dilated_rate*grad3_Input,learning_rate_change=learning_rate_change)* (1.0-shake_value_backprop)
 grad1_Input = grad2a + grad2b
-grad1a,grad1a_up = l1a.backprop(grad1_Input,learning_rate_change=learning_rate_change)* shake_value_backprop
-grad1b,grad1b_up = l1b.backprop(grad1_Input,learning_rate_change=learning_rate_change)* (1.0-shake_value_backprop)
+grad1a,grad1a_up = l1a.backprop(grad1_Input+decay_dilated_rate*(grad2_Input+grad3_Input),learning_rate_change=learning_rate_change)* shake_value_backprop
+grad1b,grad1b_up = l1b.backprop(grad1_Input+decay_dilated_rate*(grad2_Input+grad3_Input),learning_rate_change=learning_rate_change)* (1.0-shake_value_backprop)
 
 grad0_Input = grad1a + grad1b
 grad0,grad0_up = l10.backprop(grad0_Input,learning_rate_change=learning_rate_change)
