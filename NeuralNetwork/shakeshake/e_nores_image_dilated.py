@@ -169,7 +169,7 @@ print_size = 1
 learning_rate = 0.0003
 learning_rate_decay = 0.0
 
-proportion_rate = 0.09
+proportion_rate = 0.009
 decay_rate = 0.0
 
 mom_plus = 0.0001
