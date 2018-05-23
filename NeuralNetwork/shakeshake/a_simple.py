@@ -162,7 +162,7 @@ print(test_label.shape)
 test_batch,train_batch = test_batch/255.0,train_batch/255.0
 
 # hyper
-num_epoch = 51
+num_epoch = 31
 batch_size = 50
 print_size = 1
 
@@ -210,38 +210,38 @@ y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate * (1.0/(1.0+learning_rate_decay*iter_variable))
 decay_dilated_rate = proportion_rate  * (1.0/(1.0+decay_rate*iter_variable))
-shake_value = tf.placeholder(tf.float32, shape=[None,1,1,1])
+shake_value = tf.placeholder(tf.float32, shape=())
 
 layer0 = l0.feedforward(x)
 
 layer1a = l1a.feedforward(layer0) * shake_value
-layer1b = l1a.feedforward(layer0) * (1.0-shake_value)
+layer1b = l1b.feedforward(layer0) * (1.0-shake_value)
 layer2_Input = layer1a + layer1b + layer0
 layer2a = l2a.feedforward(layer2_Input) * shake_value
-layer2b = l2a.feedforward(layer2_Input) * (1.0-shake_value)
+layer2b = l2b.feedforward(layer2_Input) * (1.0-shake_value)
 layer3_Input = layer2a + layer2b + layer2_Input
 layer3a = l3a.feedforward(layer3_Input) * shake_value
-layer3b = l3a.feedforward(layer3_Input) * (1.0-shake_value)
+layer3b = l3b.feedforward(layer3_Input) * (1.0-shake_value)
 
 layer4_Input = layer3a + layer3b 
 layer4a = l4a.feedforward(layer4_Input,stride=2) * shake_value
-layer4b = l4a.feedforward(layer4_Input,stride=2) * (1.0-shake_value)
+layer4b = l4b.feedforward(layer4_Input,stride=2) * (1.0-shake_value)
 layer5_Input = layer4a + layer4b
 layer5a = l5a.feedforward(layer5_Input) * shake_value
-layer5b = l5a.feedforward(layer5_Input) * (1.0-shake_value)
+layer5b = l5b.feedforward(layer5_Input) * (1.0-shake_value)
 layer6_Input = layer5a + layer5b + layer5_Input
 layer6a = l6a.feedforward(layer6_Input) * shake_value
-layer6b = l6a.feedforward(layer6_Input) * (1.0-shake_value)
+layer6b = l6b.feedforward(layer6_Input) * (1.0-shake_value)
 
 layer7_Input = layer6a + layer6b 
 layer7a = l7a.feedforward(layer7_Input,stride=2) * shake_value
-layer7b = l7a.feedforward(layer7_Input,stride=2) * (1.0-shake_value)
+layer7b = l7b.feedforward(layer7_Input,stride=2) * (1.0-shake_value)
 layer8_Input = layer7a + layer7b
 layer8a = l8a.feedforward(layer8_Input) * shake_value
-layer8b = l8a.feedforward(layer8_Input) * (1.0-shake_value)
+layer8b = l8b.feedforward(layer8_Input) * (1.0-shake_value)
 layer9_Input = layer8a + layer8b + layer8_Input
 layer9a = l9a.feedforward(layer9_Input) * shake_value
-layer9b = l9a.feedforward(layer9_Input) * (1.0-shake_value)
+layer9b = l9b.feedforward(layer9_Input) * (1.0-shake_value)
 
 layer10_Input = layer9a + layer9b + layer9_Input
 layer10 = l10.feedforward(layer10_Input)
@@ -273,6 +273,7 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),(batch_size//2)):
             current_batch = train_batch[batch_size_index:batch_size_index+(batch_size//2)]
             current_batch_label = train_label[batch_size_index:batch_size_index+(batch_size//2)]
+
             # online data augmentation here and standard normalization
             images_aug = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
@@ -283,7 +284,7 @@ with tf.Session() as sess:
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0) + 1e-10)
             # online data augmentation here and standard normalization
 
-            sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,shake_value:np.random.uniform(low=0.0,high=1.0,size=(batch_size,1,1,1) ) })
+            sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,shake_value:np.random.uniform( low=0.0,high=1.0,size=() )})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -294,7 +295,7 @@ with tf.Session() as sess:
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0) + 1e-10)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0) + 1e-10)
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0) + 1e-10)
-            sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,shake_value:np.ones(shape=(batch_size,1,1,1))*0.5 })
+            sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,shake_value:0.5})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
@@ -322,14 +323,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case b Train.png")
+    plt.savefig("Case a Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case b Test.png")
+    plt.savefig("Case a Test.png")
 
 
 

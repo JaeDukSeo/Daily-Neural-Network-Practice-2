@@ -25,6 +25,9 @@ def unpickle(file):
         dict = pickle.load(fo, encoding='bytes')
     return dict
 
+# import time
+# time.sleep(60*60*2)
+
 # data aug
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # horizontal flips
@@ -70,7 +73,7 @@ class CNN():
         self.layerA = tf_elu(self.layer)
         return  self.layerA 
         
-    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME',amsgrad=False,adam=False,mom=False,reg=False):
+    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME',amsgrad=True,adam=False,mom=False):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -82,7 +85,7 @@ class CNN():
         )
 
         grad_pass = tf.nn.conv2d_backprop_input(
-            input_sizes = [batch_size*2] + list(grad_part_3.shape[1:]),
+            input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
             filter= self.w,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding
         )
 
@@ -97,7 +100,6 @@ class CNN():
             v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
             adam_middel = learning_rate_change/(tf.sqrt(v_max) + adam_e)
             if reg: adam_middel = adam_middel - learning_rate_change * decouple_weigth * self.w
-            update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,self.m))))
             update_w.append(tf.assign( self.v_prev,v_t ))
             update_w.append(tf.assign( self.v_hat_prev,v_max ))        
 
@@ -109,14 +111,12 @@ class CNN():
             v_hat = self.v_prev / (1-beta2)
             adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
             adam_middel = tf.multiply(adam_middel,m_hat)
-            if reg: adam_middel = adam_middel - learning_rate_change * decouple_weigth * self.w
             update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )) ) 
 
         elif mom:
             # === MoM ====
             update_w.append(tf.assign( self.m, self.m*0.9 +  learning_rate_change * mom_plus  * (grad)   ))
             adam_middel = self.m
-            if reg: adam_middel = adam_middel - learning_rate_change * decouple_weigth * self.w
             update_w.append(tf.assign( self.w, tf.subtract(self.w,adam_middel)  ))
         return grad_pass,update_w   
 
@@ -162,8 +162,8 @@ print(test_label.shape)
 test_batch,train_batch = test_batch/255.0,train_batch/255.0
 
 # hyper
-num_epoch = 51
-batch_size = 25
+num_epoch = 31
+batch_size = 50
 print_size = 1
 
 learning_rate = 0.0003
@@ -177,7 +177,7 @@ beta1,beta2,adam_e = 0.9,0.9,1e-8
 decouple_weigth = 0.00001
 
 # define class
-channel_size = 64
+channel_size = 16
 l0 = CNN(3,3,channel_size)
 
 l1a = CNN(3,channel_size,channel_size,stddev=0.025)
@@ -210,16 +210,18 @@ y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate * (1.0/(1.0+learning_rate_decay*iter_variable))
 decay_dilated_rate = proportion_rate  * (1.0/(1.0+decay_rate*iter_variable))
-shake_value = tf.placeholder(tf.float32, shape=())
+
+shake_value = tf.placeholder(tf.float32, shape=[None,1,1,1])
+shake_value_backprop = tf.placeholder(tf.float32, shape=[None,1,1,1])
 
 layer0 = l0.feedforward(x)
 
 layer1a = l1a.feedforward(layer0) * shake_value
 layer1b = l1a.feedforward(layer0) * (1.0-shake_value)
-layer2_Input = layer1a + layer1b + layer0
+layer2_Input = layer1a + layer1b 
 layer2a = l2a.feedforward(layer2_Input) * shake_value
 layer2b = l2a.feedforward(layer2_Input) * (1.0-shake_value)
-layer3_Input = layer2a + layer2b + layer2_Input
+layer3_Input = layer2a + layer2b 
 layer3a = l3a.feedforward(layer3_Input) * shake_value
 layer3b = l3a.feedforward(layer3_Input) * (1.0-shake_value)
 
@@ -229,22 +231,22 @@ layer4b = l4a.feedforward(layer4_Input,stride=2) * (1.0-shake_value)
 layer5_Input = layer4a + layer4b
 layer5a = l5a.feedforward(layer5_Input) * shake_value
 layer5b = l5a.feedforward(layer5_Input) * (1.0-shake_value)
-layer6_Input = layer5a + layer5b + layer5_Input
+layer6_Input = layer5a + layer5b 
 layer6a = l6a.feedforward(layer6_Input) * shake_value
 layer6b = l6a.feedforward(layer6_Input) * (1.0-shake_value)
 
-layer7_Input = layer6a + layer6b 
+layer7_Input = layer6a + layer6b + layer6_Input
 layer7a = l7a.feedforward(layer7_Input,stride=2) * shake_value
 layer7b = l7a.feedforward(layer7_Input,stride=2) * (1.0-shake_value)
 layer8_Input = layer7a + layer7b
-layer8a = l8a.feedforward(layer8_Input) * shake_value
-layer8b = l8a.feedforward(layer8_Input) * (1.0-shake_value)
-layer9_Input = layer8a + layer8b + layer8_Input
-layer9a = l9a.feedforward(layer9_Input) * shake_value
-layer9b = l9a.feedforward(layer9_Input) * (1.0-shake_value)
+layer8a = l8a.feedforward(layer8_Input,padding='VALID') * shake_value
+layer8b = l8a.feedforward(layer8_Input,padding='VALID') * (1.0-shake_value)
+layer9_Input = layer8a + layer8b 
+layer9a = l9a.feedforward(layer9_Input,padding='VALID') * shake_value
+layer9b = l9a.feedforward(layer9_Input,padding='VALID') * (1.0-shake_value)
 
 layer10_Input = layer9a + layer9b + layer9_Input
-layer10 = l10.feedforward(layer10_Input)
+layer10 = l10.feedforward(layer10_Input,padding='VALID')
 
 final_global = tf.reduce_mean(layer10,[1,2])
 final_soft = tf_softmax(final_global)
@@ -253,7 +255,37 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change,beta2=0.9).minimize(cost)
+# === Manual Back ====
+grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
+grad10,grad10_up = l10.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID')
+
+grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID')
+grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID')
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID')
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID')
+grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change)
+grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change)
+
+grad6_Input = tf_repeat(grad7,[1,2,2,1])
+grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
+grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
+grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
+grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
+grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
+
+grad3_Input = tf_repeat(grad4,[1,2,2,1])
+grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change)
+grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
+grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
+grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
+grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
+
+grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
+# === Manual Back ====
+
+
 
 # sess
 with tf.Session() as sess:
@@ -284,7 +316,7 @@ with tf.Session() as sess:
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0) + 1e-10)
             # online data augmentation here and standard normalization
 
-            sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,shake_value:np.random.uniform( low=0.0,high=1.0,size=() )})
+            sess_result = sess.run([cost,accuracy,auto_train],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,shake_value:np.random.uniform(low=0.0,high=1.0,size=(batch_size) ) })
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -323,14 +355,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case a Train.png")
+    plt.savefig("Case b Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case a Test.png")
+    plt.savefig("Case b Test.png")
 
 
 

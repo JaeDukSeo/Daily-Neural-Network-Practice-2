@@ -85,7 +85,7 @@ class CNN():
         )
 
         grad_pass = tf.nn.conv2d_backprop_input(
-            input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
+            input_sizes = [batch_size*2] + list(grad_part_3.shape[1:]),
             filter= self.w,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding
         )
 
@@ -213,9 +213,8 @@ y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate * (1.0/(1.0+learning_rate_decay*iter_variable))
 decay_dilated_rate = proportion_rate  * (1.0/(1.0+decay_rate*iter_variable))
-
-shake_value = tf.placeholder(tf.float32, shape=[None,1,1,1])
-shake_value_backprop = tf.placeholder(tf.float32, shape=[None,1,1,1])
+shake_value = tf.placeholder(tf.float32, shape=())
+shake_value_backprop = tf.placeholder(tf.float32, shape=())
 
 layer0 = l0.feedforward(x)
 
@@ -258,29 +257,7 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# === Manual Back ====
-grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
-
-
-
-grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID',mom=True)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID',amsgrad=True)
-grad7,grad7_up = l7.backprop(grad8+decay_dilated_rate*(grad9),learning_rate_change=learning_rate_change,adam=True,reg=False)
-
-grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change,mom=True)
-grad5,grad5_up = l5.backprop(grad6+decay_dilated_rate*(grad6_Input),learning_rate_change=learning_rate_change,amsgrad=True)
-grad4,grad4_up = l4.backprop(grad5+decay_dilated_rate*(grad6+grad6_Input),learning_rate_change=learning_rate_change,adam=True,reg=False)
-
-grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change,mom=True)
-grad2,grad2_up = l2.backprop(grad3+decay_dilated_rate*(grad3_Input),learning_rate_change=learning_rate_change,amsgrad=True)
-grad1,grad1_up = l1.backprop(grad2+decay_dilated_rate*(grad3+grad3_Input),learning_rate_change=learning_rate_change,adam=True,reg=False)
-
-grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
-# === Manual Back ====
-
-
+auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_change,momentum=0.9).minimize(cost)
 
 # sess
 with tf.Session() as sess:
