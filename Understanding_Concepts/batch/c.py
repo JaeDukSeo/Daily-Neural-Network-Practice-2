@@ -84,15 +84,11 @@ class CNN():
 
         grad_middle = grad_part_1 * grad_part_2
 
-        grad = tf.nn.conv2d_backprop_filter(
-            input = grad_part_3,
-            filter_sizes = self.w.shape,out_backprop = grad_middle,
+        grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,filter_sizes = self.w.shape,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
         )
 
-        grad_pass = tf.nn.conv2d_backprop_input(
-            input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
-            filter= self.w,out_backprop = grad_middle,
+        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
         )
 
@@ -111,8 +107,80 @@ class CNN():
         update_w.append(tf.assign( self.v_prev,v_t ))
         update_w.append(tf.assign( self.v_hat_prev,v_max ))        
         return grad_pass,update_w   
+
+# Followed the implmentation from: https://wiseodd.github.io/techblog/2016/07/04/batchnorm/
+# Followed the implmentation from: https://kratzert.github.io/2016/02/12/understanding-the-gradient-flow-through-the-batch-normalization-layer.html
+class batch_norm():
+    
+    def __init__(self,dim,channel):
+        
+        self.gamma = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
+        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.gamma)),tf.Variable(tf.zeros_like(self.gamma))
+        self.v_hat_prev = tf.Variable(tf.zeros_like(self.gamma))
+
+        # for one update
+        self.input = None
+        self.current_mean = None
+        self.current_var = None
+        self.x_norm = None
+
+        # exp moving average
+        self.moving_mean = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
+        self.moving_var  = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
+
+    def feedforward(self,input,is_training=True):
+        moving_update = []
+
+        if is_training:
+            self.input = input
+            self.current_mean,self.current_var = tf.nn.moments(input,axes=0)
+            self.x_norm = (input - self.current_mean) / (tf.sqrt(self.current_var + 1e-8))
+            self.out = self.gamma * self.x_norm
+            # Update the moving average
+            moving_update.append(
+                tf.assign(self.moving_mean,self.moving_mean*0.9 + self.current_mean*0.1 )
+            )
+            moving_update.append(
+                tf.assign(self.moving_var,self.current_var*0.9 + self.current_var*0.1 )
+            )
+
+        else:
+            
+            # In the Testing Data use the moving average  
+            self.x_norm = (input-self.moving_mean)/ (tf.sqrt(self.moving_var + 1e-8))
+            self.out = self.gamma * self.x_norm
+
+        return self.out,moving_update
+
+    def backprop(self,gradient,is_training=True):
+        
+        grad_mean_prep = self.input - self.current_mean
+        grad_var_prep  = 1. / tf.sqrt(self.current_var + 1e-8)
+
+        grad_norm = gradient * self.gamma
+        grad_var  = tf.reduce_sum(grad_norm * grad_mean_prep, axis=0) * -.5 * grad_var_prep ** 3
+        grad_mean = tf.reduce_sum(grad_norm * -1.0 * grad_var_prep, axis=0) + grad_var * tf.reduce_mean(-2. * grad_mean_prep, axis=0)
+        
+        grad_pass = (grad_norm * grad_var_prep) + (grad_var * 2 * grad_mean_prep / batch_size) + (grad_mean / batch_size    )
+        grad = tf.reduce_sum(gradient * self.x_norm , axis=0)
+
+        update_w = []
+        update_w.append(
+            tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
+        )
+        v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
+
+        def f1(): return v_t
+        def f2(): return self.v_hat_prev
+        v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
+        adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
+        update_w.append(tf.assign(self.gamma,tf.subtract(self.gamma,adam_middel  )  ))
+        update_w.append(tf.assign( self.v_prev,v_t ))
+        update_w.append(tf.assign( self.v_hat_prev,v_max ))        
+        return grad_pass,update_w   
+
 # # data
-PathDicom = "../../../Dataset/cifar-10-batches-py/"
+PathDicom = "../../Dataset/cifar-10-batches-py/"
 lstFilesDCM = []  # create an empty list
 for dirName, subdirList, fileList in os.walk(PathDicom):
     for filename in fileList:
@@ -167,13 +235,16 @@ l1 = CNN(3,3,96)
 l2 = CNN(3,96,96)
 l3 = CNN(3,96,192)
 
+b1 = batch_norm(32,192)
 l4 = CNN(3,192,192)
 l5 = CNN(3,192,192)
 l6 = CNN(3,192,192)
 
+b2 = batch_norm(16,192)
 l7 = CNN(3,192,192)
 l8 = CNN(1,192,192)
 l9 = CNN(1,192,10)
+
 
 # graph
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
@@ -188,12 +259,14 @@ layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 
-layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4_BN,layer4_BN_UP = b1.feedforward(layer3)
+layer4_Input = tf.nn.avg_pool(layer4_BN,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer4_Input)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5)
 
-layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer7_BN,layer7_BN_U = b2.feedforward(layer6)
+layer7_Input = tf.nn.avg_pool(layer7_BN,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7 = l7.feedforward(layer7_Input)
 layer8 = l8.feedforward(layer7,padding='VALID')
 layer9 = l9.feedforward(layer8,padding='VALID')
@@ -211,19 +284,24 @@ grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,pad
 grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
+grad6_BN,grad6_BN_up = b2.backprop(grad6_Input)
+grad6,grad6_up = l6.backprop(grad6_BN,learning_rate_change=learning_rate_change)
 grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
 grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change)
+grad3_BN,grad3_BN_up = b1.backprop(grad3_Input)
+grad3,grad3_up = l3.backprop(grad3_BN,learning_rate_change=learning_rate_change)
 grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
 grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
 
-grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
+grad_update = grad9_up + grad8_up+ grad7_up + \
+              grad6_BN_up + grad6_up + grad5_up + grad4_up + \
+              grad3_BN_up + grad3_up + grad2_up + grad1_up + layer4_BN_UP + layer7_BN_U
 
 # sess
-with tf.Session() as sess:
+sess_cpu = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
+with sess_cpu as sess:
 
     sess.run(tf.global_variables_initializer())
     
@@ -252,8 +330,7 @@ with tf.Session() as sess:
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],
-            ' Current Acc: ', sess_result[1],end='\r')
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             

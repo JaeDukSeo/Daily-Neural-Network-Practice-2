@@ -84,15 +84,11 @@ class CNN():
 
         grad_middle = grad_part_1 * grad_part_2
 
-        grad = tf.nn.conv2d_backprop_filter(
-            input = grad_part_3,
-            filter_sizes = self.w.shape,out_backprop = grad_middle,
+        grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,filter_sizes = self.w.shape,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
         )
 
-        grad_pass = tf.nn.conv2d_backprop_input(
-            input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
-            filter= self.w,out_backprop = grad_middle,
+        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
         )
 
@@ -118,8 +114,9 @@ class batch_norm():
     
     def __init__(self,dim,channel):
         
-        self.gamma = tf.Variable(tf.constant(1.0) )
-        self.beta  = tf.Variable(tf.constant(0.001) )
+        self.gamma = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
+        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.gamma)),tf.Variable(tf.zeros_like(self.gamma))
+        self.v_hat_prev = tf.Variable(tf.zeros_like(self.gamma))
 
         # for one update
         self.input = None
@@ -131,7 +128,6 @@ class batch_norm():
         self.moving_mean = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
         self.moving_var  = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
 
-
     def feedforward(self,input,is_training=True):
         moving_update = []
 
@@ -139,7 +135,7 @@ class batch_norm():
             self.input = input
             self.current_mean,self.current_var = tf.nn.moments(input,axes=0)
             self.x_norm = (input - self.current_mean) / (tf.sqrt(self.current_var + 1e-8))
-
+            self.out = self.gamma * self.x_norm
             # Update the moving average
             moving_update.append(
                 tf.assign(self.moving_mean,self.moving_mean*0.9 + self.current_mean*0.1 )
@@ -150,13 +146,11 @@ class batch_norm():
 
         else:
             
+            # In the Testing Data use the moving average  
             self.x_norm = (input-self.moving_mean)/ (tf.sqrt(self.moving_var + 1e-8))
+            self.out = self.gamma * self.x_norm
 
-            # Update back to zero
-            moving_update.append(tf.assign(self.moving_mean,0.0))
-            moving_update.append(tf.assign(self.moving_var,0.0))
-
-        return self.x_norm,moving_update
+        return self.out,moving_update
 
     def backprop(self,gradient,is_training=True):
         
@@ -164,13 +158,26 @@ class batch_norm():
         grad_var_prep  = 1. / tf.sqrt(self.current_var + 1e-8)
 
         grad_norm = gradient * self.gamma
-        grad_var  = tf.sum(grad_norm * grad_mean_prep, axis=0) * -.5 * grad_var_prep ** 3
-        grad_mean = tf.sum(grad_norm * -1.0 * grad_var_prep, axis=0) + grad_var * tf.reduce_mean(-2. * grad_mean_prep, axis=0)
+        grad_var  = tf.reduce_sum(grad_norm * grad_mean_prep, axis=0) * -.5 * grad_var_prep ** 3
+        grad_mean = tf.reduce_sum(grad_norm * -1.0 * grad_var_prep, axis=0) + grad_var * tf.reduce_mean(-2. * grad_mean_prep, axis=0)
         
-        grad_pass = (grad_norm * grad_var_prep) + (grad_var * 2 * grad_mean_prep / self.input.shape[0]) + (grad_mean / self.input.shape[0])
-        update_w = []
+        grad_pass = (grad_norm * grad_var_prep) + (grad_var * 2 * grad_mean_prep / batch_size) + (grad_mean / batch_size    )
+        grad = tf.reduce_sum(gradient * self.x_norm , axis=0)
 
-        return 1,1
+        update_w = []
+        update_w.append(
+            tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
+        )
+        v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
+
+        def f1(): return v_t
+        def f2(): return self.v_hat_prev
+        v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
+        adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
+        update_w.append(tf.assign(self.gamma,tf.subtract(self.gamma,adam_middel  )  ))
+        update_w.append(tf.assign( self.v_prev,v_t ))
+        update_w.append(tf.assign( self.v_hat_prev,v_max ))        
+        return grad_pass,update_w   
 
 # # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
@@ -281,7 +288,6 @@ grad6_BN,grad6_BN_up = b2.backprop(grad6_Input)
 grad6,grad6_up = l6.backprop(grad6_BN,learning_rate_change=learning_rate_change)
 grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
 grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
-sys.exit()
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
 grad3_BN,grad3_BN_up = b1.backprop(grad3_Input)
@@ -289,10 +295,11 @@ grad3,grad3_up = l3.backprop(grad3_BN,learning_rate_change=learning_rate_change)
 grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
 grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
 
-grad_update = grad9_up + grad8_up+ grad7_up + grad6_up + grad5_up + grad4_up + grad3_up + grad2_up + grad1_up
+grad_update = grad9_up + grad8_up+ grad7_up + \
+              grad6_BN_up + grad6_up + grad5_up + grad4_up + \
+              grad3_BN_up + grad3_up + grad2_up + grad1_up + layer4_BN_UP + layer7_BN_U
 
 # sess
-sys.exit()
 sess_cpu = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
 with sess_cpu as sess:
 
@@ -323,8 +330,7 @@ with sess_cpu as sess:
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],
-            ' Current Acc: ', sess_result[1],end='\r')
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
