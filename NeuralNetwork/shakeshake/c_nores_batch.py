@@ -160,7 +160,7 @@ test_batch,train_batch = test_batch/255.0,train_batch/255.0
 
 # hyper
 num_epoch = 31
-batch_size = 80
+batch_size = 100
 print_size = 1
 
 learning_rate = 0.0003

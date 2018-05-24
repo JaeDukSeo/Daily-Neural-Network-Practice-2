@@ -163,7 +163,7 @@ test_batch,train_batch = test_batch/255.0,train_batch/255.0
 
 # hyper
 num_epoch = 31
-batch_size = 50
+batch_size = 100
 print_size = 1
 
 learning_rate = 0.0003
@@ -174,6 +174,7 @@ decay_rate = 0.0
 
 mom_plus = 0.0001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
+decouple_weigth = 0.00001
 
 # define class
 channel_size = 16
