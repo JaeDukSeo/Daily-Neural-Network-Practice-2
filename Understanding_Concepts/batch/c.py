@@ -114,7 +114,7 @@ class batch_norm():
     
     def __init__(self,dim,channel):
         
-        self.gamma = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
+        self.gamma = tf.Variable(tf.ones(shape=[dim,dim,channel]))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.gamma)),tf.Variable(tf.zeros_like(self.gamma))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.gamma))
 
@@ -128,31 +128,29 @@ class batch_norm():
         self.moving_mean = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
         self.moving_var  = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
 
-    def feedforward(self,input,is_training=True):
+    def feedforward(self,input,is_training):
         moving_update = []
 
-        if is_training:
-            self.input = input
-            self.current_mean,self.current_var = tf.nn.moments(input,axes=0)
-            self.x_norm = (input - self.current_mean) / (tf.sqrt(self.current_var + 1e-8))
-            self.out = self.gamma * self.x_norm
-            # Update the moving average
-            moving_update.append(
-                tf.assign(self.moving_mean,self.moving_mean*0.9 + self.current_mean*0.1 )
-            )
-            moving_update.append(
-                tf.assign(self.moving_var,self.current_var*0.9 + self.current_var*0.1 )
-            )
+        self.input = input
+        self.current_mean,self.current_var = tf.nn.moments(input,axes=0)
 
-        else:
-            
+        def training_fn(): 
+            # Update the moving average
+            self.x_norm = (input - self.current_mean) / (tf.sqrt(self.current_var + 1e-8))
+            moving_update.append(tf.assign(self.moving_mean,self.moving_mean*0.9 + self.current_mean*0.1 ))
+            moving_update.append(tf.assign(self.moving_var,self.current_var*0.9 + self.current_var*0.1 ))
+            return self.x_norm,moving_update
+
+        def testing_fn(): 
             # In the Testing Data use the moving average  
             self.x_norm = (input-self.moving_mean)/ (tf.sqrt(self.moving_var + 1e-8))
-            self.out = self.gamma * self.x_norm
+            return self.x_norm ,moving_update
 
+        self.x_norm,moving_update = tf.cond(is_training, true_fn=training_fn, false_fn=testing_fn)
+        self.out = self.gamma * self.x_norm
         return self.out,moving_update
 
-    def backprop(self,gradient,is_training=True):
+    def backprop(self,gradient):
         
         grad_mean_prep = self.input - self.current_mean
         grad_var_prep  = 1. / tf.sqrt(self.current_var + 1e-8)
@@ -165,9 +163,7 @@ class batch_norm():
         grad = tf.reduce_sum(gradient * self.x_norm , axis=0)
 
         update_w = []
-        update_w.append(
-            tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   )
-        )
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   ))
         v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
 
         def f1(): return v_t
@@ -255,17 +251,19 @@ learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 
+phase = tf.placeholder(tf.bool)
+
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 
-layer4_BN,layer4_BN_UP = b1.feedforward(layer3)
+layer4_BN,layer4_BN_UP = b1.feedforward(layer3,is_training=phase)
 layer4_Input = tf.nn.avg_pool(layer4_BN,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer4_Input)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5)
 
-layer7_BN,layer7_BN_U = b2.feedforward(layer6)
+layer7_BN,layer7_BN_U = b2.feedforward(layer6,is_training=phase)
 layer7_Input = tf.nn.avg_pool(layer7_BN,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7 = l7.feedforward(layer7_Input)
 layer8 = l8.feedforward(layer7,padding='VALID')
@@ -295,13 +293,13 @@ grad3,grad3_up = l3.backprop(grad3_BN,learning_rate_change=learning_rate_change)
 grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
 grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
 
-grad_update = grad9_up + grad8_up+ grad7_up + \
+grad_update = layer4_BN_UP + layer7_BN_U + \
+              grad9_up + grad8_up+ grad7_up + \
               grad6_BN_up + grad6_up + grad5_up + grad4_up + \
-              grad3_BN_up + grad3_up + grad2_up + grad1_up + layer4_BN_UP + layer7_BN_U
+              grad3_BN_up + grad3_up + grad2_up + grad1_up 
 
 # sess
-sess_cpu = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
-with sess_cpu as sess:
+with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     
@@ -328,8 +326,8 @@ with sess_cpu as sess:
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
-
-            sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate})
+            sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,
+                learning_rate_dynamic:learning_rate,phase:True})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -337,7 +335,8 @@ with sess_cpu as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-            sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate})
+            sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,
+            learning_rate_dynamic:learning_rate,phase:False})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
             ' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
