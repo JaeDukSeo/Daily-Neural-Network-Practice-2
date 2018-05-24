@@ -138,7 +138,7 @@ class batch_norm():
             # Update the moving average
             self.x_norm = (input - self.current_mean) / (tf.sqrt(self.current_var + 1e-8))
             moving_update.append(tf.assign(self.moving_mean,self.moving_mean*0.9 + self.current_mean*0.1 ))
-            moving_update.append(tf.assign(self.moving_var,self.current_var*0.9 + self.current_var*0.1 ))
+            moving_update.append(tf.assign(self.moving_var,self.moving_var*0.9 + self.current_var*0.1 ))
             return self.x_norm,moving_update
 
         def testing_fn(): 
