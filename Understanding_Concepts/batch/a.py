@@ -125,8 +125,8 @@ class batch_norm():
         self.x_norm = None
 
         # exp moving average
-        self.moving_mean = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
-        self.moving_var  = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
+        self.moving_mean = tf.Variable(tf.zeros_like(self.gamma))
+        self.moving_var  = tf.Variable(tf.zeros_like(self.gamma))
 
     def feedforward(self,input,is_training=True):
         moving_update = []
@@ -136,7 +136,9 @@ class batch_norm():
             self.current_mean,self.current_var = tf.nn.moments(input,axes=0)
             self.x_norm = (input - self.current_mean) / (tf.sqrt(self.current_var + 1e-8))
             self.out = self.gamma * self.x_norm
-            # Update the moving average
+
+            # Update the moving average - I am not going to bother with bias correction 
+            # Bias Correction video: https://www.youtube.com/watch?v=lWzo8CajF5s
             moving_update.append(
                 tf.assign(self.moving_mean,self.moving_mean*0.9 + self.current_mean*0.1 )
             )
@@ -250,6 +252,7 @@ l9 = CNN(1,192,10)
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
 y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
+phase = tf.placeholder(tf.bool)
 iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
@@ -259,14 +262,18 @@ layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 
-layer4_BN,layer4_BN_UP = b1.feedforward(layer3)
-layer4_Input = tf.nn.avg_pool(layer4_BN,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+# layer4_BN,layer4_BN_UP = b1.feedforward(layer3)
+# layer4_BN = tf.layers.batch_normalization(layer3,scale=True,center=False,
+# moving_variance_initializer=tf.zeros_initializer(),momentum=0.9,epsilon=1e-8,training=phase)
+layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer4_Input)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5)
 
-layer7_BN,layer7_BN_U = b2.feedforward(layer6)
-layer7_Input = tf.nn.avg_pool(layer7_BN,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+# layer7_BN,layer7_BN_U = b2.feedforward(layer6)
+# layer7_BN = tf.layers.batch_normalization(layer6,scale=True,center=False,
+# moving_variance_initializer=tf.zeros_initializer(),momentum=0.9,epsilon=1e-8,training=phase)
+layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7 = l7.feedforward(layer7_Input)
 layer8 = l8.feedforward(layer7,padding='VALID')
 layer9 = l9.feedforward(layer8,padding='VALID')
@@ -278,31 +285,32 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
-grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID')
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID')
-grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change)
+# update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change,beta2=0.9).minimize(cost)
 
-grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6_BN,grad6_BN_up = b2.backprop(grad6_Input)
-grad6,grad6_up = l6.backprop(grad6_BN,learning_rate_change=learning_rate_change)
-grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
-grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
+# grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10])
+# grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID')
+# grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID')
+# grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change)
 
-grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3_BN,grad3_BN_up = b1.backprop(grad3_Input)
-grad3,grad3_up = l3.backprop(grad3_BN,learning_rate_change=learning_rate_change)
-grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
-grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
+# grad6_Input = tf_repeat(grad7,[1,2,2,1])
+# grad6_BN,grad6_BN_up = b2.backprop(grad6_Input)
+# grad6,grad6_up = l6.backprop(grad6_BN,learning_rate_change=learning_rate_change)
+# grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
+# grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
 
-grad_update = grad9_up + grad8_up+ grad7_up + \
-              grad6_BN_up + grad6_up + grad5_up + grad4_up + \
-              grad3_BN_up + grad3_up + grad2_up + grad1_up + layer4_BN_UP + layer7_BN_U
+# grad3_Input = tf_repeat(grad4,[1,2,2,1])
+# grad3_BN,grad3_BN_up = b1.backprop(grad3_Input)
+# grad3,grad3_up = l3.backprop(grad3_BN,learning_rate_change=learning_rate_change)
+# grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
+# grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
+
+# grad_update = grad9_up + grad8_up+ grad7_up + \
+#               grad6_BN_up + grad6_up + grad5_up + grad4_up + \
+#               grad3_BN_up + grad3_up + grad2_up + grad1_up + layer4_BN_UP + layer7_BN_U
 
 # sess
-sess_cpu = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
-with sess_cpu as sess:
-
+with tf.Session() as sess: 
     sess.run(tf.global_variables_initializer())
     
     train_cota,train_acca = 0,0
@@ -329,7 +337,8 @@ with sess_cpu as sess:
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
-            sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate})
+            sess_result = sess.run([cost,accuracy,correct_prediction,auto_train],feed_dict={x:current_batch,y:current_batch_label,
+            iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -337,7 +346,8 @@ with sess_cpu as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-            sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate})
+            sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,
+            iter_variable:iter,learning_rate_dynamic:learning_rate,phase:False})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
             ' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
@@ -366,14 +376,14 @@ with sess_cpu as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case c Train.png")
+    plt.savefig("Case a Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case c Test.png")
+    plt.savefig("Case a Test.png")
 
 
 
