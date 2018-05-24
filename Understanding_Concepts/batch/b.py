@@ -136,7 +136,9 @@ class batch_norm():
             self.current_mean,self.current_var = tf.nn.moments(input,axes=0)
             self.x_norm = (input - self.current_mean) / (tf.sqrt(self.current_var + 1e-8))
             self.out = self.gamma * self.x_norm
-            # Update the moving average
+
+            # Update the moving average - I am not going to bother with bias correction 
+            # Bias Correction video: https://www.youtube.com/watch?v=lWzo8CajF5s
             moving_update.append(
                 tf.assign(self.moving_mean,self.moving_mean*0.9 + self.current_mean*0.1 )
             )
