@@ -18,16 +18,44 @@ lem = WordNetLemmatizer()
 # ,lem.lemmatize(word2,"v"))
 
 
-from nltk.tokenize import word_tokenize
 # quesiton 2
+from nltk.tokenize import word_tokenize
 sentence = "Analytics Vidhya is a great source  \
 to learn data science"
 tokens = nltk.word_tokenize(sentence)
 bigrm = list(nltk.bigrams(tokens))
 count = 1
-for x in bigrm:
-    print(count, x)
-    count = count + 1
+# for x in bigrm:
+#     print(count, x)
+#     count = count + 1
+
+# question 3
+import string
+from nltk.corpus import stopwords
+import re
+from nltk.tokenize import word_tokenize
+from nltk.util import ngrams
+print(string.punctuation)
+print()
+
+word_list = "#Analytics-vidhya is a great source to learn @data_science."
+word_list = word_tokenize(word_list)
+filtered_words = [word for word in word_list if word not in stopwords.words('english')]
+print("Original: ", ' '.join(word_list))
+print()
+print("Remove Stop Word: ", ' '.join(filtered_words))
+print()
+regex = re.compile('[%s]' % re.escape(string.punctuation))
+out = regex.sub(' ', ' '.join(filtered_words))
+print("Replace punctuation: ", out)
+
+
+
+
+
+
+# question 3 
+
 
 
 
