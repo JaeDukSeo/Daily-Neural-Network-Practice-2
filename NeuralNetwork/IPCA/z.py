@@ -1,5 +1,5 @@
 import tensorflow as tf
-import numpy as np
+import numpy as np,sys
 from sklearn import datasets
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -29,6 +29,7 @@ class TF_PCA():
 
 
     def reduce(self, n_dimensions=None, keep_info=None):
+        
         if keep_info:
             # Normalize singular values
             normalized_singular_values = self.singular_values / sum(self.singular_values)
@@ -42,11 +43,16 @@ class TF_PCA():
             sigma = tf.slice(self.sigma, [0, 0], [self.data.shape[1], n_dimensions])
             # PCA
             pca = tf.matmul(self.u, sigma)
+
         with tf.Session(graph=self.graph) as session:
             return session.run(pca, feed_dict={self.X: self.data})
 
 
 iris_dataset = datasets.load_iris()
+
+print(iris_dataset.data.shape)
+print(iris_dataset.target.shape)
+sys.exit()
 tf_pca = TF_PCA(iris_dataset.data, iris_dataset.target)
 tf_pca.fit()
 pca = tf_pca.reduce(keep_info=0.9)  # Results in 2 dimensions
