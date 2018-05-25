@@ -30,35 +30,44 @@ count = 1
 #     count = count + 1
 
 # question 3
-import string
-from nltk.corpus import stopwords
+# import string
+# from nltk.corpus import stopwords
+# import re
+# from nltk.tokenize import word_tokenize
+# from nltk.util import ngrams
+# print(string.punctuation)
+# print()
+
+# word_list = "#Analytics-vidhya is a great source to learn @data_science."
+# word_list = word_tokenize(word_list)
+# filtered_words = [word for word in word_list if word not in stopwords.words('english')]
+# print("Original: ", ' '.join(word_list))
+# print()
+# print("Remove Stop Word: ", ' '.join(filtered_words))
+# print()
+# regex = re.compile('[%s]' % re.escape(string.punctuation))
+# out = regex.sub(' ', ' '.join(filtered_words))
+# print("Replace punctuation: ", out)
+
+
+
+
+
+
+# question 4
 import re
-from nltk.tokenize import word_tokenize
-from nltk.util import ngrams
-print(string.punctuation)
-print()
+given_sen = "The next meetup on data science will be held on 2017-09-21, \
+ previously it happened on 31/03, 2016"
 
-word_list = "#Analytics-vidhya is a great source to learn @data_science."
-word_list = word_tokenize(word_list)
-filtered_words = [word for word in word_list if word not in stopwords.words('english')]
-print("Original: ", ' '.join(word_list))
-print()
-print("Remove Stop Word: ", ' '.join(filtered_words))
-print()
-regex = re.compile('[%s]' % re.escape(string.punctuation))
-out = regex.sub(' ', ' '.join(filtered_words))
-print("Replace punctuation: ", out)
+one = re.search('\d{4}-\d{2}-\d{2}',given_sen)
+print(one)
+two = re.match('(19|20)\d{2}-(0[1-9]|1[0-2])-[0-2][1-9]',given_sen)
+print(two)
+three = re.match('(19|20)\d{2}-(0[1-9]|1[0-2])-([0-2][1-9]|3[0-1])',given_sen)
+print(three)
 
-
-
-
-
-
-# question 3 
-
-
-
-
+m = re.findall('\d{4}-\d{2}-\d{2}|\d{2}/\d{2}, \d{4}', given_sen)
+print(m)
 
 
 # -- end code --
