@@ -30,80 +30,29 @@ class TF_PCA():
             print('v:',v.shape)
             print('sigma:',sigma.shape)
 
-            sigma1 = tf.slice(sigma, [0, 0], [self.data.shape[1], 512])
-            pca = tf.matmul(u,sigma1)
-            
+            # sigma1 = tf.slice(sigma, [0, 0], [self.data.shape[1], 512])
+            # print('-------f1------')
+            # print(u.shape)
+            # print(sigma1.shape)
+            # print('-------f1------')
+            # pca = tf.matmul(u,sigma1)
 
         with tf.Session(graph=self.graph) as session:
-            self.pca,self.u, self.v,self.singular_values, self.sigma = session.run([pca,u,v, singular_values, sigma],feed_dict={self.X: self.data})
+            self.u, self.v,self.singular_values, self.sigma = session.run([u,v, singular_values, sigma],feed_dict={self.X: self.data})
 
 
     def reduce(self, n_dimensions=None, keep_info=None):
 
-        if keep_info:
-            # Normalize singular values
-            normalized_singular_values = self.singular_values / sum(self.singular_values)
-            # Create the aggregated ladder of kept information per dimension
-            ladder = np.cumsum(normalized_singular_values)
-            # Get the first index which is above the given information threshold
-            index = next(idx for idx, value in enumerate(ladder) if value >= keep_info) + 1
-            n_dimensions = index
-            print('N : ', n_dimensions)
-
-        # Here is the reduction
         with self.graph.as_default():
-
             # Cut out the relevant part from sigma
-            print(self.sigma.shape)
             sigma = tf.slice(self.sigma, [0, 0], [self.data.shape[1], n_dimensions])
-            print(sigma.shape)
-            print(self.u.shape)
             # PCA
-            pca = tf.matmul(self.u,sigma)
-            # pca = tf.matmul( tf.transpose(self.v),sigma)
-            print(pca.shape)
-
+            pca = tf.matmul(self.u, sigma)
         with tf.Session(graph=self.graph) as session:
             return session.run(pca, feed_dict={self.X: self.data})
 
 
 
-
-
-def tf_pca(x):
-    '''
-        Compute PCA on the bottom two dimensions of x,
-        eg assuming dims = [..., observations, features]
-    '''
-    # Center
-    x -= tf.reduce_mean(x, -2, keepdims=True)
-
-    # Currently, the GPU implementation of SVD is awful.
-    # It is slower than moving data back to CPU to SVD there
-    # https://github.com/tensorflow/tensorflow/issues/13222
-
-    ss, us, vs = tf.svd(x, full_matrices=False, compute_uv=True)
-    
-    print(us.shape)
-    print(ss.shape)
-    print(vs.shape)
-    print('-----')
-
-    ss = tf.expand_dims(ss, -2)    
-    print(ss.shape)
-    projected_data = us * ss
-    print(projected_data.shape)
-
-    # Selection of sign of axes is arbitrary.
-    # This replicates sklearn's PCA by duplicating flip_svd
-    # https://github.com/scikit-learn/scikit-learn/blob/7ee8f97e94044e28d4ba5c0299e5544b4331fd22/sklearn/utils/extmath.py#L499
-    r = projected_data
-    abs_r = tf.abs(r)
-    m = tf.equal(abs_r, tf.reduce_max(abs_r, axis=-2, keepdims=True))
-    signs = tf.sign(tf.reduce_sum(r * tf.cast(m, r.dtype), axis=-2, keepdims=True))
-    result = r * signs
-
-    return result
 
 
 
@@ -123,11 +72,13 @@ def tf_pca(x):
 # sys.exit()
 
 iris_dataset = datasets.load_iris()
-row = 1500
-cal = 16 * 16 * 4
+row = 250
+# cal = 16 * 16 * 4
+cal = 8 * 8 * 3
 # cal = 8*8*16   
 # cal = 4*4*64   
 temp = np.random.randn(row,cal)
+# temp = np.random.randn(cal,row)
 #  8 8 4 = 256
 #  4 4 4 = 64
 temps = np.ones((row,) )
@@ -144,7 +95,11 @@ print('------------------------------------')
 tf_pca2 = TF_PCA(temp, temps)
 # tf_pca2 = TF_PCA(iris_dataset.data, iris_dataset.target)
 tf_pca2.fit()
-# pca = tf_pca2.reduce(n_dimensions=cal//2)  # Results in 2 dimensions
+pca = tf_pca2.reduce(n_dimensions=cal//4)  # Results in 2 dimensions
+
+print(temp.shape)
+print(pca.shape)
+
 sys.exit()
 
 print('------------------------------------')

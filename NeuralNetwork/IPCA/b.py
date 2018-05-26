@@ -9,6 +9,11 @@ from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
 from imgaug import augmenters as iaa
 import imgaug as ia
+
+from sklearn.preprocessing import OneHotEncoder
+from skimage.transform import resize
+from tensorflow.examples.tutorials.mnist import input_data
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 np.random.seed(678)
 tf.set_random_seed(678)
@@ -43,21 +48,21 @@ def tf_repeat(tensor, repeats):
 
 # data aug
 seq = iaa.Sequential([
-    # iaa.Sometimes(0.1,
-    #     iaa.Affine(
-    #         translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
-    #     )
-    # ),
-    # iaa.Sometimes(0.1,
-    #     iaa.Affine(
-    #         rotate=(-25, 25),
-    #     )
-    # ),
-    # iaa.Sometimes(0.1,
-    #     iaa.Affine(
-    #         scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
-    #     )
-    # ),
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        )
+    ),
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            rotate=(-25, 25),
+        )
+    ),
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        )
+    ),
     iaa.Fliplr(1.0), # Horizonatl flips
 ], random_order=True) # apply augmenters in random order
 
@@ -70,9 +75,10 @@ class CNN():
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
     def getw(self): return self.w
 
-    def feedforward(self,input,stride=1,padding='SAME'):
+    def feedforward(self,input,is_train,stride=1,padding='SAME'):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
+        # self.layer  = tf.layers.batch_normalization(self.layer , center=True, scale=False, training=is_train)
         self.layerA = tf_elu(self.layer)
         return self.layerA 
 
@@ -179,7 +185,7 @@ class PCA_Layer():
     
     def __init__(self,dim,channel):
         
-        self.alpha = tf.Variable(tf.ones(shape=[dim//2,dim//2,channel],dtype=tf.float32))
+        self.alpha = tf.Variable(tf.random_normal(shape=[dim//2,dim//2,channel],dtype=tf.float32,stddev=0.05))
         self.beta  = tf.Variable(tf.ones(shape=[channel],dtype=tf.float32))
 
         self.current_sigma = None
@@ -211,40 +217,32 @@ class PCA_Layer():
 
         pca,update_sigma = tf.cond(is_training, true_fn=training_fn, false_fn=testing_fn)
         pca_reshaped = tf.reshape(pca,[batch_size,(width//2),(width//2),channel])
-        out_put = self.alpha * pca_reshaped + self.beta
+        out_put = self.alpha * pca_reshaped +self.beta 
+        # out_put  = tf.layers.batch_normalization(out_put, center=True, scale=True, training=is_training)
+        
         return out_put,update_sigma
 
-# # data
-PathDicom = "../../Dataset/cifar-10-batches-py/"
-lstFilesDCM = []  # create an empty list
-for dirName, subdirList, fileList in os.walk(PathDicom):
-    for filename in fileList:
-        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
-            lstFilesDCM.append(os.path.join(dirName,filename))
 
-# Read the data traind and Test
-batch0 = unpickle(lstFilesDCM[0])
-batch1 = unpickle(lstFilesDCM[1])
-batch2 = unpickle(lstFilesDCM[2])
-batch3 = unpickle(lstFilesDCM[3])
-batch4 = unpickle(lstFilesDCM[4])
+# data
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+x_data_added,x_data_added_label = mnist.validation.images,mnist.validation.labels
+x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+x_data_added = x_data_added.reshape(-1, 28, 28, 1) 
 
-onehot_encoder = OneHotEncoder(sparse=True)
-train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
-train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
-train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
-test_batch = unpickle(lstFilesDCM[5])[b'data']
-test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
-test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
-# reshape data
-train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
-test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
-# rotate data
-train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
-test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-# Normalize 
-train_batch,test_batch  =train_batch/255.0,test_batch/255.0
-# print out the data shape
+x_data = np.vstack((x_data,x_data_added))
+train_label = np.vstack((train_label,x_data_added_label))
+
+train_batch = np.zeros((60000,28,28,1))
+test_batch = np.zeros((10000,28,28,1))
+
+for x in range(len(x_data)):
+    train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
+for x in range(len(y_data)):
+    test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
+
+# # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
@@ -252,11 +250,11 @@ print(test_label.shape)
 print('----- Data Shape Above me -----')
 
 # hyper parameter
-num_epoch = 21
-batch_size = 400
+num_epoch = 301
+batch_size = 200
 print_size = 1
 
-learning_rate = 0.03
+learning_rate = 0.02
 learnind_rate_decay = 0.001
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
@@ -264,22 +262,21 @@ proportion_rate = 0.8
 decay_rate = 10 
 
 # define class
-l1 = CNN(3,3,6)
-l2 = CNN(3,6,6)
-l3 = CNN(3,6,6)
+l1 = CNN(3,1,1)
+l2 = CNN(2,1,1)
+l3 = CNN(1,1,1)
 
-l4 = CNN(3,6,6)
-l5 = CNN(3,6,6)
-l6 = CNN(1,6,6)
+l4 = CNN(3,1,1)
+l5 = CNN(2,1,1)
+l6 = CNN(1,1,1)
 
-p1 = PCA_Layer(8,6)
-# p2 = PCA_Layer(4,16)
-l7 = CNN(1,6,6)
-l8 = CNN(1,6,6)
-l9 = CNN(1,6,10)
+p1 = PCA_Layer(14,1)
+l7 = CNN(3,1,10)
+l8 = CNN(1,10,10)
+l9 = CNN(1,10,10)
 
 # graph
-x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32)
 y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
@@ -288,20 +285,20 @@ learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*ite
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 phase = tf.placeholder(tf.bool)
 
-layer1 = l1.feedforward(x)
-layer2 = l2.feedforward(layer1)
-layer3 = l3.feedforward(layer2)
+layer1 = l1.feedforward(x,is_train=phase)
+layer2 = l2.feedforward(layer1,is_train=phase)
+layer3 = l3.feedforward(layer2,is_train=phase)
+layer3  = tf.layers.batch_normalization(layer3, center=True, scale=True, training=phase)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4 = l4.feedforward(layer4_Input)
-layer5 = l5.feedforward(layer4)
-layer6 = l6.feedforward(layer5)
+layer4 = l4.feedforward(layer4_Input,is_train=phase)
+layer5 = l5.feedforward(layer4,is_train=phase)
+layer6 = l6.feedforward(layer5,is_train=phase)
 
-layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer7_p,layer7_p_up  = p1.feedforward(layer7_Input,phase)
-layer7 = l7.feedforward(layer7_p)
-layer8 = l8.feedforward(layer7,padding='VALID')
-layer9 = l9.feedforward(layer8,padding='VALID')
+layer7_p,layer7_p_up  = p1.feedforward(layer6,phase)
+layer7 = l7.feedforward(layer7_p,is_train=phase)
+layer8 = l8.feedforward(layer7,padding='VALID',is_train=phase)
+layer9 = l9.feedforward(layer8,padding='VALID',is_train=phase)
 
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
@@ -311,10 +308,8 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 PCA_update = layer7_p_up
-# PCA_update = layer4_p_up + layer7_p_up
 extra_update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change,beta2=0.999).minimize(cost)
-# auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate_change,momentum=0.9).minimize(cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change,beta2=0.9).minimize(cost)
 
 # sess
 with tf.Session() as sess:
@@ -329,23 +324,21 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
 
-        train_batch,train_label = shuffle(train_batch,train_label)
+        # train_batch,train_label = shuffle(train_batch,train_label)
 
-        for batch_size_index in range(0,len(train_batch),batch_size//2):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
+        for batch_size_index in range(0,len(train_batch),batch_size):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
 
             # online data augmentation here and standard normalization
-            images_aug1 = seq.augment_images(current_batch.astype(np.float32))  
-            current_batch = np.vstack((current_batch,images_aug1)).astype(np.float32)
-            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            # images_aug1 = seq.augment_images(current_batch.astype(np.float32))  
+            # current_batch = np.vstack((current_batch,images_aug1)).astype(np.float32)
+            # current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
-            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
-            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
-            current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
+            # current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
-            sess_result = sess.run([cost,accuracy,correct_prediction,PCA_update,auto_train],
+            sess_result = sess.run([cost,accuracy,correct_prediction,PCA_update,auto_train,extra_update_ops],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, 
             ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
@@ -356,8 +349,6 @@ with tf.Session() as sess:
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
-            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
-            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
             sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,
             learning_rate_dynamic:learning_rate,phase:False})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
@@ -367,7 +358,7 @@ with tf.Session() as sess:
 
         if iter % print_size==0:
             print("\n-------------")
-            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
