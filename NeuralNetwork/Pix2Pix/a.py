@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 from sklearn.utils import shuffle
 from scipy.ndimage import imread
 from scipy.misc import imresize
-
+from sklearn.preprocessing import OneHotEncoder
+from skimage.transform import resize
+from tensorflow.examples.tutorials.mnist import input_data
 np.random.seed(678)
 tf.set_random_seed(678)
 
