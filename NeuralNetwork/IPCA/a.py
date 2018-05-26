@@ -191,16 +191,23 @@ class PCA_Layer():
         # 1. Get the input Shape and reshape the tensor into [Batch,Dim]
         width,channel = input.shape[1],input.shape[3]
         reshape_input = tf.reshape(input,[batch_size,-1])
+        print(reshape_input.shape)
+        sys.exit()
+
         # 2. Perform SVD and get the sigma value and get the sigma value
         singular_values, u, _ = tf.svd(reshape_input)
-        sigma = tf.diag(singular_values)
 
         def training_fn(): 
+
             # 3. Training 
-            sigma = tf.diag(singular_values)
-            sigma = tf.slice(sigma, [0, 0], [batch_size, (width//2)*(width//2)* channel  ])
+            sigma1 = tf.diag(singular_values)
+            sigma = tf.slice(sigma1, [0,0], [batch_size, (width//2)*(width//2)*channel  ])
+            print(sigma.shape)
+            print(batch_size)
+            print('-------------------')
+            
             pca = tf.matmul(u, sigma)
-            update_sigma.append(tf.assign(self.moving_sigma,self.moving_sigma*0.9 + sigma * 0.1 ))
+            update_sigma.append(tf.assign(self.moving_sigma,self.moving_sigma*0.9 + sigma* 0.1 ))
             return pca,update_sigma
 
         def testing_fn(): 
@@ -263,19 +270,19 @@ proportion_rate = 0.8
 decay_rate = 10 
 
 # define class
-l1 = CNN(3,3,96)
-l2 = CNN(3,96,96)
-l3 = CNN(3,96,192)
+l1 = CNN(3,3,4)
+l2 = CNN(3,4,4)
+l3 = CNN(3,4,4)
 
-p1 = PCA_Layer(16,192)
-l4 = CNN(3,192,192)
-l5 = CNN(3,192,192)
-l6 = CNN(3,192,192)
+p1 = PCA_Layer(16,4)
+l4 = CNN(3,4,16)
+l5 = CNN(3,16,16)
+l6 = CNN(3,16,16)
 
-p2 = PCA_Layer(8,192)
-l7 = CNN(3,192,192)
-l8 = CNN(1,192,192)
-l9 = CNN(1,192,10)
+p2 = PCA_Layer(8,16)
+l7 = CNN(3,16,64)
+l8 = CNN(1,64,64)
+l9 = CNN(1,64,10)
 
 # graph
 x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
@@ -291,6 +298,7 @@ layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 
+layer4_avg = 
 layer4_p,layer4_p_up  = p1.feedforward(layer3,phase)
 layer4 = l4.feedforward(layer4_p)
 layer5 = l5.feedforward(layer4)
@@ -308,10 +316,8 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
+PCA_update = layer4_p_up + layer7_p_up
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change,beta2=0.9).minimize(cost)
-
-
-sys.exit()
 
 # sess
 with tf.Session() as sess:
@@ -341,8 +347,11 @@ with tf.Session() as sess:
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
-            sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+
+            sess_result = sess.run([cost,accuracy,correct_prediction,PCA_update,auto_train],
+            feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, 
+            ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
@@ -382,14 +391,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case c Train.png")
+    plt.savefig("Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case c Test.png")
+    plt.savefig("Test.png")
 
 
 
