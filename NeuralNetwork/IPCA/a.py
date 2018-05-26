@@ -179,41 +179,41 @@ class PCA_Layer():
     
     def __init__(self,dim,channel):
         
-        self.alpha = tf.Variable(tf.constant(1.0))
-        self.beta  = tf.Variable(tf.constant(0.000))
+        self.alpha = tf.Variable(tf.zeros(shape=[dim*dim*channel],dtype=tf.float32))
+        self.beta  = tf.Variable(tf.zeros(shape=[channel],dtype=tf.float32))
 
         self.current_sigma = None
-        self.moving_sigma = tf.Variable(tf.zeros(shape=[batch_size,dim*dim*channel],dtype=tf.float32))
-    
+        self.moving_sigma = tf.Variable(tf.zeros(shape=[dim*dim*channel],dtype=tf.float32))
 
     def feedforward(self,input,is_training):
-        
+        update_sigma = []
+
+        # 1. Get the input Shape and reshape the tensor into [Batch,Dim]
+        width,channel = input.shape[1],input.shape[3]
         reshape_input = tf.reshape(input,[batch_size,-1])
-        print('---')
-        print(reshape_input.shape)
-        
-        # We are going to use the singular values and not the u value
+        # 2. Perform SVD and get the sigma value and get the sigma value
         singular_values, u, _ = tf.svd(reshape_input)
-        print(singular_values.shape)
-        print(u.shape)
-        print('---')
-        
         sigma = tf.diag(singular_values)
-        print(sigma.shape)
-        print('---')
 
-        sigma = tf.slice(sigma, [0, 0], [batch_size, 16*16*192 ])
-        print(sigma.shape)
-        print('---')
-        
-        pca = tf.matmul(u, sigma)
-        print(pca.shape)
+        def training_fn(): 
+            # 3. Training 
+            sigma = tf.diag(singular_values)
+            sigma = tf.slice(sigma, [0, 0], [batch_size, (width//2)*(width//2)* channel  ])
+            pca = tf.matmul(u, sigma)
 
-        temp = tf.reshape(pca,[batch_size,16,16,192])
-        print(temp.shape)
-        print('---')
+            return pca,update_sigma
 
-        return temp
+
+        def testing_fn(): 
+            # 4. Testing calculate hte pca using the Exponentially Weighted Moving Averages  
+            pca = tf.matmul(u, self.moving_sigma)
+            return pca,update_sigma
+
+        pca,update_sigma = tf.cond(is_training, true_fn=training_fn, false_fn=testing_fn)
+        pca_reshaped = tf.reshape(pca,[batch_size,(width//2),(width//2),channel])
+        out_put = self.alpha * pca_reshaped + self.beta
+
+        return out_put,update_sigma
 
 # # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
@@ -293,14 +293,12 @@ layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 
-layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4_p  = p1.feedforward(layer4_Input,phase)
+layer4_p,layer4_p_up  = p1.feedforward(layer3,phase)
 layer4 = l4.feedforward(layer4_p)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5)
 
-layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer7_p  = p2.feedforward(layer7_Input,phase)
+layer7_p,layer7_p_up  = p2.feedforward(layer6,phase)
 layer7 = l7.feedforward(layer7_p)
 layer8 = l8.feedforward(layer7,padding='VALID')
 layer9 = l9.feedforward(layer8,padding='VALID')
