@@ -191,31 +191,31 @@ class PCA_Layer():
         # 1. Get the input Shape and reshape the tensor into [Batch,Dim]
         width,channel = input.shape[1],input.shape[3]
         reshape_input = tf.reshape(input,[batch_size,-1])
-        print(reshape_input.shape)
-        sys.exit()
+        print(reshape_input.shape,"-----here")
 
         # 2. Perform SVD and get the sigma value and get the sigma value
-        singular_values, u, _ = tf.svd(reshape_input)
+        singular_values, u, _ = tf.svd(reshape_input,full_matrices=False)
 
-        def training_fn(): 
+        # def training_fn(): 
 
-            # 3. Training 
-            sigma1 = tf.diag(singular_values)
-            sigma = tf.slice(sigma1, [0,0], [batch_size, (width//2)*(width//2)*channel  ])
-            print(sigma.shape)
-            print(batch_size)
-            print('-------------------')
-            
-            pca = tf.matmul(u, sigma)
-            update_sigma.append(tf.assign(self.moving_sigma,self.moving_sigma*0.9 + sigma* 0.1 ))
-            return pca,update_sigma
+        #     # 3. Training 
+        #     sigma1 = tf.diag(singular_values)
+        #     sigma = tf.slice(sigma1, [0,0], [batch_size, (width//2)*(width//2)*channel  ])
+        #     pca = tf.matmul(u, sigma)
+        #     update_sigma.append(tf.assign(self.moving_sigma,self.moving_sigma*0.9 + sigma* 0.1 ))
+        #     return pca,update_sigma
 
-        def testing_fn(): 
-            # 4. Testing calculate hte pca using the Exponentially Weighted Moving Averages  
-            pca = tf.matmul(u, self.moving_sigma)
-            return pca,update_sigma
+        # def testing_fn(): 
+        #     # 4. Testing calculate hte pca using the Exponentially Weighted Moving Averages  
+        #     pca = tf.matmul(u, self.moving_sigma)
+        #     return pca,update_sigma
 
-        pca,update_sigma = tf.cond(is_training, true_fn=training_fn, false_fn=testing_fn)
+        sigma1 = tf.diag(singular_values)
+        sigma = tf.slice(sigma1, [0,0], [width, (width//2)*(width//2)*channel  ])
+        sys.exit()
+        pca = tf.matmul(u, sigma)
+
+        # pca,update_sigma = tf.cond(is_training, true_fn=training_fn, false_fn=testing_fn)
         pca_reshaped = tf.reshape(pca,[batch_size,(width//2),(width//2),channel])
         out_put = self.alpha * pca_reshaped + self.beta
         return out_put,update_sigma
@@ -274,12 +274,12 @@ l1 = CNN(3,3,4)
 l2 = CNN(3,4,4)
 l3 = CNN(3,4,4)
 
-p1 = PCA_Layer(16,4)
+p1 = PCA_Layer(8,4)
 l4 = CNN(3,4,16)
 l5 = CNN(3,16,16)
 l6 = CNN(3,16,16)
 
-p2 = PCA_Layer(8,16)
+p2 = PCA_Layer(4,16)
 l7 = CNN(3,16,64)
 l8 = CNN(1,64,64)
 l9 = CNN(1,64,10)
@@ -297,17 +297,21 @@ phase = tf.placeholder(tf.bool)
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
+print(layer3.shape)
 
-layer4_avg = 
-layer4_p,layer4_p_up  = p1.feedforward(layer3,phase)
+layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4_p,layer4_p_up  = p1.feedforward(layer4_Input,phase)
 layer4 = l4.feedforward(layer4_p)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5)
+print(layer6.shape)
 
+layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7_p,layer7_p_up  = p2.feedforward(layer6,phase)
 layer7 = l7.feedforward(layer7_p)
 layer8 = l8.feedforward(layer7,padding='VALID')
 layer9 = l9.feedforward(layer8,padding='VALID')
+print(layer9.shape)
 
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)

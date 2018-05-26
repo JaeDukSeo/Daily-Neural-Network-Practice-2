@@ -14,7 +14,7 @@ class TF_PCA():
         
         self.data = data
         self.dtype = tf.float32
-        self.target = label
+        self.target = label         
 
     def fit(self):
         self.graph = tf.Graph()
@@ -30,8 +30,12 @@ class TF_PCA():
             print('v:',v.shape)
             print('sigma:',sigma.shape)
 
+            sigma1 = tf.slice(sigma, [0, 0], [self.data.shape[1], 512])
+            pca = tf.matmul(u,sigma1)
+            
+
         with tf.Session(graph=self.graph) as session:
-            self.u, self.v,self.singular_values, self.sigma = session.run([u,v, singular_values, sigma],feed_dict={self.X: self.data})
+            self.pca,self.u, self.v,self.singular_values, self.sigma = session.run([pca,u,v, singular_values, sigma],feed_dict={self.X: self.data})
 
 
     def reduce(self, n_dimensions=None, keep_info=None):
@@ -121,8 +125,8 @@ def tf_pca(x):
 iris_dataset = datasets.load_iris()
 row = 1500
 cal = 16 * 16 * 4
-cal = 8*8*16   
-cal = 4*4*64   
+# cal = 8*8*16   
+# cal = 4*4*64   
 temp = np.random.randn(row,cal)
 #  8 8 4 = 256
 #  4 4 4 = 64
@@ -140,7 +144,7 @@ print('------------------------------------')
 tf_pca2 = TF_PCA(temp, temps)
 # tf_pca2 = TF_PCA(iris_dataset.data, iris_dataset.target)
 tf_pca2.fit()
-pca = tf_pca2.reduce(n_dimensions=cal//2)  # Results in 2 dimensions
+# pca = tf_pca2.reduce(n_dimensions=cal//2)  # Results in 2 dimensions
 sys.exit()
 
 print('------------------------------------')
