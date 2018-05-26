@@ -179,11 +179,11 @@ class PCA_Layer():
     
     def __init__(self,dim,channel):
         
-        self.alpha = tf.Variable(tf.zeros(shape=[dim*dim*channel],dtype=tf.float32))
+        self.alpha = tf.Variable(tf.zeros(shape=[dim,dim,channel],dtype=tf.float32))
         self.beta  = tf.Variable(tf.zeros(shape=[channel],dtype=tf.float32))
 
         self.current_sigma = None
-        self.moving_sigma = tf.Variable(tf.zeros(shape=[dim*dim*channel],dtype=tf.float32))
+        self.moving_sigma = tf.Variable(tf.zeros(shape=[batch_size,dim*dim*channel],dtype=tf.float32))
 
     def feedforward(self,input,is_training):
         update_sigma = []
@@ -200,9 +200,8 @@ class PCA_Layer():
             sigma = tf.diag(singular_values)
             sigma = tf.slice(sigma, [0, 0], [batch_size, (width//2)*(width//2)* channel  ])
             pca = tf.matmul(u, sigma)
-
+            update_sigma.append(tf.assign(self.moving_sigma,self.moving_sigma*0.9 + sigma * 0.1 ))
             return pca,update_sigma
-
 
         def testing_fn(): 
             # 4. Testing calculate hte pca using the Exponentially Weighted Moving Averages  
@@ -212,7 +211,6 @@ class PCA_Layer():
         pca,update_sigma = tf.cond(is_training, true_fn=training_fn, false_fn=testing_fn)
         pca_reshaped = tf.reshape(pca,[batch_size,(width//2),(width//2),channel])
         out_put = self.alpha * pca_reshaped + self.beta
-
         return out_put,update_sigma
 
 # # data
@@ -250,6 +248,7 @@ print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
+print('----- Data Shape Above me -----')
 
 # hyper parameter
 num_epoch = 21
@@ -277,7 +276,6 @@ p2 = PCA_Layer(8,192)
 l7 = CNN(3,192,192)
 l8 = CNN(1,192,192)
 l9 = CNN(1,192,10)
-
 
 # graph
 x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
