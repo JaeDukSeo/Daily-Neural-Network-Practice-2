@@ -23,7 +23,6 @@ def unpickle(file):
         dict = pickle.load(fo, encoding='bytes')
     return dict
 
-
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
     """
@@ -175,14 +174,46 @@ class batch_norm():
         update_w.append(tf.assign( self.v_hat_prev,v_max ))        
         return grad_pass,update_w   
 
-
+# PCA Layer following the implementation: https://ewanlee.github.io/2018/01/17/PCA-With-Tensorflow/
 class PCA_Layer():
     
-    def __init__(self):
-        print(3)
+    def __init__(self,dim,channel):
+        
+        self.alpha = tf.Variable(tf.constant(1.0))
+        self.beta  = tf.Variable(tf.constant(0.000))
+
+        self.current_sigma = None
+        self.moving_sigma = tf.Variable(tf.zeros(shape=[batch_size,dim*dim*channel],dtype=tf.float32))
+    
 
     def feedforward(self,input,is_training):
-        print(78)
+        
+        reshape_input = tf.reshape(input,[batch_size,-1])
+        print('---')
+        print(reshape_input.shape)
+        
+        # We are going to use the singular values and not the u value
+        singular_values, u, _ = tf.svd(reshape_input)
+        print(singular_values.shape)
+        print(u.shape)
+        print('---')
+        
+        sigma = tf.diag(singular_values)
+        print(sigma.shape)
+        print('---')
+
+        sigma = tf.slice(sigma, [0, 0], [batch_size, 16*16*192 ])
+        print(sigma.shape)
+        print('---')
+        
+        pca = tf.matmul(u, sigma)
+        print(pca.shape)
+
+        temp = tf.reshape(pca,[batch_size,16,16,192])
+        print(temp.shape)
+        print('---')
+
+        return temp
 
 # # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
@@ -212,11 +243,8 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 # rotate data
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-# standardize Normalize data per channel
-test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].mean(axis=0)) / ( test_batch[:,:,:,0].std(axis=0))
-test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].mean(axis=0)) / ( test_batch[:,:,:,1].std(axis=0))
-test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].mean(axis=0)) / ( test_batch[:,:,:,2].std(axis=0))
-
+# Normalize 
+train_batch,test_batch  =train_batch/255.0,test_batch/255.0
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
@@ -240,41 +268,40 @@ l1 = CNN(3,3,96)
 l2 = CNN(3,96,96)
 l3 = CNN(3,96,192)
 
-b1 = batch_norm(32,192)
+p1 = PCA_Layer(16,192)
 l4 = CNN(3,192,192)
 l5 = CNN(3,192,192)
 l6 = CNN(3,192,192)
 
-b2 = batch_norm(16,192)
+p2 = PCA_Layer(8,192)
 l7 = CNN(3,192,192)
 l8 = CNN(1,192,192)
 l9 = CNN(1,192,10)
 
 
 # graph
-x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
-y = tf.placeholder(shape=[None,10],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
+y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
-
 phase = tf.placeholder(tf.bool)
 
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 
-layer4_BN,layer4_BN_UP = b1.feedforward(layer3,is_training=phase)
-layer4_Input = tf.nn.avg_pool(layer4_BN,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4 = l4.feedforward(layer4_Input)
+layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer4_p  = p1.feedforward(layer4_Input,phase)
+layer4 = l4.feedforward(layer4_p)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5)
 
-layer7_BN,layer7_BN_U = b2.feedforward(layer6,is_training=phase)
-layer7_Input = tf.nn.avg_pool(layer7_BN,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer7 = l7.feedforward(layer7_Input)
+layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer7_p  = p2.feedforward(layer7_Input,phase)
+layer7 = l7.feedforward(layer7_p)
 layer8 = l8.feedforward(layer7,padding='VALID')
 layer9 = l9.feedforward(layer8,padding='VALID')
 
@@ -287,6 +314,8 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate_change,beta2=0.9).minimize(cost)
 
+
+sys.exit()
 
 # sess
 with tf.Session() as sess:
@@ -311,13 +340,12 @@ with tf.Session() as sess:
             images_aug1 = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug1)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
-            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0))
-            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
-            sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,
-                learning_rate_dynamic:learning_rate,phase:True})
+            sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -325,6 +353,9 @@ with tf.Session() as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
             sess_result = sess.run([cost,accuracy,correct_prediction],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,
             learning_rate_dynamic:learning_rate,phase:False})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
@@ -333,7 +364,7 @@ with tf.Session() as sess:
             test_cota = sess_result[0] + test_cota
 
         if iter % print_size==0:
-            print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
+            print("\n-------------")
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")

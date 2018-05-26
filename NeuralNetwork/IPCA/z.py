@@ -23,13 +23,13 @@ class TF_PCA():
             singular_values, u, _ = tf.svd(self.X)
             # Create sigma matrix
             sigma = tf.diag(singular_values)
+
         with tf.Session(graph=self.graph) as session:
             self.u, self.singular_values, self.sigma = session.run([u, singular_values, sigma],feed_dict={self.X: self.data})
 
 
-
     def reduce(self, n_dimensions=None, keep_info=None):
-        
+
         if keep_info:
             # Normalize singular values
             normalized_singular_values = self.singular_values / sum(self.singular_values)
@@ -38,6 +38,8 @@ class TF_PCA():
             # Get the first index which is above the given information threshold
             index = next(idx for idx, value in enumerate(ladder) if value >= keep_info) + 1
             n_dimensions = index
+
+        # Here is the reduction
         with self.graph.as_default():
             # Cut out the relevant part from sigma
             sigma = tf.slice(self.sigma, [0, 0], [self.data.shape[1], n_dimensions])
