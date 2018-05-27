@@ -1,6 +1,7 @@
 import nltk,sys
 import numpy as np,pandas as pd
 import matplotlib.pyplot as plt 
+pd.options.mode.chained_assignment = None
 
 # step 0 basic reading
 df = pd.read_csv('train.csv',encoding='latin-1')
@@ -21,9 +22,11 @@ df = pd.read_csv('train.csv',encoding='latin-1')
 # step 1 stop word removal
 short_data = df.head()
 from nltk.corpus import stopwords
-print(short_data)
-stops = set(stopwords.words("english"))
-short_data['SentimentText'].apply(lambda x: [item for item in x if item not in stops])
-print(short_data)
+stop = stopwords.words("english")
+
+print(short_data['SentimentText'])
+print('-------Remove Stop Word--------')
+short_data['Step1_SentimentText'] = short_data['SentimentText'].apply(lambda x: ' '.join([word for word in x.split() if word not in (stop)]))
+print(short_data['Step1_SentimentText'])
 
 # - end code -
