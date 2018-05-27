@@ -10,7 +10,9 @@ freq = {}
 for word in word_set:
     freq[word] = word_list.count(word) 
     print(word,' : ',freq[word])
-
-
+print('------------------------------')
+tagged = nltk.pos_tag(word_list)
+print(tagged)
+print('------------------------------')
 
 # -- end code --
