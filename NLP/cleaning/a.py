@@ -8,17 +8,17 @@ pd.options.mode.chained_assignment = None
 # step 0 basic reading
 df = pd.read_csv('train.csv',encoding='latin-1')
 
-# print('--- Print the Basic Info of the data ----')
-# print(df.info())
-# print(df.shape)
+print('--- Print the Basic Info of the data ----')
+print(df.info())
+print(df.shape)
 
-# print('--- Print the Head/Tail of the data -----')
-# print(df.head())
-# print('------------------------')
-# print(df.tail())
+print('--- Print the Head/Tail of the data -----')
+print(df.head())
+print('------------------------')
+print(df.tail())
 
-# df['Sentiment'].plot(kind='hist')
-# plt.show()
+df['Sentiment'].plot(kind='hist')
+plt.show()
 
 
 # step 1 stop word removal
@@ -26,10 +26,10 @@ short_data = df.head()
 from nltk.corpus import stopwords
 stop = stopwords.words("english")
 
-# print(short_data['SentimentText'])
-# print('-------Remove Stop Word--------')
+print(short_data['SentimentText'])
+print('-------Remove Stop Word--------')
 short_data['Step1_SentimentText'] = short_data['SentimentText'].apply(lambda x: ' '.join([word for word in x.split() if word not in (stop)]))
-# print(short_data['Step1_SentimentText'])
+print(short_data['Step1_SentimentText'])
 
 
 
@@ -60,19 +60,19 @@ def translator(user_string):
         j = j + 1
     return ' '.join(user_string)
 
-# print(short_data['Step1_SentimentText'])
-# print('-------Replace Abbreviations--------')
+print(short_data['Step1_SentimentText'])
+print('-------Replace Abbreviations--------')
 short_data['Step2_SentimentText'] = short_data['Step1_SentimentText'].apply(lambda x:  translator(x)  ) 
-# print(short_data['Step2_SentimentText'])
+print(short_data['Step2_SentimentText'])
 
 
 
 # step 3 stemming 
 ps = PorterStemmer()
-# print(short_data['Step2_SentimentText'])
-# print('-------Stemming--------')
+print(short_data['Step2_SentimentText'])
+print('-------Stemming--------')
 short_data['Step3_SentimentText'] = short_data['Step2_SentimentText'].apply(lambda x: ' '.join([ps.stem(word) for word in x.split() ]))
-# print(short_data['Step3_SentimentText'])
+print(short_data['Step3_SentimentText'])
 
 
 
@@ -81,19 +81,19 @@ short_data['Step3_SentimentText'] = short_data['Step2_SentimentText'].apply(lamb
 # step 4 Lemmazation
 from nltk.stem.wordnet import WordNetLemmatizer
 lmtzr = WordNetLemmatizer()
-# print(short_data['Step2_SentimentText'])
-# print('-------Lemmazation--------')
+print(short_data['Step2_SentimentText'])
+print('-------Lemmazation--------')
 short_data['Step4_SentimentText'] = short_data['Step2_SentimentText'].apply(lambda x: ' '.join([lmtzr.lemmatize(word,'v') for word in x.split() ]))
-# print(short_data['Step4_SentimentText'])
+print(short_data['Step4_SentimentText'])
 
 
 
 
 # step 5 Lemmazation
-# print(short_data['Step2_SentimentText'])
-# print('-------Part of Speech Tagging--------')
+print(short_data['Step2_SentimentText'])
+print('-------Part of Speech Tagging--------')
 short_data['Step5_SentimentText'] = short_data['Step2_SentimentText'].apply(lambda x: nltk.pos_tag(nltk.word_tokenize(x)))
-# print(short_data['Step5_SentimentText'])
+print(short_data['Step5_SentimentText'])
 
 
 
