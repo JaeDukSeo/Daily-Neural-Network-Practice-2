@@ -15,8 +15,8 @@ np.random.seed(678)
 tf.set_random_seed(678)
 ia.seed(678)
 
-def tf_elu(x): return tf.nn.tanh(x)
-def d_tf_elu(x): return 1 - tf_elu(x) ** 2
+def tf_elu(x): return tf.nn.relu(x)
+def d_tf_elu(x): return tf.cast(tf.greater_equal(x,0.0),tf.float32)
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
     import pickle
@@ -285,14 +285,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case c Train.png")
+    plt.savefig("Case c2 Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case c Test.png")
+    plt.savefig("Case c2 Test.png")
 
 
 

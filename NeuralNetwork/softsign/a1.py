@@ -250,14 +250,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case c Train.png")
+    plt.savefig("Case a1 Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case c Test.png")
+    plt.savefig("Case a1 Test.png")
 
 
 
