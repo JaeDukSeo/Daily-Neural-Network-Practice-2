@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np,sys
-# import tensorflow as tf
+import tensorflow as tf
 import matplotlib.pyplot as plt
 import plotly.plotly as py
 import plotly.graph_objs as go
+import matplotlib.pyplot as plt
+from numpy import newaxis
 
 # 0. Get the Data
 df = pd.read_csv('../../Dataset/Data/Stocks/aapl.us.txt',delimiter=',',usecols=['Date','Open','High','Low','Close']).sort_values('Date')
@@ -105,22 +107,76 @@ print('MSE error for EMA averaging: %.5f'%(0.5*np.mean(abs_errors)))
 
 
 # 7. LSTM 
-print(max(Mean_list))
-print(min(Mean_list))
 Mean_list_scale = scaler.fit_transform( np.expand_dims(np.asarray(Mean_list),1))
-print(Mean_list_scale.min())
-print(Mean_list_scale.max())
+train = Mean_list_scale[:(697*10),0]
+test  = Mean_list_scale[(697*10):,0]
+print(Mean_list_scale.shape)
 
-plt.plot(Mean_list,color='red')
+# Def: Concvert Data into the shape of the good
+def create_dataset(dataset, look_back=1):
+	dataX, dataY = [], []
+	for i in range(len(dataset)-look_back-1):
+		a = dataset[i:(i+look_back)]
+		dataX.append(a)
+		dataY.append(dataset[i + look_back])
+	return np.array(dataX), np.array(dataY)
+
+look_back = 1
+trainX, trainY = create_dataset(train, look_back)
+testX, testY = create_dataset(test, look_back)
+print(trainX.shape,trainY.shape,testX.shape,testY.shape)
+trainX = np.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
+testX = np.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
+
+from subprocess import check_output
+from keras.layers.core import Dense, Activation, Dropout
+from keras.layers.recurrent import LSTM
+from keras.models import Sequential
+
+model = Sequential()
+model.add(LSTM(input_shape=(None,1),units=50,return_sequences=True))
+model.add(Dropout(0.2))
+model.add(LSTM(units=100,return_sequences=False))
+model.add(Dropout(0.2))
+model.add(Dense(units=1 ,kernel_initializer ='uniform'))
+model.add(Activation('linear'))
+model.compile(loss='mse', optimizer='adam')
+
+model.fit(
+    trainX,trainY,
+    batch_size=10,epochs=10,
+    validation_split=0.05)
+
+def plot_results_multiple(predicted_data, true_data,length):
+    plt.plot(scaler.inverse_transform(true_data.reshape(-1, 1))[length:])
+    plt.plot(scaler.inverse_transform(np.array(predicted_data).reshape(-1, 1))[length:])
+    plt.show()
+    
+#predict lenght consecutive values from a real one
+def predict_sequences_multiple(model,firstValue,length):
+    prediction_seqs = []
+    curr_frame = firstValue
+    for i in range(length): 
+        predicted = []                
+        predicted.append(model.predict(curr_frame[newaxis,:,:])[0,0])
+        curr_frame = curr_frame[0:]
+        curr_frame = np.insert(curr_frame[0:], i+1, predicted[-1], axis=0)
+        prediction_seqs.append(predicted[-1])
+    return prediction_seqs
+
+predict_length=len(testX)
+predictions = predict_sequences_multiple(model, testX[0], predict_length)
+
+
+plt.figure()
+plt.plot(df.Low,color='g',label='Low')
+plt.plot(df.Mean,color='r',label='Mean')
+plt.plot(df.High,color='y',label='High')
+plt.plot(predictions,color='orange',label='Prediction')
+plt.xlabel('Date')
+plt.ylabel('Mid Price')
+plt.legend()
 plt.show()
-
-plt.plot(Mean_list_scale)
-plt.show()
-
-sys.exit()
-
-
-
 
 
 # -- end code --
