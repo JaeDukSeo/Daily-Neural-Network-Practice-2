@@ -64,7 +64,26 @@ trace6 = go.Scatter(
     name = 'Moving AVG',mode='line'
 )
 
-data = [trace1,trace2,trace3,trace4,trace5,trace6]
+
+
+
+from statsmodels.tsa.ar_model import AR
+window_size = 50
+ar_list = list(Mean_list[:window_size])
+for pred_idx in range(window_size,N):
+
+    current_window = Mean_list[pred_idx-window_size:pred_idx]
+    model = AR(current_window)
+    model_fit = model.fit(49)
+    current_predict = model_fit.predict(49,49)[0]
+    ar_list.append(current_predict)
+
+trace7 = go.Scatter(
+    x = df.Date,y = ar_list,
+    name = 'Auto Regression',mode='line'
+)
+
+data = [trace1,trace2,trace3,trace4,trace5,trace6,trace7]
 plot(data)
 
 # -- end code --
