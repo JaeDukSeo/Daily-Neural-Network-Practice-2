@@ -38,8 +38,8 @@ trace4 = go.Scatter(
 
 # a. Standard Average of Window
 Mean_list = list(df.Mean)
-window_size = 100
-N = Mean_list.size
+window_size = 50
+N = len(Mean_list)
 std_avg_predictions = list(Mean_list[:window_size])
 for pred_idx in range(window_size,N):
     std_avg_predictions.append(np.mean(Mean_list[pred_idx-window_size:pred_idx]))
@@ -49,7 +49,7 @@ window_size = 100
 run_avg_predictions = []
 running_mean = 0.0
 run_avg_predictions.append(running_mean)
-decay = 0.9
+decay = 0.8
 
 for pred_idx in range(1,N):
     running_mean = running_mean*decay + (1.0-decay)*Mean_list[pred_idx-1]
@@ -57,11 +57,11 @@ for pred_idx in range(1,N):
 
 trace5 = go.Scatter(
     x = df.Date,y = std_avg_predictions,
-    name = 'Mean Stock Value',mode='line'
+    name = 'Window AVG',mode='line'
 )
 trace6 = go.Scatter(
     x = df.Date,y = run_avg_predictions,
-    name = 'Mean Stock Value',mode='line'
+    name = 'Moving AVG',mode='line'
 )
 
 data = [trace1,trace2,trace3,trace4,trace5,trace6]
