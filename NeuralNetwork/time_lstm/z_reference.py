@@ -31,18 +31,14 @@ x=tf.placeholder("float",[None,28,28])
 y=tf.placeholder("float",[None,10])
 
 #processing the input tensor from [batch_size,n_steps,n_input] to "time_steps" number of [batch_size,n_input] tensors
-input_list=tf.unstack(x ,time_steps,1)
+input_list=tf.unstack(x ,time_steps,axis=1)
 
 #defining the network
-lstm_layer=rnn.BasicLSTMCell(num_units,forget_bias=1)
-outputs1,layer1 =rnn.static_rnn(lstm_layer,input_list,dtype="float32")
-print(outputs1)
-print(layer1)
-outputs2,layer2 =rnn.static_rnn(lstm_layer,outputs1,dtype="float32")
-print(outputs2.shape)
-print(layer2)
+lstm_layer=rnn.BasicLSTMCell(num_units,forget_bias=1,reuse=True)
+outputs1,finalout1 =rnn.static_rnn(lstm_layer,input_list,dtype="float32")
+
 #converting last output of dimension [batch_size,num_units] to [batch_size,n_classes] by out_weight multiplication
-prediction=tf.matmul(outputs2[-1],out_weights)+out_bias
+prediction=tf.matmul(outputs1[-1],out_weights)+out_bias
 
 #loss_function
 loss=tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=prediction,labels=y))
