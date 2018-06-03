@@ -200,7 +200,7 @@ class PCA_Layer():
 
 
 # data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/', one_hot=True)
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 x_data_added,x_data_added_label = mnist.validation.images,mnist.validation.labels
 x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
@@ -209,6 +209,8 @@ x_data_added = x_data_added.reshape(-1, 28, 28, 1)
 
 x_data = np.vstack((x_data,x_data_added))
 train_label = np.vstack((train_label,x_data_added_label))
+print(x_data.shape)
+print(y_data.shape)
 
 train_batch = np.zeros((60000,16,16,1))
 test_batch = np.zeros((10000,16,16,1))
@@ -226,7 +228,7 @@ print(test_label.shape)
 print('----- Data Shape Above me  this is the version  2-----')
 
 # hyper parameter
-num_epoch = 51
+num_epoch = 11
 batch_size = 400
 print_size = 1
 
@@ -357,7 +359,20 @@ with tf.Session() as sess:
     plt.title("Test Average Accuracy / Cost Over Time")
     plt.savefig("Test.png")
 
-
+    
+    test_batch = test_batch[0:400,:,:,:]
+    sess_result = sess.run([layer1_p,layer2_p,layer3_p,layer4_p],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,
+            learning_rate_dynamic:learning_rate,phase:False})
+    plt.imshow(test_batch[0,:,:,:])
+    plt.show()
+    plt.imshow(sess_result[0][0,:,:,:])
+    plt.show()
+    plt.imshow(test_batch[1][0,:,:,:])
+    plt.show()
+    plt.imshow(test_batch[2][0,:,:,:])
+    plt.show()
+    plt.imshow(test_batch[3][0,:,:,:])
+    plt.show()
 
 
 
