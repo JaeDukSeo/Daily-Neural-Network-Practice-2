@@ -34,9 +34,6 @@ More [screenshots](docs/en/screenshots.md).
 
 ## Features
 
-* Clone project from [GitHub](docs/en/sources/github.md), [Bitbucket](docs/en/sources/bitbucket.md) (Git/Hg), 
-[GitLab](docs/en/sources/gitlab.md), [Git](docs/en/sources/git.md), Hg (Mercurial), SVN (Subversion) or from local 
-directory;
 
 * Set up and tear down database tests for [PostgreSQL](docs/en/plugins/pgsql.md), [MySQL](docs/en/plugins/mysql.md) or 
 [SQLite](docs/en/plugins/sqlite.md);
