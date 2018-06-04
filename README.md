@@ -31,6 +31,7 @@ More [screenshots](docs/en/screenshots.md).
 ## System requirements
 
 * Python 3 
+* Tensorflow
 
 ## Features
 
