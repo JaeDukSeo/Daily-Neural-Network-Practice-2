@@ -1,4 +1,5 @@
 import tensorflow as tf
+print(tf.__version__)
 import numpy as np
 import sys, os,cv2
 from sklearn.utils import shuffle
@@ -228,7 +229,7 @@ print(test_label.shape)
 print('----- Data Shape Above me  this is the version  2-----')
 
 # hyper parameter
-num_epoch = 11
+num_epoch = 2
 batch_size = 400
 print_size = 1
 
@@ -358,22 +359,30 @@ with tf.Session() as sess:
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
     plt.savefig("Test.png")
-
+    plt.close('all')
     
     test_batch = test_batch[0:400,:,:,:]
     sess_result = sess.run([layer1_p,layer2_p,layer3_p,layer4_p],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,
             learning_rate_dynamic:learning_rate,phase:False})
-    plt.imshow(test_batch[0,:,:,:])
-    plt.show()
-    plt.imshow(sess_result[0][0,:,:,:])
-    plt.show()
-    plt.imshow(test_batch[1][0,:,:,:])
-    plt.show()
-    plt.imshow(test_batch[2][0,:,:,:])
-    plt.show()
-    plt.imshow(test_batch[3][0,:,:,:])
-    plt.show()
 
+    l1_result = sess_result[0]
+    l2_result = sess_result[1]
+    l3_result = sess_result[2]
+    l4_result = sess_result[3]
 
+    for image_num in range(12):
+
+        plt.imshow(np.squeeze(test_batch[image_num,:,:,:]),cmap='gray')
+        plt.axis('off')
+        plt.show()
+        plt.imshow(np.squeeze(sess_result[0][image_num,:,:,:] ),cmap='gray')
+        plt.axis('off')
+        plt.show()
+        plt.imshow(np.squeeze(sess_result[1][image_num,:,:,:]),cmap='gray')
+        plt.axis('off')
+        plt.show()
+        plt.imshow(np.squeeze(sess_result[2][image_num,:,:,:]),cmap='gray')
+        plt.axis('off')
+        plt.show()
 
 # -- end code --

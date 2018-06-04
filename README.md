@@ -21,10 +21,6 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 
 More [screenshots](docs/en/screenshots.md).
 
-* [System requirements](#system-requirements)
-* [Features](#features)
-* [Installing](#installing)
-* [Installing via Docker](#installing-via-docker)
 * [Updating](#updating)
 * [Configuring project](#configuring-project)
 * [Migrations](#migrations)
