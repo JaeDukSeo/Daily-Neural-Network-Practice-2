@@ -57,7 +57,7 @@ class RCNN():
         self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h)),tf.Variable(tf.zeros_like(self.h))
 
-    def feedfoward(self,input,timestamp,internal):
+    def feedfoward(self,input,timestamp):
 
         # assign the input for back prop
         hidden_assign = []
@@ -66,11 +66,7 @@ class RCNN():
         # perform feed forward
         layer =  tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')  + \
         tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME') 
-
-        if internal: 
-            layerA = tf_elu(internal.feedforward(tf_elu(layer)))
-        else:
-            layerA = tf_elu(layer)
+        layerA = tf_elu(layer)
 
         # assign for back prop
         hidden_assign.append(tf.assign(self.hidden_record[timestamp+1,:,:,:,:],layer))
@@ -194,18 +190,14 @@ batch_size = 50
 print_size = 1
 timestamp = 4
 
-learning_rate = 0.01
+learning_rate = 0.0001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
-l1 = RCNN(timestamp=timestamp,c_in=1,c_out=3,x_kernel=3,h_kernel=1,size=28)
-l2 = CNN(3,3,7)
+l1 = RCNN(timestamp=timestamp,c_in=1,c_out=5,x_kernel=3,h_kernel=1,size=28)
+l2 = CNN(3,5,7)
 l3 = CNN(3,7,9)
 l4 = CNN(1,9,10)
-
-internal_1 = CNN(1,3,3)
-internal_2 = CNN(1,3,3)
-internal_3 = CNN(1,3,3)
 
 # graph 
 x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32)
@@ -216,11 +208,11 @@ x2 = possin_layer(x)
 x3 = uniform_layer(x)
 
 x_inputs = [x,x1,x2,x3]
-internal_cnn = [internal_1,internal_2,internal_3,None]
 layer1_rnn_up = []
 for time in range(timestamp):
-    layer_out,layer_up = l1.feedfoward(x_inputs[time],time,internal_cnn[time])
+    layer_out,layer_up = l1.feedfoward(x_inputs[time],time)
     layer1_rnn_up.append(layer_up)
+
 layer2 = l2.feedforward(layer_out)
 layer3_Input = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer3 = l3.feedforward(layer3_Input)
