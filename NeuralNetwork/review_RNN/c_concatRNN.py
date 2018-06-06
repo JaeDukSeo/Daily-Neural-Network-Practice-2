@@ -48,11 +48,11 @@ class RCNN():
     def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size):
 
         self.w = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out]))
-        self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
+        self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out*4,c_out*4]))
 
         self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size,size,size,c_in]))
-        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
-        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
+        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out*4]))
+        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out*4]))
         
         self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h)),tf.Variable(tf.zeros_like(self.h))
@@ -63,14 +63,17 @@ class RCNN():
         hidden_assign = []
         hidden_assign.append(tf.assign(self.input_record[timestamp,:,:,:],input))
 
+        start_time = timestamp * 3
+        end_time = start_time + 3
+
         # perform feed forward
         layer =  tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')  + \
-        tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME') 
+        tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME')[:,:,:,start_time:end_time]
         layerA = tf_elu(layer)
 
         # assign for back prop
-        hidden_assign.append(tf.assign(self.hidden_record[timestamp+1,:,:,:],layer))
-        hidden_assign.append(tf.assign(self.hiddenA_record[timestamp+1,:,:,:],layerA))
+        hidden_assign.append(tf.assign(self.hidden_record[timestamp+1,:,:,:,start_time:end_time],layer))
+        hidden_assign.append(tf.assign(self.hiddenA_record[timestamp+1,:,:,:,start_time:end_time],layerA))
 
         return layerA, hidden_assign 
 
@@ -190,12 +193,12 @@ batch_size = 50
 print_size = 1
 timestamp = 4
 
-learning_rate = 0.0001
+learning_rate = 0.01
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
-l1 = RCNN(timestamp=timestamp,c_in=1,c_out=5,x_kernel=3,h_kernel=1,size=28)
-l2 = CNN(3,5,7)
+l1 = RCNN(timestamp=timestamp,c_in=1,c_out=3,x_kernel=3,h_kernel=1,size=28)
+l2 = CNN(3,3,7)
 l3 = CNN(3,7,9)
 l4 = CNN(1,9,10)
 

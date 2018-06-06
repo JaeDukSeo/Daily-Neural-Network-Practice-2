@@ -70,8 +70,8 @@ class RCNN():
         layerA = tf_elu(layer)
 
         # assign for back prop
-        hidden_assign.append(tf.assign(self.hidden_record[timestamp+1,:,:,:],layer))
-        hidden_assign.append(tf.assign(self.hiddenA_record[timestamp+1,:,:,:],layerA))
+        hidden_assign.append(tf.assign(self.hidden_record[timestamp+1,,:,:,:,:],layer))
+        hidden_assign.append(tf.assign(self.hiddenA_record[timestamp+1,:,:,:,:],layerA))
 
         return layerA, hidden_assign 
 
@@ -242,8 +242,8 @@ class CNN():
 mnist = input_data.read_data_sets("../../Dataset/MNIST/", one_hot=True)
 train_batch,train_label = mnist.train.images,mnist.train.labels
 test_batch ,test_label  = mnist.test.images,mnist.test.labels
-train_batch = np.reshape(train_batch,[-1,28,28,1])
-test_batch = np.reshape(test_batch,[-1,28,28,1])
+# train_batch = np.reshape(train_batch,[-1,28,28,1])
+# test_batch = np.reshape(test_batch,[-1,28,28,1])
 
 print(train_batch.shape)
 print(train_label.shape)
@@ -265,7 +265,7 @@ input_stream1 = FNN(784,676)
 input_stream3 = CNN(3,1,1)
 input_stream4 = FNN(784,676)
 
-l1 = RCNN(timestamp=timestamp,c_in=1,c_out=3,x_kernel=3,h_kernel=1,size=28)
+l1 = RCNN(timestamp=timestamp,c_in=1,c_out=3,x_kernel=3,h_kernel=1,size=26)
 l2 = CNN(3,3,10)
 l3 = CNN(1,10,10)
 l4 = CNN(1,10,10)
@@ -273,7 +273,6 @@ l4 = CNN(1,10,10)
 # graph 
 x = tf.placeholder(shape=[batch_size,784],dtype=tf.float32)
 y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
-phase = tf.placeholder(tf.bool)
 
 x1 = input_stream0.feedforward(tf.reshape(x,[batch_size,28,28,1]),padding='VALID')
 x2 = tf.reshape(input_stream1.feedforward(x),[batch_size,26,26,1])
