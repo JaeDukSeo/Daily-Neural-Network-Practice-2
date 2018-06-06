@@ -280,15 +280,7 @@ x2 = tf.reshape(input_stream1.feedforward(x),[batch_size,26,26,1])
 x3 = input_stream3.feedforward(tf.reshape(x,[batch_size,28,28,1]),padding='VALID')
 x4 = tf.reshape(input_stream4.feedforward(x),[batch_size,26,26,1])
 
-print(x1.shape)
-print(x2.shape)
-print(x3.shape)
-print(x4.shape)
-
-import sys
-sys.exit()
-
-x_inputs = [x,x1,x2,x3]
+x_inputs = [x1,x1,x2,x3]
 layer1_rnn_up = []
 for time in range(timestamp):
     layer_out,layer_up = l1.feedfoward(x_inputs[time],time)
