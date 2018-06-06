@@ -3,6 +3,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 from sklearn.utils import shuffle
 import plotly.plotly as py
 import plotly.graph_objs as go
+from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 np.random.seed(678)
@@ -191,23 +192,23 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper 
-num_epoch = 21
-batch_size = 50
+num_epoch = 31
+batch_size = 100
 print_size = 1
 timestamp = 4
 
-learning_rate = 0.01
+learning_rate = 0.007
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
-l1 = RCNN(timestamp=timestamp,c_in=1,c_out=3,x_kernel=3,h_kernel=1,size=28)
-l2 = CNN(3,3,7)
+l1 = RCNN(timestamp=timestamp,c_in=1,c_out=5,x_kernel=3,h_kernel=1,size=28)
+l2 = CNN(3,5,7)
 l3 = CNN(3,7,9)
 l4 = CNN(1,9,10)
 
-internal_1 = CNN(1,3,3)
-internal_2 = CNN(1,3,3)
-internal_3 = CNN(1,3,3)
+internal_1 = CNN(1,5,5)
+internal_2 = CNN(1,5,5)
+internal_3 = CNN(1,5,5)
 
 # graph 
 x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32)
@@ -289,19 +290,31 @@ with tf.Session() as sess:
     test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
 
     # training done now plot
-    plt.figure()
-    plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
-    plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
-    plt.legend()
-    plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case Train.png")
-
-    plt.figure()
-    plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
-    plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
-    plt.legend()
-    plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case Test.png")
+    trace0 = go.Scatter(
+        # x=range(len(train_cot)),
+        y=train_cot,
+        name='Train Cost Over Time'
+    )
+    trace1 = go.Scatter(
+        # x=range(len(train_cot)),
+        y=train_acc,
+        name='Train Accuracy Over Time'
+    )
+    trace2 = go.Scatter(
+        # x=range(len(train_cot)),
+        y=test_cot,
+        name='Test Cost Over Time'
+    )
+    trace3 = go.Scatter(
+        # x=range(len(train_cot)),
+        y=test_acc,
+        name='Test Accuracy Over Time'
+    )
+    data = [trace0, trace1,trace2,trace3]
+    try:
+        py.plot(data,filename='d_rnn_internal')
+    except:
+        plot(data,filename='d_rnn_internal')
 
 
 # -- end code --

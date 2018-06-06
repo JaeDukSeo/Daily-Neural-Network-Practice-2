@@ -3,6 +3,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 from sklearn.utils import shuffle
 import plotly.plotly as py
 import plotly.graph_objs as go
+from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 np.random.seed(678)
@@ -187,7 +188,7 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper 
-num_epoch =8
+num_epoch = 31
 batch_size = 100
 print_size = 1
 timestamp = 4
@@ -302,7 +303,10 @@ with tf.Session() as sess:
         name='Test Accuracy Over Time'
     )
     data = [trace0, trace1,trace2,trace3]
-    py.plot(data,filename='a_rnn_basic')
+    try:
+        py.plot(data,filename='a_rnn_basic')
+    except:
+        plot(data,filename='a_rnn_basic')
 
 
 # -- end code --
