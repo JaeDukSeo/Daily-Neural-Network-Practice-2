@@ -1,6 +1,8 @@
 import tensorflow as tf,numpy as np,pandas as pd,os
 from tensorflow.examples.tutorials.mnist import input_data
 from sklearn.utils import shuffle
+import plotly.plotly as py
+import plotly.graph_objs as go
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 np.random.seed(678)

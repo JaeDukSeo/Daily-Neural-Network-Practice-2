@@ -1,6 +1,8 @@
 import tensorflow as tf,numpy as np,pandas as pd,os
 from tensorflow.examples.tutorials.mnist import input_data
 from sklearn.utils import shuffle
+import plotly.plotly as py
+import plotly.graph_objs as go
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 np.random.seed(678)
@@ -51,8 +53,8 @@ class RCNN():
         self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out*4,c_out*4]))
 
         self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size,size,size,c_in]))
-        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out*4]))
-        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out*4]))
+        self.hidden_record  = tf.Variable(tf.zeros([1,batch_size,size,size,c_out*4]))
+        self.hiddenA_record = tf.Variable(tf.zeros([1,batch_size,size,size,c_out*4]))
         
         self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h)),tf.Variable(tf.zeros_like(self.h))
@@ -68,12 +70,12 @@ class RCNN():
 
         # perform feed forward
         layer =  tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')  + \
-        tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME')[:,:,:,start_time:end_time]
+        tf.nn.conv2d(self.hidden_record[0,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME')[:,:,:,start_time:end_time]
         layerA = tf_elu(layer)
 
         # assign for back prop
-        hidden_assign.append(tf.assign(self.hidden_record[timestamp+1,:,:,:,start_time:end_time],layer))
-        hidden_assign.append(tf.assign(self.hiddenA_record[timestamp+1,:,:,:,start_time:end_time],layerA))
+        hidden_assign.append(tf.assign(self.hidden_record[0,:,:,:,start_time:end_time],layer))
+        hidden_assign.append(tf.assign(self.hiddenA_record[0,:,:,:,start_time:end_time],layerA))
 
         return layerA, hidden_assign 
 
