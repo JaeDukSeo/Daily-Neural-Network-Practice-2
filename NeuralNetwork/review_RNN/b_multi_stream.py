@@ -8,6 +8,8 @@ tf.set_random_seed(678)
 
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + ( tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
+def tf_tanh(x): return tf.nn.tanh(x)
+def d_tf_tanh(x): return 1 - tf.square(tf_tanh(x))
 def tf_soft(x): return tf.nn.softmax(x)
 
 # Different noises of different channels
@@ -22,7 +24,6 @@ def possin_layer(layer):
 def uniform_layer(input_layer):
     noise = tf.random_uniform(shape=tf.shape(input_layer),minval=0.5,dtype=tf.float32)
     return 0.6*noise + input_layer
-
 
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
@@ -118,6 +119,71 @@ class RCNN():
         
         return grad_pass,update_w
     
+class FNN():
+
+    def __init__(self,input_dim,hidden_dim):
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim]))
+
+    def feedforward(self,input=None):
+        self.input = input
+        self.layer = tf.matmul(input,self.w)
+        self.layerA = tf_tanh(self.layer)
+        return self.layerA
+
+    def backprop(self,gradient=None):
+        grad_part_1 = gradient
+        grad_part_2 = d_tf_tanh(self.layer)
+        grad_part_3 = self.input 
+
+        grad_x_mid = tf.multiply(grad_part_1,grad_part_2)
+        grad = tf.matmul(tf.transpose(grad_part_3),grad_x_mid)
+        grad_pass = tf.matmul(tf.multiply(grad_part_1,grad_part_2),tf.transpose(self.w))
+
+        update_w = []
+        update_w.append(tf.assign(self.w, self.w - learning_rate * grad))
+        return grad_pass,update_w
+
+# PCA Layer following the implementation: https://ewanlee.github.io/2018/01/17/PCA-With-Tensorflow/
+class PCA_Layer():
+    
+    def __init__(self,dim,channel):
+        
+        self.alpha = tf.Variable(tf.random_normal(shape=[dim-2,dim-2,channel],dtype=tf.float32))
+        self.beta  = tf.Variable(tf.ones(shape=[channel],dtype=tf.float32))
+
+        self.current_sigma = None
+        self.moving_sigma = tf.Variable(tf.zeros(shape=[(dim*dim*channel),(dim*dim*channel)-108],dtype=tf.float32))
+
+    def feedforward(self,input,is_training):
+        update_sigma = []
+
+        # 1. Get the input Shape and reshape the tensor into [Batch,Dim]
+        width,channel = input.shape[1],input.shape[3]
+        reshape_input = tf.reshape(input,[batch_size,-1])
+        trans_input = reshape_input.shape[1]
+
+        # 2. Perform SVD and get the sigma value and get the sigma value
+        singular_values, u, _ = tf.svd(reshape_input,full_matrices=False)
+
+        def training_fn(): 
+            # 3. Training 
+            sigma1 = tf.diag(singular_values)
+            sigma = tf.slice(sigma1, [0,0], [trans_input, (width*width*channel)-108])
+            pca = tf.matmul(u, sigma)
+            update_sigma.append(tf.assign(self.moving_sigma,self.moving_sigma*0.9 + sigma* 0.1 ))
+            return pca,update_sigma
+
+        def testing_fn(): 
+            # 4. Testing calculate hte pca using the Exponentially Weighted Moving Averages  
+            pca = tf.matmul(u, self.moving_sigma)
+            return pca,update_sigma
+
+        pca,update_sigma = tf.cond(is_training, true_fn=training_fn, false_fn=testing_fn)
+        pca_reshaped = tf.reshape(pca,[batch_size,(width-2),(width-2),channel])
+        out_put = self.alpha * pca_reshaped +self.beta 
+        
+        return out_put,update_sigma
+
 class CNN():
     
     def __init__(self,k,inc,out):
@@ -125,9 +191,9 @@ class CNN():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
 
-    def feedforward(self,input):
+    def feedforward(self,input,padding='SAME'):
         self.input  = input
-        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')
+        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding=padding)
         self.layerA = tf_elu(self.layer)
         return self.layerA 
 
@@ -190,22 +256,37 @@ batch_size = 50
 print_size = 1
 timestamp = 4
 
-learning_rate = 0.01
+learning_rate = 0.0001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
+input_stream0 = CNN(3,1,1)
+input_stream1 = FNN(784,676)
+input_stream3 = CNN(3,1,1)
+input_stream4 = FNN(784,676)
+
 l1 = RCNN(timestamp=timestamp,c_in=1,c_out=3,x_kernel=3,h_kernel=1,size=28)
 l2 = CNN(3,3,10)
 l3 = CNN(1,10,10)
 l4 = CNN(1,10,10)
 
 # graph 
-x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,784],dtype=tf.float32)
 y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
+phase = tf.placeholder(tf.bool)
 
-x1 = gaussian_noise_layer(x)
-x2 = possin_layer(x)
-x3 = uniform_layer(x)
+x1 = input_stream0.feedforward(tf.reshape(x,[batch_size,28,28,1]),padding='VALID')
+x2 = tf.reshape(input_stream1.feedforward(x),[batch_size,26,26,1])
+x3 = input_stream3.feedforward(tf.reshape(x,[batch_size,28,28,1]),padding='VALID')
+x4 = tf.reshape(input_stream4.feedforward(x),[batch_size,26,26,1])
+
+print(x1.shape)
+print(x2.shape)
+print(x3.shape)
+print(x4.shape)
+
+import sys
+sys.exit()
 
 x_inputs = [x,x1,x2,x3]
 layer1_rnn_up = []

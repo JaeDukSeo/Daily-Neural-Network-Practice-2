@@ -190,14 +190,14 @@ batch_size = 50
 print_size = 1
 timestamp = 4
 
-learning_rate = 0.01
+learning_rate = 0.0001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
-l1 = RCNN(timestamp=timestamp,c_in=1,c_out=3,x_kernel=3,h_kernel=1,size=28)
-l2 = CNN(3,3,10)
-l3 = CNN(1,10,10)
-l4 = CNN(1,10,10)
+l1 = RCNN(timestamp=timestamp,c_in=1,c_out=5,x_kernel=3,h_kernel=1,size=28)
+l2 = CNN(3,5,7)
+l3 = CNN(3,7,9)
+l4 = CNN(1,9,10)
 
 # graph 
 x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32)

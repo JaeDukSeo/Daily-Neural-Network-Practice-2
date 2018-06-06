@@ -19,7 +19,7 @@ def d_tf_acrtan(x): return 1/(1 + tf.square(x))
 
 def tf_softmax(x): return tf.nn.softmax(x)
 
-# Different noises
+# Different noises of different channels
 def gaussian_noise_layer(input_layer,std=1.0):
     noise = tf.random_normal(shape=tf.shape(input_layer), mean=0.0, stddev=std, dtype=tf.float32) 
     return input_layer + 0.1*noise
@@ -88,7 +88,9 @@ class RCNN():
 
         self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w_x)),tf.Variable(tf.zeros_like(self.w_x))
         self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.w_h)),tf.Variable(tf.zeros_like(self.w_h))
+    
     def getw(self): return [self.w_x,self.w_h]
+
     def feedforward(self,input=None,timestamp=None):
         
         hidden_assign = []
@@ -166,10 +168,10 @@ test_images = np.reshape(mnist.test.images,(len(mnist.test.images),28,28,1)).ast
 test_label  = mnist.test.labels.astype(np.float32)
 
 # Hyper Param
-num_epoch = 801
-batch_size = 100
-learning_rate = 0.001
-print_size = 100
+num_epoch = 30
+batch_size = 50
+learning_rate = 0.0001
+print_size = 10
 
 proportion_rate = 1000
 decay_rate = 0.008
@@ -179,9 +181,10 @@ adam_e = 0.00000001
 
 
 # Make class
-l1 = RCNN(timestamp=4,x_in=1,x_out=6,
-        x_kernel = 5,h_kernel=1,width_height=24,
+l1 = RCNN(timestamp=4,x_in=1,
+        x_out=6,x_kernel = 5,h_kernel=1,width_height=24,
         act=tf_ReLU,d_act=d_tf_ReLU,batch_size=batch_size)
+
 l2 = FNN(24*24*24,512,tf_log,d_tf_log)
 l3 = FNN(512,256,tf_log,d_tf_log)
 l4 = FNN(256,10,tf_log,d_tf_log)
