@@ -48,24 +48,23 @@ class RCNN():
     def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size):
 
         self.w = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out]))
-        self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
+        self.h_1 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
+        self.h_2 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
 
         self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size,size,size,c_in]))
-        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
-        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
-        
-        self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
-        self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h)),tf.Variable(tf.zeros_like(self.h))
+        self.hidden_record  = tf.Variable(tf.zeros([timestamp+2,batch_size,size,size,c_out]))
+        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+2,batch_size,size,size,c_out]))
 
     def feedfoward(self,input,timestamp):
 
         # assign the input for back prop
         hidden_assign = []
-        hidden_assign.append(tf.assign(self.input_record[timestamp,:,:,:],input))
+        hidden_assign.append(tf.assign(self.input_record[timestamp-1,:,:,:],input))
 
         # perform feed forward
         layer =  tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')  + \
-        tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME') 
+        tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h_1,strides=[1,1,1,1],padding='SAME') + \
+        tf.nn.conv2d(self.hidden_record[timestamp-1,:,:,:,:],self.h_2,strides=[1,1,1,1],padding='SAME') 
         layerA = tf_elu(layer)
 
         # assign for back prop
@@ -190,7 +189,7 @@ batch_size = 50
 print_size = 1
 timestamp = 4
 
-learning_rate = 0.0001
+learning_rate = 0.01
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
@@ -209,8 +208,9 @@ x3 = uniform_layer(x)
 
 x_inputs = [x,x1,x2,x3]
 layer1_rnn_up = []
-for time in range(timestamp):
-    layer_out,layer_up = l1.feedfoward(x_inputs[time],time)
+for time in range(1,timestamp+1):
+    print(time)
+    layer_out,layer_up = l1.feedfoward(x_inputs[time-1],time)
     layer1_rnn_up.append(layer_up)
 
 layer2 = l2.feedforward(layer_out)
