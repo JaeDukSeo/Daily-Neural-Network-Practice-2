@@ -4,14 +4,14 @@ import sys, os,cv2
 from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
-# from imgaug import augmenters as iaa
-# import imgaug as ia
-# import os
+from imgaug import augmenters as iaa
+import imgaug as ia
+import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 np.random.seed(678) 
 tf.set_random_seed(678)
-# ia.seed(678)
+ia.seed(678)
 
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + ( tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
@@ -53,7 +53,12 @@ class CNN():
     
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
-        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.m,self.a = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.v = tf.Variable(tf.zeros_like(self.w))
+        self.Lambda = tf.Variable(tf.zeros_like(self.w))
+
+        self.phase = False
+        self.TRIANGLE_TERM = 0.0
 
     def getw(self): return self.w
 
@@ -63,34 +68,64 @@ class CNN():
         self.layerA = tf_elu(self.layer)
         return self.layerA
 
-    def backprop(self,gradient):
+    def backprop(self,gradient,iter):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
 
+        # compute gradient
         grad = tf.nn.conv2d_backprop_filter(
             input = grad_part_3,
             filter_sizes = self.w.shape,out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
         )
 
+        # grad to pass
         grad_pass = tf.nn.conv2d_backprop_input(
             input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
             filter= self.w,out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
         )
 
         update_w = []
-        update_w.append(
-            tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   )
-        )
-        update_w.append(
-            tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   )
-        )
-        m_hat = self.m / (1-beta1)
-        v_hat = self.v / (1-beta2)
-        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
+
+        if self.phase: 
+            print("\n=================MOVED TO SGD============\n")
+            update_w.append(tf.assign( self.v,self.v*beta1 +  (grad)   ))
+            SGD_update = (1-beta1) * self.v * self.TRIANGLE_TERM
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,SGD_update  )))
+        else: 
+
+            update_w.append(
+                tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   )
+            )
+            update_w.append(
+                tf.assign( self.a,self.a*beta2 + (1-beta2) * (grad ** 2)   )
+            )
+            m_hat = self.m / (1-beta1)
+            a_hat = self.a / (1-beta2)
+            p_k = learning_rate/(tf.sqrt(a_hat) + adam_e) * m_hat
+
+            update_w.append(tf.assign(self.w,tf.subtract(self.w,p_k  )))
+
+            if not tf.reduce_sum(tf.multiply(p_k,grad)) == 0 :
+                Upsilon = (tf.reduce_sum(tf.multiply(p_k,p_k)))/(-1 * tf.reduce_sum(tf.multiply(p_k,grad)) ) 
+                update_w.append(tf.assign(self.Lambda,beta2 * self.Lambda + (1-beta2) * Upsilon))
+
+                def f1(): 
+                    self.phase = True
+                    self.TRIANGLE_TERM  = self.Lambda/(1-beta2)
+                    return True 
+                def f2(): 
+                    return False 
+
+                nothing  = tf.cond(tf.logical_and(
+                        tf.greater(iter,1.0), 
+                        tf.less(tf.reduce_sum(self.Lambda/(1-beta2)-Upsilon),tf.reduce_sum(adam_e))
+                        ) , true_fn=f1,false_fn=f2)
+            else: 
+                update_w.append(tf.assign(self.Lambda,self.Lambda))
+                
 
         return grad_pass,update_w  
 
@@ -136,8 +171,8 @@ print(test_label.shape)
 num_epoch = 31
 batch_size = 50
 print_size = 1
-learning_rate = 0.00008
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+learning_rate = 0.00001
+beta1,beta2,adam_e = 0.9,0.999,1e-9
 
 proportion_rate = 1
 decay_rate = 5
@@ -156,8 +191,8 @@ l8 = CNN(1,192,192)
 l9 = CNN(1,192,10)
 
 # graph
-x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
-y = tf.placeholder(shape=[None,10],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
+y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
@@ -184,24 +219,23 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 grad9_Input = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,8,8,1])
-grad9,grad9_up = l9.backprop(grad9_Input  )
-grad8,grad8_up = l8.backprop(grad9)
-grad7,grad7_up = l7.backprop(grad8)
+grad9,grad9_up = l9.backprop(grad9_Input  ,iter=iter_variable)
+grad8,grad8_up = l8.backprop(grad9,iter=iter_variable)
+grad7,grad7_up = l7.backprop(grad8,iter=iter_variable)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input )
-grad5,grad5_up = l5.backprop(grad6  )
-grad4,grad4_up = l4.backprop(grad5)
+grad6,grad6_up = l6.backprop(grad6_Input ,iter=iter_variable)
+grad5,grad5_up = l5.backprop(grad6  ,iter=iter_variable)
+grad4,grad4_up = l4.backprop(grad5,iter=iter_variable)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input  )
-grad2,grad2_up = l2.backprop(grad3  )
-grad1,grad1_up = l1.backprop(grad2  )
+grad3,grad3_up = l3.backprop(grad3_Input  ,iter=iter_variable)
+grad2,grad2_up = l2.backprop(grad3  ,iter=iter_variable)
+grad1,grad1_up = l1.backprop(grad2  ,iter=iter_variable)
 
 grad_update =   grad9_up + grad8_up + grad7_up + \
                 grad6_up + grad5_up + grad4_up + \
                 grad3_up + grad2_up + grad1_up
-
 # sess
 with tf.Session( ) as sess:
 
@@ -266,14 +300,14 @@ with tf.Session( ) as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig('case a train.png')
+    plt.savefig('case f train.png')
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig('case a test.png')
+    plt.savefig('case f test.png')
 
 
 
