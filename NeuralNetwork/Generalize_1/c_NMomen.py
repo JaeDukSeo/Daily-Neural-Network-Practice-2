@@ -81,9 +81,11 @@ class CNN():
             filter= self.w,out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
         )
 
+        m_prev = self.m
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + learning_rate * (grad)   ))
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,self.m  )))
+        update_N = beta1 * m_prev + (1+beta1) * self.m
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,update_N  )))
 
         return grad_pass,update_w  
 
@@ -266,14 +268,14 @@ with tf.Session( ) as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig('case b train.png')
+    plt.savefig('case c train.png')
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig('case b test.png')
+    plt.savefig('case c test.png')
 
 
 
