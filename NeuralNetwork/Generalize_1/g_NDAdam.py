@@ -90,7 +90,7 @@ class CNN():
         v_hat = self.v / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_weight = self.w - adam_middel * m_hat
-        norm_w = tf.norm(update_weight,ord='euclidean',keepdims=True)
+        norm_w = tf.sqrt(tf.reduce_sum(tf.square(update_weight), keepdims=True))
         update_w.append(tf.assign(self.w, update_weight/norm_w ))
 
         return grad_pass,update_w  
@@ -138,7 +138,7 @@ num_epoch = 21
 batch_size = 50
 print_size = 1
 learning_rate = 0.00008
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 proportion_rate = 1
 decay_rate = 5
