@@ -54,12 +54,14 @@ class CNN():
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
         self.m,self.a = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.p_k = tf.Variable(tf.zeros_like(self.w))
+
         self.v = tf.Variable(tf.zeros_like(self.w))
         self.SGD_update = tf.Variable(tf.zeros_like(self.w))
 
         self.Lambda = tf.Variable(tf.zeros(shape=(),dtype=tf.float32))
-        self.phase = tf.Variable(False)
-        self.TRIANGLE_TERM = tf.Variable(tf.zeros(shape=(),dtype=tf.float32))
+        self.phase = tf.Variable(tf.constant(False))
+        self.TRIANGLE_TERM = tf.Variable(tf.ones(shape=(),dtype=tf.float32))
 
     def getw(self): return self.w
 
@@ -94,50 +96,70 @@ class CNN():
         def SGD():
             update_w2 = []
             update_w2.append(tf.assign( self.v,self.v*beta1 +  (grad)   ))
-            update_w2.append(tf.assign( self.SGD_update,(1-beta1) * self.v * self.TRIANGLE_TERM *100000000000 ))
+            update_w2.append(tf.assign( self.SGD_update,(1-beta1) * self.v * self.TRIANGLE_TERM  ))
             update_w2.append(tf.assign( self.w,tf.subtract(self.w,self.SGD_update  )))
+
+            # assign p_k for p_k as a dummy to match the condition
+            update_w2.append(tf.assign( self.p_k,self.p_k))
             return update_w2
+
         def ADAM():
             update_w2 = []
             update_w2.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
-            update_w2.append(tf.assign( self.a,self.a*beta2 + (1-beta2) * (grad ** 2)   ))            
-            self.p_k = learning_rate/(tf.sqrt((self.a / (1-beta2))) + adam_e) * (self.m / (1-beta1))
+            update_w2.append(tf.assign( self.a,self.a*beta2 + (1-beta2) * (grad ** 2)   ))     
+            update_w2.append(tf.assign(self.p_k,learning_rate/(tf.sqrt((self.a / (1-beta2))) + adam_e) * (self.m / (1-beta1)) ))
             update_w2.append(tf.assign(self.w,tf.subtract(self.w,self.p_k  )))
             return update_w2
 
-        SGD_or_ADAM = tf.cond(tf.equal(self.phase,False),true_fn = SGD,false_fn=ADAM)
+        SGD_or_ADAM = tf.cond(tf.equal(self.phase,tf.constant(True)),true_fn = lambda: SGD(),false_fn=lambda: ADAM())
         update_w.append(SGD_or_ADAM)
 
-        # # update the lamda term
-        # p_k_reshape =  tf.reshape(self.p_k,[-1,1])
-        # grad_reshape = tf.reshape(grad,[-1,1])
-        # def Lamda_up():
-        #     update_w2 = []
-        #     Upsilon = tf.squeeze((tf.matmul(tf.transpose(p_k_reshape),p_k_reshape))/(-1*tf.matmul(tf.transpose(p_k_reshape),grad_reshape)))
-        #     update_w2.append(tf.assign(self.Lambda,beta2 * self.Lambda + (1-beta2) * Upsilon))
-        #     return update_w2
-        # def Lamda_up2():
-        #     update_w2 = []
-        #     update_w2.append(tf.assign(self.Lambda,self.Lambda))
-        #     return update_w2
-        # Lamda_Update = tf.cond(tf.not_equal(tf.squeeze(tf.matmul(tf.transpose(p_k_reshape),grad_reshape)),0.0),
-        #     true_fn = Lamda_up,false_fn = Lamda_up2
-        # )
-        # update_w.append(Lamda_Update)
+        # update the lamda term if we are using Adam
+        p_k_reshape =  tf.reshape(self.p_k,[-1,1])
+        grad_reshape = tf.reshape(grad,[-1,1])
+        def Lamda_up():
+            update_w2 = []
+            Upsilon = tf.squeeze((tf.matmul(tf.transpose(p_k_reshape),p_k_reshape))/(-1*tf.matmul(tf.transpose(p_k_reshape),grad_reshape)))
+            update_w2.append(tf.assign(self.Lambda,beta2 * self.Lambda + (1-beta2) * Upsilon))
+            return update_w2
+        def Lamda_up2():
+            update_w2 = []
+            update_w2.append(tf.assign(self.Lambda,self.Lambda))
+            return update_w2
+        Lamda_Update = tf.cond(
+            tf.logical_and(
+                tf.not_equal(tf.squeeze(tf.matmul(tf.transpose(p_k_reshape),grad_reshape)),0.0),
+                tf.equal(self.phase,tf.constant(False))
+            ),
+            true_fn = lambda: Lamda_up(),false_fn = lambda: Lamda_up2())
+        update_w.append(Lamda_Update)
 
-        # # when do we switch to SGD
+        # when do we switch to SGD
         def move():
             update3 = []
-            update3.append(tf.assign(self.phase,True ))
+            update3.append(tf.assign(self.phase,tf.constant(True) ))
             update3.append(tf.assign(self.TRIANGLE_TERM,self.Lambda/(1-beta2) ))
+            update3.append(tf.Print(tf.constant(True),[tf.constant(True)],message='Moving to SGD',first_n=1))
             return update3
         def do_not_move():
             update3 = []
             update3.append(tf.assign(self.phase,self.phase ))
             update3.append(tf.assign(self.TRIANGLE_TERM,self.TRIANGLE_TERM ))
+            update3.append(tf.Print(tf.constant(True),[tf.constant(True)],message='Starting at Adam',first_n=1))
             return update3
-
-        move_to_sgd = tf.cond(tf.greater_equal(iter,1.0),true_fn=move,false_fn=do_not_move)
+        move_to_sgd = tf.cond(
+            tf.logical_and(
+                tf.greater_equal(iter,1.0),
+                tf.less(
+                    tf.squeeze(
+                        tf.abs(self.Lambda/(1-beta2) - \
+                             ((tf.matmul(tf.transpose(p_k_reshape),p_k_reshape))/(-1*tf.matmul(tf.transpose(p_k_reshape),grad_reshape)))
+                        ))
+                    ,adam_e
+                    ),
+                tf.equal(self.phase,tf.constant(False))
+            ),
+            true_fn=lambda: move(),false_fn=lambda: do_not_move())
         update_w.append(move_to_sgd)
 
         return grad_pass,update_w  
@@ -182,10 +204,10 @@ print(test_label.shape)
 
 # hyper
 num_epoch = 21
-batch_size = 100
+batch_size = 50
 print_size = 1
 learning_rate = 0.00008
-beta1,beta2,adam_e = 0.9,0.999,0.001
+beta1,beta2,adam_e = 0.9,0.999,1e-6
 
 proportion_rate = 1
 decay_rate = 5
