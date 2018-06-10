@@ -55,7 +55,7 @@ class CNN():
         self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
         self.m,self.a = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v = tf.Variable(tf.zeros_like(self.w))
-        self.Lambda = tf.Variable(tf.zeros_like(self.w))
+        self.Lambda = tf.Variable(tf.zeros(shape=(),dtype=tf.float32))
 
         self.phase = False
         self.TRIANGLE_TERM = 0.0
@@ -108,8 +108,13 @@ class CNN():
 
             update_w.append(tf.assign(self.w,tf.subtract(self.w,p_k  )))
 
-            if not tf.reduce_sum(tf.multiply(p_k,grad)) == 0 :
-                Upsilon = (tf.reduce_sum(tf.multiply(p_k,p_k)))/(-1 * tf.reduce_sum(tf.multiply(p_k,grad)) ) 
+            p_k_reshape =  tf.reshape(p_k,[-1,1])
+            grad_reshape = tf.reshape(grad,[-1,1])
+
+            if not tf.matmul(tf.transpose(p_k_reshape),grad_reshape) == 0 :
+                
+                # Upsilon = (tf.reduce_sum(tf.multiply(p_k,p_k)))/(-1 * tf.reduce_sum(tf.multiply(p_k,grad)) ) 
+                Upsilon = tf.squeeze((tf.matmul(tf.transpose(p_k_reshape),p_k_reshape))/(-1*tf.matmul(tf.transpose(p_k_reshape),grad_reshape)))
                 update_w.append(tf.assign(self.Lambda,beta2 * self.Lambda + (1-beta2) * Upsilon))
 
                 def f1(): 
@@ -121,7 +126,7 @@ class CNN():
 
                 nothing  = tf.cond(tf.logical_and(
                         tf.greater(iter,1.0), 
-                        tf.less(tf.reduce_sum(self.Lambda/(1-beta2)-Upsilon),tf.reduce_sum(adam_e))
+                        tf.less(tf.abs(tf.squeeze(self.Lambda/(1-beta2)-Upsilon) ),adam_e )
                         ) , true_fn=f1,false_fn=f2)
             else: 
                 update_w.append(tf.assign(self.Lambda,self.Lambda))
@@ -168,10 +173,10 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper
-num_epoch = 31
+num_epoch = 21
 batch_size = 50
 print_size = 1
-learning_rate = 1e-3
+learning_rate = 0.00008
 beta1,beta2,adam_e = 0.9,0.999,1e-9
 
 proportion_rate = 1
@@ -251,17 +256,19 @@ with tf.Session( ) as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        for batch_size_index in range(0,len(train_batch),batch_size):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
+        for batch_size_index in range(0,len(train_batch),batch_size//2):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
 
-            # images_aug = seq.augment_images(current_batch.astype(np.float32))
-            # current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
-            # current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
-            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
-            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
-            # current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
+            # online data augmentation here and standard normalization
+            images_aug = seq.augment_images(current_batch.astype(np.float32))
+            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0))
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
+            current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
+            # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
@@ -281,18 +288,23 @@ with tf.Session( ) as sess:
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
 
-        if iter % print_size == 0:
-            print("\n----------")
-            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),' Current Acc: ', train_acca/(len(train_batch)/batch_size),end='\n')
+        if iter % print_size==0:
+            print("\n---------- " )
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/batch_size))
-        train_cot.append(train_cota/(len(train_batch)/batch_size))
+
+        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
+
+    # normalize the cost
+    train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
+    test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
 
     # training done
     plt.figure()
@@ -308,7 +320,6 @@ with tf.Session( ) as sess:
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
     plt.savefig('case f test.png')
-
 
 
 
