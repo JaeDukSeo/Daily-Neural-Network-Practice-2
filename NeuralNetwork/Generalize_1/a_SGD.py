@@ -12,7 +12,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 np.random.seed(678) 
 tf.set_random_seed(678)
-# ia.seed(678)
+ia.seed(678)
 
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + ( tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)

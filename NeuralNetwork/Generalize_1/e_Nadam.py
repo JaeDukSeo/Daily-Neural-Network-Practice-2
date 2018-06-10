@@ -81,16 +81,18 @@ class CNN():
         )
 
         update_w = []
-        update_w.append(
-            tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   )
-        )
-        update_w.append(
-            tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   )
-        )
-        m_hat = self.m / (1-beta1)
-        v_hat = self.v / (1-beta2)
+
+        beta1_v = beta1*0.5
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+
+        grad_hat = grad  / (1-beta1_v)
+        m_hat =   self.m / (1-beta1_v)
+        v_hat =   self.v / (1-beta2)
+
+        m_hat2 = (1-beta1_v) * grad_hat + beta1 * m_hat
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,  tf.multiply(adam_middel,m_hat2)  )))
 
         return grad_pass,update_w  
 
@@ -136,7 +138,7 @@ print(test_label.shape)
 num_epoch = 21
 batch_size = 50
 print_size = 1
-learning_rate = 0.00008
+learning_rate = 0.000000000000001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 proportion_rate = 1
@@ -273,14 +275,14 @@ with tf.Session( ) as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig('case d train.png')
+    plt.savefig('case e train.png')
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig('case d test.png')
+    plt.savefig('case e test.png')
 
 
 
