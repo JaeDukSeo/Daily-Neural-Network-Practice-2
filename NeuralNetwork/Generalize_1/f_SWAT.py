@@ -55,10 +55,11 @@ class CNN():
         self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
         self.m,self.a = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v = tf.Variable(tf.zeros_like(self.w))
-        self.Lambda = tf.Variable(tf.zeros(shape=(),dtype=tf.float32))
+        self.SGD_update = tf.Variable(tf.zeros_like(self.w))
 
-        self.phase = False
-        self.TRIANGLE_TERM = 0.0
+        self.Lambda = tf.Variable(tf.zeros(shape=(),dtype=tf.float32))
+        self.phase = tf.Variable(False)
+        self.TRIANGLE_TERM = tf.Variable(tf.zeros(shape=(),dtype=tf.float32))
 
     def getw(self): return self.w
 
@@ -89,48 +90,55 @@ class CNN():
 
         update_w = []
 
-        if self.phase: 
-            print("\n=================MOVED TO SGD============\n")
-            update_w.append(tf.assign( self.v,self.v*beta1 +  (grad)   ))
-            SGD_update = (1-beta1) * self.v * self.TRIANGLE_TERM
-            update_w.append(tf.assign(self.w,tf.subtract(self.w,SGD_update  )))
-        else: 
+        # do we do SGD or ADAM
+        def SGD():
+            update_w2 = []
+            update_w2.append(tf.assign( self.v,self.v*beta1 +  (grad)   ))
+            update_w2.append(tf.assign( self.SGD_update,(1-beta1) * self.v * self.TRIANGLE_TERM *100000000000 ))
+            update_w2.append(tf.assign( self.w,tf.subtract(self.w,self.SGD_update  )))
+            return update_w2
+        def ADAM():
+            update_w2 = []
+            update_w2.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+            update_w2.append(tf.assign( self.a,self.a*beta2 + (1-beta2) * (grad ** 2)   ))            
+            self.p_k = learning_rate/(tf.sqrt((self.a / (1-beta2))) + adam_e) * (self.m / (1-beta1))
+            update_w2.append(tf.assign(self.w,tf.subtract(self.w,self.p_k  )))
+            return update_w2
 
-            update_w.append(
-                tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   )
-            )
-            update_w.append(
-                tf.assign( self.a,self.a*beta2 + (1-beta2) * (grad ** 2)   )
-            )
-            m_hat = self.m / (1-beta1)
-            a_hat = self.a / (1-beta2)
-            p_k = learning_rate/(tf.sqrt(a_hat) + adam_e) * m_hat
+        SGD_or_ADAM = tf.cond(tf.equal(self.phase,False),true_fn = SGD,false_fn=ADAM)
+        update_w.append(SGD_or_ADAM)
 
-            update_w.append(tf.assign(self.w,tf.subtract(self.w,p_k  )))
+        # # update the lamda term
+        # p_k_reshape =  tf.reshape(self.p_k,[-1,1])
+        # grad_reshape = tf.reshape(grad,[-1,1])
+        # def Lamda_up():
+        #     update_w2 = []
+        #     Upsilon = tf.squeeze((tf.matmul(tf.transpose(p_k_reshape),p_k_reshape))/(-1*tf.matmul(tf.transpose(p_k_reshape),grad_reshape)))
+        #     update_w2.append(tf.assign(self.Lambda,beta2 * self.Lambda + (1-beta2) * Upsilon))
+        #     return update_w2
+        # def Lamda_up2():
+        #     update_w2 = []
+        #     update_w2.append(tf.assign(self.Lambda,self.Lambda))
+        #     return update_w2
+        # Lamda_Update = tf.cond(tf.not_equal(tf.squeeze(tf.matmul(tf.transpose(p_k_reshape),grad_reshape)),0.0),
+        #     true_fn = Lamda_up,false_fn = Lamda_up2
+        # )
+        # update_w.append(Lamda_Update)
 
-            p_k_reshape =  tf.reshape(p_k,[-1,1])
-            grad_reshape = tf.reshape(grad,[-1,1])
+        # # when do we switch to SGD
+        def move():
+            update3 = []
+            update3.append(tf.assign(self.phase,True ))
+            update3.append(tf.assign(self.TRIANGLE_TERM,self.Lambda/(1-beta2) ))
+            return update3
+        def do_not_move():
+            update3 = []
+            update3.append(tf.assign(self.phase,self.phase ))
+            update3.append(tf.assign(self.TRIANGLE_TERM,self.TRIANGLE_TERM ))
+            return update3
 
-            if not tf.matmul(tf.transpose(p_k_reshape),grad_reshape) == 0 :
-                
-                # Upsilon = (tf.reduce_sum(tf.multiply(p_k,p_k)))/(-1 * tf.reduce_sum(tf.multiply(p_k,grad)) ) 
-                Upsilon = tf.squeeze((tf.matmul(tf.transpose(p_k_reshape),p_k_reshape))/(-1*tf.matmul(tf.transpose(p_k_reshape),grad_reshape)))
-                update_w.append(tf.assign(self.Lambda,beta2 * self.Lambda + (1-beta2) * Upsilon))
-
-                def f1(): 
-                    self.phase = True
-                    self.TRIANGLE_TERM  = self.Lambda/(1-beta2)
-                    return True 
-                def f2(): 
-                    return False 
-
-                nothing  = tf.cond(tf.logical_and(
-                        tf.greater(iter,1.0), 
-                        tf.less(tf.abs(tf.squeeze(self.Lambda/(1-beta2)-Upsilon) ),adam_e )
-                        ) , true_fn=f1,false_fn=f2)
-            else: 
-                update_w.append(tf.assign(self.Lambda,self.Lambda))
-                
+        move_to_sgd = tf.cond(tf.greater_equal(iter,1.0),true_fn=move,false_fn=do_not_move)
+        update_w.append(move_to_sgd)
 
         return grad_pass,update_w  
 
@@ -174,10 +182,10 @@ print(test_label.shape)
 
 # hyper
 num_epoch = 21
-batch_size = 50
+batch_size = 100
 print_size = 1
 learning_rate = 0.00008
-beta1,beta2,adam_e = 0.9,0.999,1e-9
+beta1,beta2,adam_e = 0.9,0.999,0.001
 
 proportion_rate = 1
 decay_rate = 5
@@ -241,6 +249,9 @@ grad1,grad1_up = l1.backprop(grad2  ,iter=iter_variable)
 grad_update =   grad9_up + grad8_up + grad7_up + \
                 grad6_up + grad5_up + grad4_up + \
                 grad3_up + grad2_up + grad1_up
+
+# sys.exit()
+
 # sess
 with tf.Session( ) as sess:
 
@@ -278,11 +289,9 @@ with tf.Session( ) as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
-
             sess_result = sess.run([cost,accuracy,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
@@ -293,7 +302,6 @@ with tf.Session( ) as sess:
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
-
 
         train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
         train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
