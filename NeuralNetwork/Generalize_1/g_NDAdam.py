@@ -53,15 +53,7 @@ class CNN():
     
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
-        self.m,self.a = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
-        self.p_k = tf.Variable(tf.zeros_like(self.w))
-
-        self.v = tf.Variable(tf.zeros_like(self.w))
-        self.SGD_update = tf.Variable(tf.zeros_like(self.w))
-
-        self.Lambda = tf.Variable(tf.zeros(shape=(),dtype=tf.float32))
-        self.phase = tf.Variable(tf.constant(False))
-        self.TRIANGLE_TERM = tf.Variable(tf.ones(shape=(),dtype=tf.float32))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
     def getw(self): return self.w
 
@@ -71,20 +63,18 @@ class CNN():
         self.layerA = tf_elu(self.layer)
         return self.layerA
 
-    def backprop(self,gradient,iter):
+    def backprop(self,gradient):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
 
-        # compute gradient
         grad = tf.nn.conv2d_backprop_filter(
             input = grad_part_3,
             filter_sizes = self.w.shape,out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
         )
 
-        # grad to pass
         grad_pass = tf.nn.conv2d_backprop_input(
             input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
             filter= self.w,out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
@@ -92,77 +82,19 @@ class CNN():
 
         update_w = []
 
-        # do we do SGD or ADAM
-        def SGD():
-            update_w2 = []
-            update_w2.append(tf.assign( self.v,self.v*beta1 +  (grad)   ))
-            update_w2.append(tf.assign( self.SGD_update,(1-beta1) * self.v * self.TRIANGLE_TERM *0.0001 ))
-            update_w2.append(tf.assign( self.w,tf.subtract(self.w,self.SGD_update  )))
+        g_proj = tf.reduce_sum(grad * self.w,keep_dims=True)
+        grad = grad - g_proj * self.w
 
-            # assign p_k for p_k as a dummy to match the condition
-            update_w2.append(tf.assign( self.p_k,self.p_k))
-            return update_w2
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
 
-        def ADAM():
-            update_w2 = []
-            update_w2.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
-            update_w2.append(tf.assign( self.a,self.a*beta2 + (1-beta2) * (grad ** 2)   ))     
-            update_w2.append(tf.assign(self.p_k,learning_rate/(tf.sqrt((self.a / (1-beta2))) + adam_e) * (self.m / (1-beta1)) ))
-            update_w2.append(tf.assign(self.w,tf.subtract(self.w,self.p_k  )))
-            return update_w2
+        update_w = self.w - adam_middel * m_hat
+        norm_w   = tf.sqrt(tf.reduce_sum(tf.square(update_w), self.w , keep_dims=True))
 
-        SGD_or_ADAM = tf.cond(tf.equal(self.phase,tf.constant(True)),true_fn = lambda: SGD(),false_fn=lambda: ADAM())
-        update_w.append(SGD_or_ADAM)
-
-        # update the lamda term if we are using Adam
-        p_k_reshape =  tf.reshape(self.p_k,[-1,1])
-        grad_reshape = tf.reshape(grad,[-1,1])
-        def Lamda_up():
-            update_w2 = []
-            Upsilon = tf.squeeze((tf.matmul(tf.transpose(p_k_reshape),p_k_reshape))/(-1*tf.matmul(tf.transpose(p_k_reshape),grad_reshape)))
-            update_w2.append(tf.assign(self.Lambda,beta2 * self.Lambda + (1-beta2) * Upsilon))
-            return update_w2
-        def Lamda_up2():
-            update_w2 = []
-            update_w2.append(tf.assign(self.Lambda,self.Lambda))
-            return update_w2
-        Lamda_Update = tf.cond(
-            tf.logical_and(
-                tf.not_equal(tf.squeeze(tf.matmul(tf.transpose(p_k_reshape),grad_reshape)),0.0),
-                tf.equal(self.phase,tf.constant(False))
-            ),
-            true_fn = lambda: Lamda_up(),false_fn = lambda: Lamda_up2())
-        update_w.append(Lamda_Update)
-
-        # when do we switch to SGD
-        def move():
-            update3 = []
-            update3.append(tf.assign(self.phase,tf.constant(True) ))
-            update3.append(tf.assign(self.TRIANGLE_TERM,self.Lambda/(1-beta2) ))
-            update3.append(tf.Print(tf.constant(True),[tf.constant(True)],message='Moving to SGD',first_n=1))
-            return update3
-        def do_not_move():
-            update3 = []
-            update3.append(tf.assign(self.phase,self.phase ))
-            update3.append(tf.assign(self.TRIANGLE_TERM,self.TRIANGLE_TERM ))
-            update3.append(tf.Print(tf.constant(True),[tf.constant(True)],message='Starting at Adam',first_n=1))
-            return update3
-        move_to_sgd = tf.cond(
-            tf.logical_and(
-                tf.logical_and(
-                    tf.greater_equal(iter,1.0),
-                    tf.less(
-                        tf.squeeze(
-                            tf.abs(self.Lambda/(1-beta2) - \
-                                ((tf.matmul(tf.transpose(p_k_reshape),p_k_reshape))/(-1*tf.matmul(tf.transpose(p_k_reshape),grad_reshape)))
-                            ))
-                        ,adam_e
-                        ),
-                    ),
-                tf.equal(self.phase,tf.constant(False))
-            ),
-            true_fn=lambda: move(),false_fn=lambda: do_not_move())
-        update_w.append(move_to_sgd)
+        update_w.append(tf.assign(self.w, update_w/norm_w ))
 
         return grad_pass,update_w  
 
@@ -209,7 +141,7 @@ num_epoch = 21
 batch_size = 50
 print_size = 1
 learning_rate = 0.00008
-beta1,beta2,adam_e = 0.9,0.999,1e-6
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 proportion_rate = 1
 decay_rate = 5
@@ -228,8 +160,8 @@ l8 = CNN(1,192,192)
 l9 = CNN(1,192,10)
 
 # graph
-x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
-y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
+x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32)
+y = tf.placeholder(shape=[None,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
 decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
@@ -256,25 +188,23 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 grad9_Input = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,8,8,1])
-grad9,grad9_up = l9.backprop(grad9_Input  ,iter=iter_variable)
-grad8,grad8_up = l8.backprop(grad9,iter=iter_variable)
-grad7,grad7_up = l7.backprop(grad8,iter=iter_variable)
+grad9,grad9_up = l9.backprop(grad9_Input  )
+grad8,grad8_up = l8.backprop(grad9)
+grad7,grad7_up = l7.backprop(grad8)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input ,iter=iter_variable)
-grad5,grad5_up = l5.backprop(grad6  ,iter=iter_variable)
-grad4,grad4_up = l4.backprop(grad5,iter=iter_variable)
+grad6,grad6_up = l6.backprop(grad6_Input )
+grad5,grad5_up = l5.backprop(grad6  )
+grad4,grad4_up = l4.backprop(grad5)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input  ,iter=iter_variable)
-grad2,grad2_up = l2.backprop(grad3  ,iter=iter_variable)
-grad1,grad1_up = l1.backprop(grad2  ,iter=iter_variable)
+grad3,grad3_up = l3.backprop(grad3_Input  )
+grad2,grad2_up = l2.backprop(grad3  )
+grad1,grad1_up = l1.backprop(grad2  )
 
 grad_update =   grad9_up + grad8_up + grad7_up + \
                 grad6_up + grad5_up + grad4_up + \
                 grad3_up + grad2_up + grad1_up
-
-# sys.exit()
 
 # sess
 with tf.Session( ) as sess:
@@ -313,9 +243,11 @@ with tf.Session( ) as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
+
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
+
             sess_result = sess.run([cost,accuracy,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
@@ -326,6 +258,7 @@ with tf.Session( ) as sess:
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
+
 
         train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
         train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
@@ -344,14 +277,15 @@ with tf.Session( ) as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig('case f train.png')
+    plt.savefig('case g train.png')
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig('case f test.png')
+    plt.savefig('case g test.png')
+
 
 
 
