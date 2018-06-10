@@ -171,7 +171,7 @@ print(test_label.shape)
 num_epoch = 31
 batch_size = 50
 print_size = 1
-learning_rate = 0.00001
+learning_rate = 1e-3
 beta1,beta2,adam_e = 0.9,0.999,1e-9
 
 proportion_rate = 1
