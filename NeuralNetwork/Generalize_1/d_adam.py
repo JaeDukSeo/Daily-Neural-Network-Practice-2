@@ -4,14 +4,14 @@ import sys, os,cv2
 from sklearn.utils import shuffle
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
-# from imgaug import augmenters as iaa
-# import imgaug as ia
-# import os
+from imgaug import augmenters as iaa
+import imgaug as ia
+import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 np.random.seed(678) 
 tf.set_random_seed(678)
-# ia.seed(678)
+ia.seed(678)
 
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + ( tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
@@ -217,17 +217,19 @@ with tf.Session( ) as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        for batch_size_index in range(0,len(train_batch),batch_size):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
+        for batch_size_index in range(0,len(train_batch),batch_size//2):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
 
-            # images_aug = seq.augment_images(current_batch.astype(np.float32))
-            # current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
-            # current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
-            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
-            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
-            # current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
+            # online data augmentation here and standard normalization
+            images_aug = seq.augment_images(current_batch.astype(np.float32))
+            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0))
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
+            current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
+            # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
@@ -247,18 +249,23 @@ with tf.Session( ) as sess:
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
 
-        if iter % print_size == 0:
-            print("\n----------")
-            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),' Current Acc: ', train_acca/(len(train_batch)/batch_size),end='\n')
+        if iter % print_size==0:
+            print("\n---------- " )
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/batch_size))
-        train_cot.append(train_cota/(len(train_batch)/batch_size))
+
+        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
+
+    # normalize the cost
+    train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
+    test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
 
     # training done
     plt.figure()
@@ -266,14 +273,14 @@ with tf.Session( ) as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig('case a train.png')
+    plt.savefig('case d train.png')
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig('case a test.png')
+    plt.savefig('case d test.png')
 
 
 
