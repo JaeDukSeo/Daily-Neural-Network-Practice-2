@@ -82,19 +82,16 @@ class CNN():
 
         update_w = []
 
-        g_proj = tf.reduce_sum(grad * self.w,keep_dims=True)
+        g_proj = tf.reduce_sum(grad * self.w,keepdims=True)
         grad = grad - g_proj * self.w
-
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
         update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-
-        update_w = self.w - adam_middel * m_hat
-        norm_w   = tf.sqrt(tf.reduce_sum(tf.square(update_w), self.w , keep_dims=True))
-
-        update_w.append(tf.assign(self.w, update_w/norm_w ))
+        update_weight = self.w - adam_middel * m_hat
+        norm_w = tf.norm(update_weight,ord='euclidean',keepdims=True)
+        update_w.append(tf.assign(self.w, update_weight/norm_w ))
 
         return grad_pass,update_w  
 

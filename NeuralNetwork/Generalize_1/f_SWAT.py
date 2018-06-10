@@ -96,7 +96,7 @@ class CNN():
         def SGD():
             update_w2 = []
             update_w2.append(tf.assign( self.v,self.v*beta1 +  (grad)   ))
-            update_w2.append(tf.assign( self.SGD_update,(1-beta1) * self.v * self.TRIANGLE_TERM *0.0001 ))
+            update_w2.append(tf.assign( self.SGD_update,(1-beta1) * self.v * self.TRIANGLE_TERM *0.01 ))
             update_w2.append(tf.assign( self.w,tf.subtract(self.w,self.SGD_update  )))
 
             # assign p_k for p_k as a dummy to match the condition
