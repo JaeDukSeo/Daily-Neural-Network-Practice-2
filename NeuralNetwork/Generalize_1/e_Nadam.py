@@ -63,7 +63,7 @@ class CNN():
         self.layerA = tf_elu(self.layer)
         return self.layerA
 
-    def backprop(self,gradient):
+    def backprop(self,gradient,iter):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -81,16 +81,14 @@ class CNN():
         )
 
         update_w = []
-
-        beta1_v = beta1*0.5
+        u_t =   (beta1 *  (1-0.5*tf.pow(0.96,iter/250) ))
+        u_t1 = (beta1 * (1-0.5*tf.pow(0.96,(iter+1.0)/250) ))
+        grad_update = grad / (1-u_t)
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
         update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
-
-        grad_hat = grad  / (1-beta1_v)
-        m_hat =   self.m / (1-beta1_v)
-        v_hat =   self.v / (1-beta2)
-
-        m_hat2 = (1-beta1_v) * grad_hat + beta1 * m_hat
+        m_hat =   self.m /  (1-u_t1)
+        v_hat =   self.v /  (1-beta2)
+        m_hat2 = (1-u_t) * grad_update + u_t1 * m_hat
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,  tf.multiply(adam_middel,m_hat2)  )))
 
@@ -138,7 +136,7 @@ print(test_label.shape)
 num_epoch = 21
 batch_size = 50
 print_size = 1
-learning_rate = 0.000000000000001
+learning_rate = 1e-10
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 proportion_rate = 1
@@ -186,19 +184,19 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 grad9_Input = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,8,8,1])
-grad9,grad9_up = l9.backprop(grad9_Input  )
-grad8,grad8_up = l8.backprop(grad9)
-grad7,grad7_up = l7.backprop(grad8)
+grad9,grad9_up = l9.backprop(grad9_Input  ,iter=iter_variable)
+grad8,grad8_up = l8.backprop(grad9,iter=iter_variable)
+grad7,grad7_up = l7.backprop(grad8,iter=iter_variable)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
-grad6,grad6_up = l6.backprop(grad6_Input )
-grad5,grad5_up = l5.backprop(grad6  )
-grad4,grad4_up = l4.backprop(grad5)
+grad6,grad6_up = l6.backprop(grad6_Input ,iter=iter_variable)
+grad5,grad5_up = l5.backprop(grad6  ,iter=iter_variable)
+grad4,grad4_up = l4.backprop(grad5,iter=iter_variable)
 
 grad3_Input = tf_repeat(grad4,[1,2,2,1])
-grad3,grad3_up = l3.backprop(grad3_Input  )
-grad2,grad2_up = l2.backprop(grad3  )
-grad1,grad1_up = l1.backprop(grad2  )
+grad3,grad3_up = l3.backprop(grad3_Input  ,iter=iter_variable)
+grad2,grad2_up = l2.backprop(grad3  ,iter=iter_variable)
+grad1,grad1_up = l1.backprop(grad2  ,iter=iter_variable)
 
 grad_update =   grad9_up + grad8_up + grad7_up + \
                 grad6_up + grad5_up + grad4_up + \
