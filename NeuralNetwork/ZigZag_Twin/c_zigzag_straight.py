@@ -280,9 +280,7 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta2=0.9).minimize(cost)
 
 # sess
-sess = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
-# with tf.Session() as sess:
-with sess:
+with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     
@@ -313,8 +311,7 @@ with sess:
             # current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
             
-            sys.exit()
-            sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,auto_train,correct_prediction,final_soft],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -325,7 +322,7 @@ with sess:
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
-            sess_result = sess.run([cost,accuracy,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            sess_result = sess.run([cost,accuracy,final_soft],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
@@ -353,14 +350,13 @@ with sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig('case b train.png')
+    plt.savefig('case c train.png')
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig('case b test.png')
-
+    plt.savefig('case c test.png')
 
 # -- end code --
