@@ -157,9 +157,9 @@ l5  = CNN(3,192,192) # L
 
 l6  = CNN(3,192,192) # R
 
-l7  = CNN(1,192,96) # L
+l7  = CNN(1,192,192) # L
 
-l8  = CNN(1,192,96) # R
+l8  = CNN(1,192,192) # R
 
 l9  = CNN(1,192,192) # L
 
@@ -175,22 +175,19 @@ decay_dilated_rate = proportion_rate / (1 + decay_rate * iter_variable)
 layer1 = l1.feedforward(x)
 layer2 = l2.feedforward(layer1)
 
-layer3_Input1 = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer3_Input2 = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer3_Input1 = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer3 = l3.feedforward(layer3_Input1)
-layer4 = l4.feedforward(layer3_Input2)
+layer4 = l4.feedforward(layer3)
 
-layer5_Input1 = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer5_Input2 = tf.nn.avg_pool(layer4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer5_Input1 = tf.nn.avg_pool(layer4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer5 = l5.feedforward(layer5_Input1)
-layer6 = l6.feedforward(layer5_Input2)
+layer6 = l6.feedforward(layer5)
 
-layer7_Input1 = tf.nn.avg_pool(layer5,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer7_Input2 = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer7_Input1 = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7 = l7.feedforward(layer7_Input1)
-layer8 = l8.feedforward(layer7_Input2)
+layer8 = l8.feedforward(layer7)
 
-layer9_Input = tf.nn.avg_pool(tf.concat([layer8,layer7],axis=3),ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer9_Input = tf.nn.avg_pool(layer8,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer9  = l9.feedforward(layer9_Input)
 layer10 = l10.feedforward(layer9)
 
@@ -205,8 +202,8 @@ grad10_Input     = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,2,2
 grad10,grad10_up = l10.backprop(grad10_Input)
 grad9,grad9_up   = l9.backprop(grad10)
 
-grad8_Input1 = tf_repeat(grad9[:,:,:,:96],[1,2,2,1])
-grad8_Input2 = tf_repeat(grad9[:,:,:,96:],[1,2,2,1])
+grad8_Input1 = tf_repeat(grad9,[1,2,2,1])
+grad8_Input2 = tf_repeat(grad9,[1,2,2,1])
 grad8,grad8_up = l8.backprop(grad8_Input1)
 grad7,grad7_up = l7.backprop(grad8_Input2)
 
