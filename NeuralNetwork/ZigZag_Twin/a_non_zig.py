@@ -64,80 +64,74 @@ def tf_repeat(tensor, repeats):
     return repeated_tesnor
 
 # class recurrent CNN and CNN
-class RCNN():
+class Zig_Zag_RCNN():
 
     def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size):
 
-        self.w = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out]))
-        self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
+        self.w_1 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out]))
+        self.h_1 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
 
-        self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size//2,size,size,c_in]))
-        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
-        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
+        self.w_2 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out]))
+        self.h_2 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
+
+        self.input_record_1   = tf.Variable(tf.zeros([timestamp,batch_size//2,size,size,c_in]))
+        self.hidden_record_1  = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
+        self.hiddenA_record_1 = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
         
-        self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
-        self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h)),tf.Variable(tf.zeros_like(self.h))
+        self.input_record_2   = tf.Variable(tf.zeros([timestamp,batch_size//2,size,size,c_in]))
+        self.hidden_record_2  = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
+        self.hiddenA_record_2 = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
 
-    def feedfoward(self,input,timestamp):
+    def feedforward_straight(self,input,timestamp):
 
-        # assign the input for back prop
+        # assign the inputs 
         hidden_assign = []
-        hidden_assign.append(tf.assign(self.input_record[timestamp,:,:,:],input))
-
-        # perform feed forward
-        layer =  tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')  + \
-        tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME') 
-        layerA = tf_elu(layer)
-
-        # assign for back prop
-        hidden_assign.append(tf.assign(self.hidden_record[timestamp+1,:,:,:,:],layer))
-        hidden_assign.append(tf.assign(self.hiddenA_record[timestamp+1,:,:,:,:],layerA))
-
-        return layerA, hidden_assign 
-
-    def backprop(self,grad,timestamp):
-
-        grad_1 = grad
-        grad_2 = d_tf_elu(self.hidden_record[timestamp,:,:,:,:])
-        grad_3_x = self.input_record[timestamp,:,:,:,:]
-        grad_3_h = self.hiddenA_record[timestamp-1,:,:,:,:]
-
-        grad_middle = grad_1 * grad_2
-
-        grad_x = tf.nn.conv2d_backprop_filter(
-            input=grad_3_x,filter_size = self.w.shape,
-            out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
-        )
-
-        grad_h = tf.nn.conv2d_backprop_filter(
-            input=grad_3_h,filter_size = self.h.shape,
-            out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
-        )
-
-        grad_pass = tf.nn.conv2d_backprop_input(
-            input_size = self.hiddenA_record[timestamp-1,:,:,:].shape,
-            filter=self.h,out_backprop = grad_middle,
-            strides=[1,1,1,1],padding='SAME'
-        )
-
-        update_w = []
-        # === update x ====
-        update_w.append( tf.assign(self.m_x,beta_1*self.m_x + (1-beta_1) * grad_x)  )
-        update_w.append( tf.assign(self.v_x,beta_2*self.v_x + (1-beta_2) * grad_x ** 2) )
-        m_hat_x = self.m_x/(1-beta_1)
-        v_hat_x = self.v_x/(1-beta_2)
-        adam_middle_x = learning_rate/(tf.sqrt(v_hat_x) + adam_e)
-        update_w.append( tf.assign(self.w_x, tf.subtract(self.w_x,adam_middle_x*m_hat_x))  )
-
-        # === update h ====
-        update_w.append( tf.assign(self.m_h,beta_1*self.m_h + (1-beta_1) * grad_h)  )
-        update_w.append( tf.assign(self.v_h,beta_2*self.v_h + (1-beta_2) * grad_h ** 2) )
-        m_hat_h = self.m_h/(1-beta_1)
-        v_hat_h = self.v_h/(1-beta_2)
-        adam_middle_h = learning_rate/(tf.sqrt(v_hat_h) + adam_e)
-        update_w.append( tf.assign(self.w_h, tf.subtract(self.w_h,adam_middle_h*m_hat_h))  )
         
-        return grad_pass,update_w
+        # perform feed forward on left
+        layer_1 =  tf.nn.conv2d(input,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
+        tf.nn.conv2d(self.hiddenA_record_1[timestamp,:,:,:,:],self.h_1,strides=[1,1,1,1],padding='SAME') 
+        layerA_1 = tf_elu(layer_1)
+
+        # perform feed forward on right
+        layer_2 =  tf.nn.conv2d(input,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
+        tf.nn.conv2d(self.hiddenA_record_2[timestamp,:,:,:,:],self.h_2,strides=[1,1,1,1],padding='SAME') 
+        layerA_2 = tf_elu(layer_2)
+    
+        # assign for left
+        hidden_assign.append(tf.assign(self.hidden_record_1[timestamp+1,:,:,:,:],layer_1))
+        hidden_assign.append(tf.assign(self.hiddenA_record_1[timestamp+1,:,:,:,:],layerA_1))
+
+        # assign for right
+        hidden_assign.append(tf.assign(self.hidden_record_2[timestamp+1,:,:,:,:],layer_2))
+        hidden_assign.append(tf.assign(self.hiddenA_record_2[timestamp+1,:,:,:,:],layerA_2))
+
+        return layerA_1,layerA_2,hidden_assign
+
+    def feedforward_zigzag(self,input,timestamp):
+        
+        # assign the inputs 
+        hidden_assign = []
+        
+        # perform feed forward on left
+        layer_1 =  tf.nn.conv2d(input,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
+        tf.nn.conv2d(self.hiddenA_record_2[timestamp,:,:,:,:],self.h_1,strides=[1,1,1,1],padding='SAME') 
+        layerA_1 = tf_elu(layer_1)
+
+        # perform feed forward on right
+        layer_2 =  tf.nn.conv2d(input,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
+        tf.nn.conv2d(self.hiddenA_record_1[timestamp,:,:,:,:],self.h_2,strides=[1,1,1,1],padding='SAME') 
+        layerA_2 = tf_elu(layer_2)
+    
+        # assign for left
+        hidden_assign.append(tf.assign(self.hidden_record_1[timestamp+1,:,:,:,:],layer_1))
+        hidden_assign.append(tf.assign(self.hiddenA_record_1[timestamp+1,:,:,:,:],layerA_1))
+
+        # assign for right
+        hidden_assign.append(tf.assign(self.hidden_record_2[timestamp+1,:,:,:,:],layer_2))
+        hidden_assign.append(tf.assign(self.hiddenA_record_2[timestamp+1,:,:,:,:],layerA_2))
+
+        return layerA_1,layerA_2,hidden_assign
+        
     
 class CNN():
     
@@ -241,8 +235,7 @@ learning_rate = 0.00008
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
-r_stream1 = RCNN(timestamp=timestamp,c_in=3,c_out=96,x_kernel=3,h_kernel=1,size=32)
-r_stream2 = RCNN(timestamp=timestamp,c_in=3,c_out=96,x_kernel=3,h_kernel=1,size=32)
+ZigZag_RCNN = Zig_Zag_RCNN(timestamp=timestamp,c_in=3,c_out=96,x_kernel=3,h_kernel=1,size=32)
 
 l1 = CNN(3,192,192)
 l2 = CNN(3,192,192)
@@ -259,20 +252,14 @@ y = tf.placeholder(shape=[batch_size//2,10],dtype=tf.float32)
 x_original_image = x[:batch_size//2,:,:,:]
 x_augment_image  = x[batch_size//2:,:,:,:]
 
-# feed forward the RNN stream 1 for 4 time stamps
-r_stream_1_1,r_stream_1_1_u = r_stream1.feedfoward(x_original_image,0)
-r_stream_1_2,r_stream_1_2_u = r_stream1.feedfoward(x_augment_image,1)
-r_stream_1_3,r_stream_1_3_u = r_stream1.feedfoward(x_original_image,2)
-r_stream_1_4,r_stream_1_4_u = r_stream1.feedfoward(x_augment_image,3)
-
-# feed forward the RNN stream 2 for 4 time stamps
-r_stream_2_1,r_stream_2_1_u = r_stream2.feedfoward(x_original_image,0)
-r_stream_2_2,r_stream_2_2_u = r_stream2.feedfoward(x_augment_image,1)
-r_stream_2_3,r_stream_2_3_u = r_stream2.feedfoward(x_original_image,2)
-r_stream_2_4,r_stream_2_4_u = r_stream2.feedfoward(x_augment_image,3)
+# at time stamp 0 perform 
+layer1_L_ts_0,layer1_R_ts_0,layer1_ts_0_Up = ZigZag_RCNN.feedforward_straight(x_original_image,0)
+layer1_L_ts_1,layer1_R_ts_1,layer1_ts_1_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,1)
+layer1_L_ts_2,layer1_R_ts_2,layer1_ts_2_Up = ZigZag_RCNN.feedforward_straight(x_original_image,2)
+layer1_L_ts_3,layer1_R_ts_3,layer1_ts_3_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,3)
 
 # concat the final output of the two stream and give it to CNN
-convolution_network_input = tf.concat([r_stream_1_4,r_stream_2_4],axis=3)
+convolution_network_input = tf.concat([layer1_L_ts_3,layer1_R_ts_3],axis=3)
 
 layer1_Input = tf.nn.avg_pool(convolution_network_input,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer1 = l2.feedforward(layer1_Input)
@@ -284,17 +271,13 @@ layer4 = l4.feedforward(layer4_Input)
 layer5 = l5.feedforward(layer4)
 layer6 = l6.feedforward(layer5)
 
-print(layer6)
-
 final_global = tf.reduce_mean(layer6,[1,2])
 final_soft = tf_soft(final_global)
-
-sys.exit()
 
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta2=0.9).minimize(cost)
 
 # sess
 sess = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
@@ -311,6 +294,7 @@ with sess:
 
     for iter in range(num_epoch):
 
+        # shuffle the training images for regul
         train_batch,train_label = shuffle(train_batch,train_label)
 
         for batch_size_index in range(0,len(train_batch),batch_size//2):
@@ -369,14 +353,14 @@ with sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig('case c train.png')
+    plt.savefig('case a train.png')
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig('case c test.png')
+    plt.savefig('case a test.png')
 
 
 # -- end code --

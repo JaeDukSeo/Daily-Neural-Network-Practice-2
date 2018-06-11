@@ -255,7 +255,7 @@ x_augment_image  = x[batch_size//2:,:,:,:]
 # at time stamp 0 perform 
 layer1_L_ts_0,layer1_R_ts_0,layer1_ts_0_Up = ZigZag_RCNN.feedforward_straight(x_original_image,0)
 layer1_L_ts_1,layer1_R_ts_1,layer1_ts_1_Up = ZigZag_RCNN.feedforward_zigzag(x_augment_image,1)
-layer1_L_ts_2,layer1_R_ts_2,layer1_ts_2_Up = ZigZag_RCNN.feedforward_zigzag(x_original_image,2)
+layer1_L_ts_2,layer1_R_ts_2,layer1_ts_2_Up = ZigZag_RCNN.feedforward_straight(x_original_image,2)
 layer1_L_ts_3,layer1_R_ts_3,layer1_ts_3_Up = ZigZag_RCNN.feedforward_zigzag(x_augment_image,3)
 
 # concat the final output of the two stream and give it to CNN
