@@ -24,19 +24,6 @@ def unpickle(file):
         dict = pickle.load(fo, encoding='bytes')
     return dict
 
-# Different noises of different channels
-def gaussian_noise_layer(input_layer,std=1.0):
-    noise = tf.random_normal(shape=tf.shape(input_layer), mean=0.0, stddev=std, dtype=tf.float32) 
-    return input_layer + 0.1*noise
-
-def possin_layer(layer):
-    noise = tf.random_poisson(lam=1.0,shape=tf.shape(layer),dtype=tf.float32)
-    return 0.1*noise + layer
-
-def uniform_layer(input_layer):
-    noise = tf.random_uniform(shape=tf.shape(input_layer),minval=0.5,dtype=tf.float32)
-    return 0.6*noise + input_layer
-
 # data aug
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # horizontal flips
@@ -44,24 +31,6 @@ seq = iaa.Sequential([
         iaa.GaussianBlur(sigma=(0,0.5))
     )
 ], random_order=True) # apply augmenters in random order
-
-# code from: https://github.com/tensorflow/tensorflow/issues/8246
-def tf_repeat(tensor, repeats):
-    """
-    Args:
-
-    input: A Tensor. 1-D or higher.
-    repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
-
-    Returns:
-    
-    A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
-    """
-    expanded_tensor = tf.expand_dims(tensor, -1)
-    multiples = [1] + repeats
-    tiled_tensor = tf.tile(expanded_tensor, multiples = multiples)
-    repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
-    return repeated_tesnor
 
 # class recurrent CNN and CNN
 class Zig_Zag_RCNN():
@@ -132,7 +101,6 @@ class Zig_Zag_RCNN():
 
         return layerA_1,layerA_2,hidden_assign
         
-    
 class CNN():
     
     def __init__(self,k,inc,out):
@@ -316,9 +284,10 @@ with tf.Session() as sess:
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
-        for test_batch_index in range(0,len(test_batch),batch_size):
-            current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
-            current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
+        for test_batch_index in range(0,len(test_batch),batch_size//2):
+            current_batch = test_batch[test_batch_index:test_batch_index+batch_size//2]
+            current_batch_label = test_label[test_batch_index:test_batch_index+batch_size//2]
+            current_batch = np.vstack((current_batch,current_batch)).astype(np.float32)
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
@@ -330,13 +299,14 @@ with tf.Session() as sess:
         if iter % print_size==0:
             print("\n---------- " )
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
-            print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
+            print('Test Current cost: ', test_cota/(len(test_batch)/(batch_size//2)),' Current Acc: ', test_acca/(len(test_batch)/(batch_size//2)),end='\n')
             print("----------")
 
+        # store the accuracy and cost for ploting
         train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
         train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
-        test_acc.append(test_acca/(len(test_batch)/batch_size))
-        test_cot.append(test_cota/(len(test_batch)/batch_size))
+        test_acc.append(test_acca/(len(test_batch)/(batch_size//2)))
+        test_cot.append(test_cota/(len(test_batch)/(batch_size//2)))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
 
@@ -358,5 +328,6 @@ with tf.Session() as sess:
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
     plt.savefig('case c test.png')
+
 
 # -- end code --
