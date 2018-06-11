@@ -37,6 +37,13 @@ def uniform_layer(input_layer):
     noise = tf.random_uniform(shape=tf.shape(input_layer),minval=0.5,dtype=tf.float32)
     return 0.6*noise + input_layer
 
+# data aug
+seq = iaa.Sequential([
+    iaa.Fliplr(1.0), # horizontal flips
+    iaa.Sometimes(0.1,
+        iaa.GaussianBlur(sigma=(0,0.5))
+    )
+], random_order=True) # apply augmenters in random order
 
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
@@ -64,9 +71,9 @@ class RCNN():
         self.w = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out]))
         self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
 
-        self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size,size,size,c_in]))
-        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
-        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
+        self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size//2,size,size,c_in]))
+        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
+        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
         
         self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h)),tf.Variable(tf.zeros_like(self.h))
@@ -224,55 +231,75 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-sys.exit()
-
 # hyper 
 num_epoch = 21
 batch_size = 50
 print_size = 1
 timestamp = 4
 
-learning_rate = 0.007
+learning_rate = 0.00008
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
-r_stream1 = RCNN(timestamp=timestamp,c_in=3,c_out=5,x_kernel=3,h_kernel=1,size=32)
-r_stream2 = RCNN(timestamp=timestamp,c_in=3,c_out=5,x_kernel=3,h_kernel=1,size=32)
-l2 = CNN(3,5,7)
-l3 = CNN(3,7,9)
-l4 = CNN(1,9,10)
+r_stream1 = RCNN(timestamp=timestamp,c_in=3,c_out=96,x_kernel=3,h_kernel=1,size=32)
+r_stream2 = RCNN(timestamp=timestamp,c_in=3,c_out=96,x_kernel=3,h_kernel=1,size=32)
+
+l1 = CNN(3,192,192)
+l2 = CNN(3,192,192)
+l3 = CNN(3,192,192)
+
+l4 = CNN(3,192,192)
+l5 = CNN(1,192,192)
+l6 = CNN(1,192,10)
 
 # graph 
 x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
-y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
+y = tf.placeholder(shape=[batch_size//2,10],dtype=tf.float32)
 
-x1 = gaussian_noise_layer(x)
-x2 = possin_layer(x)
-x3 = uniform_layer(x)
+x_original_image = x[:batch_size//2,:,:,:]
+x_augment_image  = x[batch_size//2:,:,:,:]
 
-x_inputs = [x,x1,x2,x3]
-layer1_rnn_up = []
-for time in range(timestamp):
-    layer_out,layer_up = l1.feedfoward(x_inputs[time],time)
-    layer1_rnn_up.append(layer_up)
+# feed forward the RNN stream 1 for 4 time stamps
+r_stream_1_1,r_stream_1_1_u = r_stream1.feedfoward(x_original_image,0)
+r_stream_1_2,r_stream_1_2_u = r_stream1.feedfoward(x_augment_image,1)
+r_stream_1_3,r_stream_1_3_u = r_stream1.feedfoward(x_original_image,2)
+r_stream_1_4,r_stream_1_4_u = r_stream1.feedfoward(x_augment_image,3)
 
-layer2 = l2.feedforward(layer_out)
-layer3_Input = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer3 = l3.feedforward(layer3_Input)
+# feed forward the RNN stream 2 for 4 time stamps
+r_stream_2_1,r_stream_2_1_u = r_stream2.feedfoward(x_original_image,0)
+r_stream_2_2,r_stream_2_2_u = r_stream2.feedfoward(x_augment_image,1)
+r_stream_2_3,r_stream_2_3_u = r_stream2.feedfoward(x_original_image,2)
+r_stream_2_4,r_stream_2_4_u = r_stream2.feedfoward(x_augment_image,3)
+
+# concat the final output of the two stream and give it to CNN
+convolution_network_input = tf.concat([r_stream_1_4,r_stream_2_4],axis=3)
+
+layer1_Input = tf.nn.avg_pool(convolution_network_input,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer1 = l2.feedforward(layer1_Input)
+layer2 = l2.feedforward(layer1)
+layer3 = l3.feedforward(layer2)
+
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer4_Input)
+layer5 = l5.feedforward(layer4)
+layer6 = l6.feedforward(layer5)
 
-final_global = tf.reduce_mean(layer4,[1,2])
+print(layer6)
+
+final_global = tf.reduce_mean(layer6,[1,2])
 final_soft = tf_soft(final_global)
+
+sys.exit()
 
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
-sys.exit()
 # sess
-with tf.Session() as sess:
+sess = tf.Session(config=tf.ConfigProto(device_count={'GPU': 0}))
+# with tf.Session() as sess:
+with sess:
 
     sess.run(tf.global_variables_initializer())
     
@@ -286,68 +313,70 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        for batch_size_index in range(0,len(train_batch),batch_size):
+        for batch_size_index in range(0,len(train_batch),batch_size//2):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
 
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,accuracy,correct_prediction,auto_train,layer1_rnn_up],feed_dict={x:current_batch,y:current_batch_label})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],
-            ' Current Acc: ', sess_result[1],end='\r')
+            # online data augmentation here and standard normalization
+            images_aug = seq.augment_images(current_batch.astype(np.float32))
+            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+            # current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            # current_batch = np.insert(current_batch,range(1,len(current_batch)+1),images_aug,axis=0).astype(np.float32)
+            # current_batch_label = np.insert(current_batch_label,range(1,len(current_batch_label)+1),current_batch_label,axis=0)
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
+            # current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
+            # online data augmentation here and standard normalization
+            
+            sys.exit()
+            sess_result = sess.run([cost,accuracy,grad_update,correct_prediction,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
             
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
-            sess_result = sess.run([cost,accuracy,correct_prediction,layer1_rnn_up],feed_dict={x:current_batch,y:current_batch_label})
-            print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
-            ' Current Acc: ', sess_result[1],end='\r')
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
+            sess_result = sess.run([cost,accuracy,final_soft,final_reshape],feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter})
+            print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
 
         if iter % print_size==0:
-            print("\n----------")
-            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size) ),end='\n')
+            print("\n---------- " )
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/(batch_size)))
-        train_cot.append(train_cota/(len(train_batch)/(batch_size)))
+        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
 
-    # Normalize the cost of the training
+    # normalize the cost
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
     test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
 
-    # training done now plot
-    trace0 = go.Scatter(
-        # x=range(len(train_cot)),
-        y=train_cot,
-        name='Train Cost Over Time'
-    )
-    trace1 = go.Scatter(
-        # x=range(len(train_cot)),
-        y=train_acc,
-        name='Train Accuracy Over Time'
-    )
-    trace2 = go.Scatter(
-        # x=range(len(train_cot)),
-        y=test_cot,
-        name='Test Cost Over Time'
-    )
-    trace3 = go.Scatter(
-        # x=range(len(train_cot)),
-        y=test_acc,
-        name='Test Accuracy Over Time'
-    )
-    data = [trace0, trace1,trace2,trace3]
-    try:
-        py.plot(data,filename='a_rnn_basic')
-    except:
-        plot(data,filename='a_rnn_basic')
+    # training done
+    plt.figure()
+    plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
+    plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
+    plt.legend()
+    plt.title("Train Average Accuracy / Cost Over Time")
+    plt.savefig('case c train.png')
+
+    plt.figure()
+    plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
+    plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
+    plt.legend()
+    plt.title("Test Average Accuracy / Cost Over Time")
+    plt.savefig('case c test.png')
 
 
 # -- end code --

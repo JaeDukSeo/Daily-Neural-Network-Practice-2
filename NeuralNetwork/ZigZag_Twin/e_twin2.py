@@ -138,7 +138,7 @@ print(test_label.shape)
 num_epoch = 21
 batch_size = 50
 print_size = 1
-learning_rate = 0.00008
+learning_rate = 0.00001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 proportion_rate = 1
@@ -151,7 +151,7 @@ l2  = CNN(3,96,96) # R
 
 l3  = CNN(3,96,192) # L
 
-l4  = CNN(3,96,192) # R
+l4  = CNN(3,192,192) # R
 
 l5  = CNN(3,192,192) # L
 
@@ -215,12 +215,11 @@ grad5,grad5_up = l5.backprop(grad6_Input2  )
 grad5_Input1 = tf_repeat(grad6,[1,2,2,1])
 grad5_Input2 = tf_repeat(grad5,[1,2,2,1])
 grad4,grad4_up = l4.backprop(grad5_Input1)
-grad3,grad3_up = l3.backprop(grad5_Input2  )
+grad3,grad3_up = l3.backprop(grad5_Input2)
 
-grad2_Input1 = tf_repeat(grad4,[1,2,2,1])
 grad2_Input2 = tf_repeat(grad3,[1,2,2,1])
-grad2,grad2_up = l2.backprop(grad2_Input1  )
-grad1,grad1_up = l1.backprop(grad2_Input2+grad2)
+grad2,grad2_up = l2.backprop(grad2_Input2)
+grad1,grad1_up = l1.backprop(grad2+grad2_Input2)
 
 grad_update =   grad10_up + grad9_up + grad8_up + grad7_up + \
                 grad6_up + grad5_up + grad4_up + \
@@ -249,9 +248,9 @@ with tf.Session( ) as sess:
             images_aug = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0))
-            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0))
-            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0))
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
