@@ -4,6 +4,7 @@ from sklearn.datasets import make_classification
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 from scipy.optimize import minimize
+from mpl_toolkits.mplot3d import Axes3D
 
 np.random.seed(678)
 
@@ -45,7 +46,7 @@ def sfiltering(X,n_features=5):
     return transformed_x
     
 def load_data():
-    X,Y = make_classification(n_samples = 3000,n_features=200)
+    X,Y = make_classification(n_samples = 50,n_features=3,n_redundant=0)
     return X,Y
 
 def simple_model(X,Y):
@@ -62,12 +63,24 @@ X,Y = load_data()
 # plt.show()
 
 acc = simple_model(X,Y)
-
-X_trans = sfiltering(X,25)
+X_trans = sfiltering(X,2)
 acc1= simple_model(X_trans,Y)
-
-X_trans1 = sfiltering(X,10)
+X_trans1 = sfiltering(X,1)
 acc2= simple_model(X_trans1,Y)
+
+fig = plt.figure()
+ax = Axes3D(fig)
+ax.scatter(X[:, 0], X[:, 1], X[:, 2],marker='o', c=Y)
+plt.show()
+
+
+plt.scatter(X_trans[:, 0], X_trans[:, 1], marker='o', c=Y, edgecolor='k')
+plt.show()
+
+plt.scatter(X_trans1[:, 0],[5] *len(X_trans1)  ,marker='o', c=Y, edgecolor='k')
+plt.show()
+
+sys.exit()
 
 print('-----------------------')
 print('Original Data Shape: ',X.shape)
