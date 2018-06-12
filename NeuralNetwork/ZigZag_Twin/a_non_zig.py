@@ -27,7 +27,7 @@ def unpickle(file):
 # data aug
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # horizontal flips
-    iaa.Sometimes(0.1,
+    iaa.Sometimes(0.5,
         iaa.GaussianBlur(sigma=(0,0.5))
     )
 ], random_order=True) # apply augmenters in random order
@@ -37,11 +37,11 @@ class Zig_Zag_RCNN():
 
     def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size):
 
-        self.w_1 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out]))
-        self.h_1 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
+        self.w_1 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out],stddev=0.05))
+        self.h_1 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out],stddev=0.05))
 
-        self.w_2 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out]))
-        self.h_2 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
+        self.w_2 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out],stddev=0.05))
+        self.h_2 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out],stddev=0.05))
 
         self.input_record_1   = tf.Variable(tf.zeros([timestamp,batch_size//2,size,size,c_in]))
         self.hidden_record_1  = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
@@ -221,10 +221,11 @@ x_original_image = x[:batch_size//2,:,:,:]
 x_augment_image  = x[batch_size//2:,:,:,:]
 
 # at time stamp 0 perform 
-layer1_L_ts_0,layer1_R_ts_0,layer1_ts_0_Up = ZigZag_RCNN.feedforward_straight(x_original_image,x_original_image,0)
-layer1_L_ts_1,layer1_R_ts_1,layer1_ts_1_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,x_augment_image,1)
-layer1_L_ts_2,layer1_R_ts_2,layer1_ts_2_Up = ZigZag_RCNN.feedforward_straight(x_original_image,x_original_image,2)
-layer1_L_ts_3,layer1_R_ts_3,layer1_ts_3_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,x_augment_image,3)
+layer1_L_ts_0,layer1_R_ts_0,layer1_ts_0_Up = ZigZag_RCNN.feedforward_straight(x_original_image,x_augment_image,0)
+layer1_L_ts_1,layer1_R_ts_1,layer1_ts_1_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,x_original_image,1)
+layer1_L_ts_2,layer1_R_ts_2,layer1_ts_2_Up = ZigZag_RCNN.feedforward_straight(x_original_image,x_augment_image,2)
+layer1_L_ts_3,layer1_R_ts_3,layer1_ts_3_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,x_original_image,3)
+rnn_update = layer1_ts_0_Up + layer1_ts_1_Up + layer1_ts_2_Up + layer1_ts_3_Up
 
 # concat the final output of the two stream and give it to CNN
 convolution_network_input = tf.concat([layer1_L_ts_3,layer1_R_ts_3],axis=3)
@@ -279,7 +280,7 @@ with tf.Session() as sess:
             # current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
             
-            sess_result = sess.run([cost,accuracy,auto_train,correct_prediction,final_soft],feed_dict={x:current_batch,y:current_batch_label})
+            sess_result = sess.run([cost,accuracy,auto_train,correct_prediction,final_soft,rnn_update],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
@@ -291,7 +292,7 @@ with tf.Session() as sess:
             current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
             current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
             current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
-            sess_result = sess.run([cost,accuracy,final_soft],feed_dict={x:current_batch,y:current_batch_label})
+            sess_result = sess.run([cost,accuracy,final_soft,rnn_update],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             test_acca = sess_result[1] + test_acca
             test_cota = sess_result[0] + test_cota
