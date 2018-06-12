@@ -51,18 +51,18 @@ class Zig_Zag_RCNN():
         self.hidden_record_2  = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
         self.hiddenA_record_2 = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
 
-    def feedforward_straight(self,input,timestamp):
+    def feedforward_straight(self,input1,input2,timestamp):
 
         # assign the inputs 
         hidden_assign = []
         
         # perform feed forward on left
-        layer_1 =  tf.nn.conv2d(input,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
+        layer_1 =  tf.nn.conv2d(input1,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
         tf.nn.conv2d(self.hiddenA_record_1[timestamp,:,:,:,:],self.h_1,strides=[1,1,1,1],padding='SAME') 
         layerA_1 = tf_elu(layer_1)
 
         # perform feed forward on right
-        layer_2 =  tf.nn.conv2d(input,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
+        layer_2 =  tf.nn.conv2d(input2,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
         tf.nn.conv2d(self.hiddenA_record_2[timestamp,:,:,:,:],self.h_2,strides=[1,1,1,1],padding='SAME') 
         layerA_2 = tf_elu(layer_2)
     
@@ -76,18 +76,18 @@ class Zig_Zag_RCNN():
 
         return layerA_1,layerA_2,hidden_assign
 
-    def feedforward_zigzag(self,input,timestamp):
+    def feedforward_zigzag(self,input1,input2,timestamp):
         
         # assign the inputs 
         hidden_assign = []
         
         # perform feed forward on left
-        layer_1 =  tf.nn.conv2d(input,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
+        layer_1 =  tf.nn.conv2d(input1,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
         tf.nn.conv2d(self.hiddenA_record_2[timestamp,:,:,:,:],self.h_1,strides=[1,1,1,1],padding='SAME') 
         layerA_1 = tf_elu(layer_1)
 
         # perform feed forward on right
-        layer_2 =  tf.nn.conv2d(input,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
+        layer_2 =  tf.nn.conv2d(input2,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
         tf.nn.conv2d(self.hiddenA_record_1[timestamp,:,:,:,:],self.h_2,strides=[1,1,1,1],padding='SAME') 
         layerA_2 = tf_elu(layer_2)
     
@@ -207,7 +207,7 @@ ZigZag_RCNN = Zig_Zag_RCNN(timestamp=timestamp,c_in=3,c_out=96,x_kernel=3,h_kern
 
 l1 = CNN(3,192,192)
 l2 = CNN(3,192,192)
-l3 = CNN(3,192,192)
+l3 = CNN(1,192,192)
 
 l4 = CNN(3,192,192)
 l5 = CNN(1,192,192)
@@ -221,10 +221,10 @@ x_original_image = x[:batch_size//2,:,:,:]
 x_augment_image  = x[batch_size//2:,:,:,:]
 
 # at time stamp 0 perform 
-layer1_L_ts_0,layer1_R_ts_0,layer1_ts_0_Up = ZigZag_RCNN.feedforward_straight(x_original_image,0)
-layer1_L_ts_1,layer1_R_ts_1,layer1_ts_1_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,1)
-layer1_L_ts_2,layer1_R_ts_2,layer1_ts_2_Up = ZigZag_RCNN.feedforward_straight(x_original_image,2)
-layer1_L_ts_3,layer1_R_ts_3,layer1_ts_3_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,3)
+layer1_L_ts_0,layer1_R_ts_0,layer1_ts_0_Up = ZigZag_RCNN.feedforward_straight(x_original_image,x_original_image,0)
+layer1_L_ts_1,layer1_R_ts_1,layer1_ts_1_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,x_augment_image,1)
+layer1_L_ts_2,layer1_R_ts_2,layer1_ts_2_Up = ZigZag_RCNN.feedforward_straight(x_original_image,x_original_image,2)
+layer1_L_ts_3,layer1_R_ts_3,layer1_ts_3_Up = ZigZag_RCNN.feedforward_straight(x_augment_image,x_augment_image,3)
 
 # concat the final output of the two stream and give it to CNN
 convolution_network_input = tf.concat([layer1_L_ts_3,layer1_R_ts_3],axis=3)
