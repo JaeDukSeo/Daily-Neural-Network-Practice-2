@@ -11,7 +11,7 @@ plt.style.use('ggplot')
 # Independent Component Analysis.
 # LinearDiscriminantAnalysis
 # t-distributed Stochastic Neighbor Embedding
-from sklearn.decomposition import PCA,FastICA
+from sklearn.decomposition import PCA,FastICA,FactorAnalysis
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import TSNE
 
@@ -59,9 +59,15 @@ plt.title('LinearDiscriminantAnalysis Data Shape : ' + str(X_pca.shape))
 plt.show()
 
 tsne = TSNE(n_components=component_number)
-X_tsne = tsne.fit_transform(X,Y)
+X_tsne = tsne.fit_transform(X)
 plt.scatter(X_tsne[:, 0], X_tsne[:, 1], marker='o', c=Y, edgecolor='k')
 plt.title('TSNE Data Shape : ' + str(X_pca.shape))
+plt.show()
+
+factor = FactorAnalysis(n_components = component_number)
+X_factor = factor.fit_transform(X)
+plt.scatter(X_factor[:, 0], X_factor[:, 1], marker='o', c=Y, edgecolor='k')
+plt.title('Factor Analysis Data Shape : ' + str(X_pca.shape))
 plt.show()
 
 # ----------------------------------
@@ -86,9 +92,15 @@ plt.title('LinearDiscriminantAnalysis Data Shape : ' + str(X_pca.shape))
 plt.show()
 
 tsne = TSNE(n_components=component_number)
-X_tsne = tsne.fit_transform(X,Y)
+X_tsne = tsne.fit_transform(X)
 plt.scatter(X_tsne[:, 0], [1] * len(X_pca), marker='o', c=Y, edgecolor='k')
 plt.title('TSNE Data Shape : ' + str(X_pca.shape))
+plt.show()
+
+factor = FactorAnalysis(n_components = component_number)
+X_factor = factor.fit_transform(X)
+plt.scatter(X_factor[:, 0], [1] * len(X_pca), marker='o', c=Y, edgecolor='k')
+plt.title('Factor Analysis Data Shape : ' + str(X_pca.shape))
 plt.show()
 # -------- clear cut difference in data ---------
 
@@ -122,9 +134,15 @@ plt.title('LinearDiscriminantAnalysis Data Shape : ' + str(X_pca.shape))
 plt.show()
 
 tsne = TSNE(n_components=component_number)
-X_tsne = tsne.fit_transform(X,Y)
+X_tsne = tsne.fit_transform(X)
 plt.scatter(X_tsne[:, 0], X_tsne[:, 1], marker='o', c=Y, edgecolor='k')
 plt.title('TSNE Data Shape : ' + str(X_pca.shape))
+plt.show()
+
+factor = FactorAnalysis(n_components = component_number)
+X_factor = factor.fit_transform(X)
+plt.scatter(X_factor[:, 0], X_factor[:, 1], marker='o', c=Y, edgecolor='k')
+plt.title('Factor Analysis Data Shape : ' + str(X_pca.shape))
 plt.show()
 
 # ----------------------------------
@@ -149,10 +167,15 @@ plt.title('LinearDiscriminantAnalysis Data Shape : ' + str(X_pca.shape))
 plt.show()
 
 tsne = TSNE(n_components=component_number)
-X_tsne = tsne.fit_transform(X,Y)
+X_tsne = tsne.fit_transform(X)
 plt.scatter(X_tsne[:, 0], [1] * len(X_pca), marker='o', c=Y, edgecolor='k')
 plt.title('TSNE Data Shape : ' + str(X_pca.shape))
 plt.show()
 
+factor = FactorAnalysis(n_components = component_number)
+X_factor = factor.fit_transform(X)
+plt.scatter(X_factor[:, 0], [1] * len(X_pca), marker='o', c=Y, edgecolor='k')
+plt.title('Factor Analysis Data Shape : ' + str(X_pca.shape))
+plt.show()
 
 # -- end code --
