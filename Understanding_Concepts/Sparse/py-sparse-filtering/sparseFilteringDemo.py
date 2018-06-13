@@ -49,8 +49,8 @@ def displayData(X, example_width = False, display_cols = False):
 			try:
 				newData = (X[curr_ex,:].reshape((example_height,example_width)))/max_val
 			except:
-				print X[curr_ex,:].shape
-				print (example_height,example_width)
+				print(X[curr_ex,:].shape)
+				print((example_height,example_width))
 				raise
 			display_array[i_inds,j_inds] = newData.flatten()
 			curr_ex+=1
@@ -63,29 +63,32 @@ def displayData(X, example_width = False, display_cols = False):
 
 
 def main():
-	print "Loading data ..."
+	print("Loading data ...")
 	# Loads variable `data` (size 256x50000)
 	data = loadmat('patches.mat')['data']
 	# Remove DC
 	# data = data[:,:10000]
 	data -= data.mean(axis=0)
+	
 	# Train layer 1
-	print "Training layer 1 ..."
+	print("Training layer 1 ...")
 	L1_size = 256 # Increase this for more features
 	L1 = sparseFiltering(L1_size, data)
-	print "Layer 1 done."
+	print("Layer 1 done.")
 	# Show Layer 1 bases
 	displayData(L1)
 	# Feed-forward layer 1
 	data1 = feedForwardSF(L1,data)
 	data1 -= data1.mean(axis=0)
+
 	# Train layer 2
-	print "Training layer 2 ..."
+	print ("Training layer 2 ...")
 	L2_size = 256
 	L2 = sparseFiltering(L2_size, data1)
-	print "Layer 2 done."
+	print ("Layer 2 done.")
 	# Visualize layer 2
 	pylab.figure()
+	
 	num_viz = 10
 	offset = 1
 	for i in range(num_viz):

@@ -61,9 +61,8 @@ def sparseFiltering(N,X):
 
 	# Actual optimization
 	w,g = objFun(optW)
-	res = minimize(objFun, optW, method='L-BFGS-B', jac = True, options = {'maxiter':200})
+	res = minimize(objFun, optW, method='L-BFGS-B', jac = True, options = {'maxiter':10})
 	return res.x.reshape(N,X.shape[0])
-
 
 def feedForwardSF(W,X):
 	"Feed-forward"
