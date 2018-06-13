@@ -13,6 +13,8 @@ import pylab
 from scipy.io import loadmat
 from sparseFiltering import *
 
+np.random.seed(678)
+
 def displayData(X, example_width = False, display_cols = False):
 	"""
 	Display 2D data in a nice grid
@@ -24,15 +26,21 @@ def displayData(X, example_width = False, display_cols = False):
 	m,n = X.shape
 	if not example_width:
 		example_width = int(np.round(np.sqrt(n)))
-	example_height = (n/example_width)
+	example_height = int(n/example_width)
 	# Compute number of items to display
 	if not display_cols:
 		display_cols = int(np.sqrt(m))
 	display_rows = int(np.ceil(m/display_cols))
+
 	pad = 1
+	print(display_rows)
+	print(example_height)
+	print(display_cols)
+	print(example_width)
+
 	# Setup blank display
-	display_array = -np.ones((pad+display_rows * (example_height+pad),
-		pad+display_cols * (example_width+pad)))
+	display_array = -np.ones((pad+display_rows * (example_height+pad), pad+display_cols * (example_width+pad)))
+	
 	# Copy each example into a patch on the display array
 	curr_ex = 0
 	for j in range(display_rows):
@@ -69,7 +77,7 @@ def main():
 	# Remove DC
 	# data = data[:,:10000]
 	data -= data.mean(axis=0)
-	
+
 	# Train layer 1
 	print("Training layer 1 ...")
 	L1_size = 256 # Increase this for more features

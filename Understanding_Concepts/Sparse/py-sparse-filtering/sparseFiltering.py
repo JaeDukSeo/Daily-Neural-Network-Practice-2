@@ -10,6 +10,7 @@ Requires numpy and scipy installed.
 import numpy as np
 from scipy.optimize import minimize
 
+np.random.seed(678)
 
 def l2row(X):
 	"""
