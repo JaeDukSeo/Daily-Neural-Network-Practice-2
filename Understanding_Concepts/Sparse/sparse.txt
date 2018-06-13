@@ -1,0 +1,90 @@
+Current Iter:  0  Current cost:  131.4486
+
+Current Iter:  100  Current cost:  108.44843
+
+Current Iter:  200  Current cost:  108.006126
+
+Current Iter:  300  Current cost:  108.005735
+
+Current Iter:  400  Current cost:  108.010345
+
+Current Iter:  500  Current cost:  108.006516
+
+Current Iter:  600  Current cost:  108.009695
+
+Current Iter:  700  Current cost:  108.014724
+
+Current Iter:  800  Current cost:  108.006915
+
+Current Iter:  900  Current cost:  108.013354
+
+Current Iter:  999  Current cost:  108.006044
+------ MOVING TO THE NEXT GRAPH -------
+
+Current Iter:  0  Current cost:  99.99992
+
+Current Iter:  100  Current cost:  99.99985
+
+Current Iter:  200  Current cost:  99.99985
+
+Current Iter:  300  Current cost:  99.99985
+
+Current Iter:  400  Current cost:  99.99985
+
+Current Iter:  500  Current cost:  99.99985
+
+Current Iter:  600  Current cost:  99.99985
+
+Current Iter:  700  Current cost:  99.99985
+
+Current Iter:  800  Current cost:  99.99984
+
+Current Iter:  900  Current cost:  99.99983
+
+Current Iter:  999  Current cost:  99.99983
+------ MOVING TO NOT SO CLEAR SEPERATION  -------
+
+Current Iter:  0  Current cost:  129.69623
+
+Current Iter:  100  Current cost:  126.41133
+
+Current Iter:  200  Current cost:  126.407894
+
+Current Iter:  300  Current cost:  126.395846
+
+Current Iter:  400  Current cost:  126.434254
+
+Current Iter:  500  Current cost:  126.388336
+
+Current Iter:  600  Current cost:  126.403475
+
+Current Iter:  700  Current cost:  126.396655
+
+Current Iter:  800  Current cost:  126.433595
+
+Current Iter:  900  Current cost:  126.419155
+
+Current Iter:  999  Current cost:  126.390434
+------ MOVING TO THE NEXT GRAPH -------
+
+Current Iter:  0  Current cost:  99.99477
+
+Current Iter:  100  Current cost:  99.86182
+
+Current Iter:  200  Current cost:  99.995654
+
+Current Iter:  300  Current cost:  99.995155
+
+Current Iter:  400  Current cost:  99.992615
+
+Current Iter:  500  Current cost:  99.995336
+
+Current Iter:  600  Current cost:  99.979696
+
+Current Iter:  700  Current cost:  99.990444
+
+Current Iter:  800  Current cost:  99.997914
+
+Current Iter:  900  Current cost:  99.997714
+
+Current Iter:  999  Current cost:  99.996686

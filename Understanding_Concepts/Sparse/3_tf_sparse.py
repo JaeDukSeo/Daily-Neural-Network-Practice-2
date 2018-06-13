@@ -38,7 +38,7 @@ def load_data_not_so_clear():
 class sparse_filter():
     
     def __init__(self,outc,changec):
-        self.w = tf.Variable(tf.random_normal([outc,changec],stddev=0.5))
+        self.w = tf.Variable(tf.truncated_normal([outc,changec],stddev=0.5))
         self.epsilon = 1e-8
 
     def getw(self): return self.w
@@ -67,7 +67,7 @@ plt.close('all')
 
 # hyper
 num_epoch = 1000
-learning_rate = 0.001
+learning_rate = 0.01
 
 # reduce the dim to 2
 tf.reset_default_graph()
