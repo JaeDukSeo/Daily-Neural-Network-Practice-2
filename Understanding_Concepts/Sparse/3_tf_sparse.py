@@ -38,7 +38,7 @@ def load_data_not_so_clear():
 class sparse_filter():
     
     def __init__(self,outc,changec):
-        self.w = tf.Variable(tf.random_normal([outc,changec],stddev=0.05))
+        self.w = tf.Variable(tf.random_normal([outc,changec],stddev=0.5))
         self.epsilon = 1e-8
 
     def getw(self): return self.w
@@ -67,8 +67,7 @@ plt.close('all')
 
 # hyper
 num_epoch = 1000
-learning_rate = 0.01
-
+learning_rate = 0.001
 
 # reduce the dim to 2
 tf.reset_default_graph()
@@ -102,9 +101,7 @@ with tf.Session(graph = reduce_2) as sess:
     plt.title('Sprase Data Shape : ' + str(X_sparse.shape))
     plt.show()
 
-
 print('\n------ MOVING TO THE NEXT GRAPH -------\n')
-
 
 # reduce the dim to 1
 tf.reset_default_graph()
@@ -139,8 +136,84 @@ with tf.Session(graph = reduce_1) as sess:
     plt.title('Sprase Data Shape : ' + str(X_sparse.shape))
     plt.show()
 
+print('\n------ MOVING TO NOT SO CLEAR SEPERATION  -------\n')
 
+# ------------------------------------------------------------------------------------
+# show the original data 
+X,Y = load_data_not_so_clear()
+fig = plt.figure()
+ax = Axes3D(fig)
+ax.scatter(X[:, 0], X[:, 1], X[:, 2],marker='o', c=Y)
+plt.title('Original Data Shape : ' + str(X.shape))
+plt.show()
+plt.close('all')
 
+# reduce the dim to 2
+tf.reset_default_graph()
+reduce_2 = tf.Graph()
+with reduce_2.as_default():
+    # define class - reduce to dim 2
+    l_sparse = sparse_filter(3,2)
+    trained_w = l_sparse.getw()
+
+    input_value = tf.placeholder(shape=[100,3],dtype=tf.float32,name='input_value')
+
+    layer1 = l_sparse.feedforward(input_value)
+
+    cost = layer1
+    auto_train = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
+
+with tf.Session(graph = reduce_2) as sess: 
+    
+    sess.run(tf.global_variables_initializer())
+
+    # train
+    for iter in range(num_epoch):
+        sess_results = sess.run([cost,auto_train],feed_dict={input_value:X})
+        print("Current Iter: ",iter, " Current cost: ",sess_results[0],end='\r')
+        if iter % 100 == 0 : print('\n')
+
+    # after all training is done plot the results
+    trained_w = sess.run(trained_w)
+    X_sparse = np.matmul(X,trained_w)
+    plt.scatter(X_sparse[:, 0], X_sparse[:, 1], marker='o', c=Y, edgecolor='k')
+    plt.title('Sprase Data Shape : ' + str(X_sparse.shape))
+    plt.show()
+
+print('\n------ MOVING TO THE NEXT GRAPH -------\n')
+
+# reduce the dim to 1
+tf.reset_default_graph()
+reduce_1 = tf.Graph()
+with reduce_1.as_default() as g:
+
+    # define class - reduce to dim 1
+    l_sparse = sparse_filter(3,1)
+    trained_w = l_sparse.getw()
+
+    input_value = tf.placeholder(shape=[100,3],dtype=tf.float32,name='input_value')
+
+    layer1 = l_sparse.feedforward(input_value)
+
+    cost = tf.reduce_sum(layer1,name='cost')
+    auto_train = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
+
+with tf.Session(graph = reduce_1) as sess: 
+    
+    sess.run(tf.global_variables_initializer())
+
+    # train
+    for iter in range(num_epoch):
+        sess_results = sess.run([cost,auto_train],feed_dict={input_value:X})
+        print("Current Iter: ",iter, " Current cost: ",sess_results[0],end='\r')
+        if iter % 100 == 0 : print('\n')
+
+    # after all training is done plot the results
+    trained_w = sess.run(trained_w)
+    X_sparse = np.matmul(X,trained_w)
+    plt.scatter(X_sparse[:, 0], [1] * len(X_sparse), marker='o', c=Y, edgecolor='k')
+    plt.title('Sprase Data Shape : ' + str(X_sparse.shape))
+    plt.show()
 
 
 

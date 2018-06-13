@@ -48,7 +48,7 @@ def get_objective_fn(X,n_dim,n_features):
         
         # Normalize feature per example
         Y = Y / np.sqrt(np.sum(Y**2,axis=1)[:,np.newaxis] + epsilon )
-        print(np.sum(Y))
+        print(Y.sum())
         return np.sum(Y)
 
     return _objective_fn
@@ -61,7 +61,7 @@ def sfiltering(X,n_features=5):
 
     obj_function = get_objective_fn(X,n_dim,n_features)
     
-    opt_out = minimize(obj_function,W,method='L-BFGS-B',options={'maxiter':10,'disp':False})
+    opt_out = minimize(obj_function,W,method='L-BFGS-B',options={'maxiter':1000,'disp':False})
     W_final = opt_out['x'].reshape(n_dim,n_features)
     
     transformed_x = np.dot(X,W_final)
@@ -72,12 +72,12 @@ def sfiltering(X,n_features=5):
 # -------- clear cut difference in data ---------
 # show the original data 
 X,Y = load_data_clear_cut()
-# fig = plt.figure()
-# ax = Axes3D(fig)
-# ax.scatter(X[:, 0], X[:, 1], X[:, 2],marker='o', c=Y)
-# plt.title('Original Data Shape : ' + str(X.shape))
-# plt.show()
-# plt.close('all')
+fig = plt.figure()
+ax = Axes3D(fig)
+ax.scatter(X[:, 0], X[:, 1], X[:, 2],marker='o', c=Y)
+plt.title('Original Data Shape : ' + str(X.shape))
+plt.show()
+plt.close('all')
 
 print('------- two component ------ ')
 component_number = 2
@@ -85,6 +85,34 @@ X_sparse = sfiltering(X,2)
 plt.scatter(X_sparse[:, 0], X_sparse[:, 1], marker='o', c=Y, edgecolor='k')
 plt.title('Sprase Data Shape : ' + str(X_sparse.shape))
 plt.show()
+print('\n------ MOVING TO THE NEXT -------\n')
+
+# ----------------------------------
+print('------- one component ------ ')
+component_number = 1
+X_sparse = sfiltering(X,2)
+plt.scatter(X_sparse[:, 0],[1] * len(X_sparse), marker='o', c=Y, edgecolor='k')
+plt.title('Sprase Data Shape : ' + str(X_sparse.shape))
+plt.show()
+print('\n------ MOVING TO THE NEXT -------\n')
+
+# -------- no clear cut difference in data ---------
+# show the original data 
+X,Y = load_data_not_so_clear()
+fig = plt.figure()
+ax = Axes3D(fig)
+ax.scatter(X[:, 0], X[:, 1], X[:, 2],marker='o', c=Y)
+plt.title('Original Data Shape : ' + str(X.shape))
+plt.show()
+plt.close('all')
+
+print('------- two component ------ ')
+component_number = 2
+X_sparse = sfiltering(X,2)
+plt.scatter(X_sparse[:, 0], X_sparse[:, 1], marker='o', c=Y, edgecolor='k')
+plt.title('Sprase Data Shape : ' + str(X_sparse.shape))
+plt.show()
+print('\n------ MOVING TO THE NEXT -------\n')
 
 # ----------------------------------
 print('------- one component ------ ')
