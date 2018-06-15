@@ -215,7 +215,7 @@ batch_size = 50
 print_size = 1
 
 # learning_rate = 0.0004
-learning_rate = 0.00001
+learning_rate = 0.00002
 learnind_rate_decay = 0.001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -370,32 +370,34 @@ with tf.Session() as sess:
     test_batch = test_batch[:50,:,:,:]
     test_label = test_label[:50,:]
 
-    for alpha_values in [0.02,0.06,0.1,0.4,0.8,1.0]:
-
-        test_batch_a = (test_batch * alpha_values).astype(np.float32)
-        # test_batch_a[:,:,:,0]  = (test_batch_a[:,:,:,0] - test_batch_a[:,:,:,0].mean(axis=0)) / ( test_batch_a[:,:,:,0].std(axis=0)+1e-10)
-        # test_batch_a[:,:,:,1]  = (test_batch_a[:,:,:,1] - test_batch_a[:,:,:,1].mean(axis=0)) / ( test_batch_a[:,:,:,1].std(axis=0)+1e-10)
-        # test_batch_a[:,:,:,2]  = (test_batch_a[:,:,:,2] - test_batch_a[:,:,:,2].mean(axis=0)) / ( test_batch_a[:,:,:,2].std(axis=0)+1e-10)
-        sess_result = sess.run([cost,accuracy,correct_prediction,final_soft,grad1],feed_dict={x:test_batch_a,y:test_label,iter_variable:1.0,phase:False})
-    
-        grad_important = sess_result[4][3,:,:,:]
-        grad_important = np.sum(grad_important,axis=2)  
-        grad_important = (grad_important-grad_important.min())/(grad_important.max()-grad_important.min())
+    for test_images in range(10):
         
-        test_image_view = test_batch[3,:,:,:] 
-        # test_image_view = (test_image_view-test_image_view.min())/(test_image_view.max()-test_image_view.min())
+        for alpha_values in [0.02,0.06,0.1,0.4,0.8,1.0]:
 
-        from skimage.transform import resize
-        plt.close('all')
-        plt.imshow(resize(grad_important, (300, 300), anti_aliasing=True))
-        plt.axis('off')
-        plt.show()
+            test_batch_a = (test_batch * alpha_values).astype(np.float32)
+            # test_batch_a[:,:,:,0]  = (test_batch_a[:,:,:,0] - test_batch_a[:,:,:,0].mean(axis=0)) / ( test_batch_a[:,:,:,0].std(axis=0)+1e-10)
+            # test_batch_a[:,:,:,1]  = (test_batch_a[:,:,:,1] - test_batch_a[:,:,:,1].mean(axis=0)) / ( test_batch_a[:,:,:,1].std(axis=0)+1e-10)
+            # test_batch_a[:,:,:,2]  = (test_batch_a[:,:,:,2] - test_batch_a[:,:,:,2].mean(axis=0)) / ( test_batch_a[:,:,:,2].std(axis=0)+1e-10)
+            sess_result = sess.run([cost,accuracy,correct_prediction,final_soft,grad1],feed_dict={x:test_batch_a,y:test_label,iter_variable:1.0,phase:False})
+        
+            
+            grad_important = sess_result[4][test_images,:,:,:]
+            grad_important = np.sum(grad_important,axis=2)  
+            grad_important = (grad_important-grad_important.min())/(grad_important.max()-grad_important.min())
+            
+            test_image_view = test_batch[test_images,:,:,:] 
+            test_image_view = (test_image_view-test_image_view.min())/(test_image_view.max()-test_image_view.min())
 
-        grad_important_3d = np.repeat(np.expand_dims(grad_important,2),3,axis=2) * test_image_view
-        plt.imshow(resize(grad_important_3d, (300, 300,3), anti_aliasing=True))
-        plt.axis('off')
-        plt.show()
-        plt.close('all')
+            plt.close('all')
+            plt.imshow(imresize(grad_important, (500, 500)))
+            plt.axis('off')
+            plt.show()
+
+            grad_important_3d = np.repeat(np.expand_dims(grad_important,2),3,axis=2) * test_image_view
+            plt.imshow(imresize(grad_important_3d, (500, 500,3)))
+            plt.axis('off')
+            plt.show()
+            plt.close('all')
 
 
 # -- end code --
