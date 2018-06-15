@@ -64,13 +64,13 @@ class CNN():
 
     def getw(self): return self.w
 
-    def feedforward(self,input,stride=1,padding='SAME'):
+    def feedforward(self,input,stride=1,padding='VALID'):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
         self.layerA = tf_elu(self.layer)
         return self.layerA 
 
-    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME'):
+    def backprop(self,gradient,learning_rate_change,stride=1,padding='VALID'):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -161,6 +161,7 @@ class batch_norm():
 
         def f1(): return v_t
         def f2(): return self.v_hat_prev
+
         v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
         adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
         update_w.append(tf.assign(self.gamma,tf.subtract(self.gamma,adam_middel  )  ))
@@ -169,35 +170,30 @@ class batch_norm():
 
         return grad_pass,update_w   
 
-# data
-PathDicom = "../../Dataset/cifar-10-batches-py/"
-lstFilesDCM = []  # create an empty list
-for dirName, subdirList, fileList in os.walk(PathDicom):
-    for filename in fileList:
-        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
-            lstFilesDCM.append(os.path.join(dirName,filename))
+# stl 10 data
+PathDicom = "../../Dataset/STL10/stl10_binary/"
 
-# Read the data traind and Test
-batch0 = unpickle(lstFilesDCM[0])
-batch1 = unpickle(lstFilesDCM[1])
-batch2 = unpickle(lstFilesDCM[2])
-batch3 = unpickle(lstFilesDCM[3])
-batch4 = unpickle(lstFilesDCM[4])
+train_file   = open(PathDicom+"train_X.bin",'rb')
+train_label_f  = open(PathDicom+"train_y.bin",'rb')
 
-# One hot encode and unpickle data
+test_file   = open(PathDicom+"test_X.bin",'rb')
+test_label_f  = open(PathDicom+"test_y.bin",'rb')
+
+# Train set have 500 images per class 5000
+# Test set have 800 images per class 8000
+# So I am going to switch 
 onehot_encoder = OneHotEncoder(sparse=True)
-train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
-train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
+train_batch = np.fromfile(test_file, dtype=np.uint8)
+train_batch = np.reshape(train_batch, (-1, 3, 96, 96))
+train_batch = np.transpose(train_batch, (0, 3, 2, 1))
+train_label = np.expand_dims(np.fromfile(test_label_f, dtype=np.uint8).astype(np.float64),axis=1)
 train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
-test_batch = unpickle(lstFilesDCM[5])[b'data']
-test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
+
+test_batch = np.fromfile(train_file, dtype=np.uint8)
+test_batch = np.reshape(test_batch, (-1, 3, 96, 96))
+test_batch = np.transpose(test_batch, (0, 3, 2, 1))
+test_label = np.expand_dims(np.fromfile(train_label_f, dtype=np.uint8).astype(np.float64),axis=1)
 test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
-# reshape data
-train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
-test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
-# rotate data
-train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2))
-test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2))
 
 # print out the data shape
 print(train_batch.shape)
@@ -205,35 +201,35 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
+# simple normalize
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
-
 # hyper parameter
-num_epoch = 3
-batch_size = 50
+num_epoch = 21
+batch_size = 8
 print_size = 1
 
 # learning_rate = 0.0004
-learning_rate = 0.00002
-learnind_rate_decay = 0.001
+learning_rate = 0.00003
+learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
-l1 = CNN(3,3,96)
-l2 = CNN(3,96,96)
-l3 = CNN(3,96,192)
+l1 = CNN(3,3,196)
+l2 = CNN(3,196,196)
+l3 = CNN(3,196,196)
 
-l4 = CNN(3,192,192)
-l5 = CNN(3,192,192)
-l6 = CNN(3,192,192)
+l4 = CNN(3,196,196)
+l5 = CNN(3,196,196)
+l6 = CNN(2,196,196)
 
-l7 = CNN(3,192,192)
-l8 = CNN(1,192,192)
-l9 = CNN(1,192,10)
+l7 = CNN(3,196,196)
+l8 = CNN(1,196,196)
+l9 = CNN(1,196,10)
 
 # graph
-x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,96,96,3],dtype=tf.float32)
 y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
@@ -241,19 +237,19 @@ learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
 phase = tf.placeholder(tf.bool)
 
-layer1 = l1.feedforward(x)
-layer2 = l2.feedforward(layer1)
-layer3 = l3.feedforward(layer2)
+layer1 = l1.feedforward(x,padding='VALID')
+layer2 = l2.feedforward(layer1,padding='VALID')
+layer3 = l3.feedforward(layer2,padding='VALID')
 
 # layer4_BN,layer4_BN_UP = b1.feedforward(layer3,is_training=phase)
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4 = l4.feedforward(layer4_Input)
-layer5 = l5.feedforward(layer4)
-layer6 = l6.feedforward(layer5)
+layer4 = l4.feedforward(layer4_Input,padding='VALID')
+layer5 = l5.feedforward(layer4,padding='VALID')
+layer6 = l6.feedforward(layer5,padding='VALID')
 
-# layer7_BN,layer7_BN_U = b2.feedforward(layer6,is_training=phase)
+# layer7_BN,layer7_BN_UP = b2.feedforward(layer6,is_training=phase)
 layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer7 = l7.feedforward(layer7_Input)
+layer7 = l7.feedforward(layer7_Input,padding='VALID')
 layer8 = l8.feedforward(layer7,padding='VALID')
 layer9 = l9.feedforward(layer8,padding='VALID')
 
@@ -264,7 +260,7 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,8,8,1])
+grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,18,18,1])
 grad9,grad9_up = l9.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID')
 grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID')
 grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change)
@@ -281,7 +277,7 @@ grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_chan
 grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
 grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
 
-grad_update =  grad9_up + grad8_up+ grad7_up + \
+grad_update =  grad9_up + grad8_up + grad7_up + \
                grad6_up + grad5_up + grad4_up + \
                grad3_up + grad2_up + grad1_up 
 
@@ -379,7 +375,6 @@ with tf.Session() as sess:
             # test_batch_a[:,:,:,1]  = (test_batch_a[:,:,:,1] - test_batch_a[:,:,:,1].mean(axis=0)) / ( test_batch_a[:,:,:,1].std(axis=0)+1e-10)
             # test_batch_a[:,:,:,2]  = (test_batch_a[:,:,:,2] - test_batch_a[:,:,:,2].mean(axis=0)) / ( test_batch_a[:,:,:,2].std(axis=0)+1e-10)
             sess_result = sess.run([cost,accuracy,correct_prediction,final_soft,grad1],feed_dict={x:test_batch_a,y:test_label,iter_variable:1.0,phase:False})
-        
             
             grad_important = sess_result[4][test_images,:,:,:]
             grad_important = np.sum(grad_important,axis=2)  
@@ -389,12 +384,12 @@ with tf.Session() as sess:
             test_image_view = (test_image_view-test_image_view.min())/(test_image_view.max()-test_image_view.min())
 
             plt.close('all')
-            plt.imshow(imresize(grad_important, (500, 500)))
+            plt.imshow(grad_important)
             plt.axis('off')
             plt.show()
 
             grad_important_3d = np.repeat(np.expand_dims(grad_important,2),3,axis=2) * test_image_view
-            plt.imshow(imresize(grad_important_3d, (500, 500,3)))
+            plt.imshow(grad_important_3d)
             plt.axis('off')
             plt.show()
             plt.close('all')
