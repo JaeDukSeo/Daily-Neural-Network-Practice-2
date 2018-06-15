@@ -41,7 +41,6 @@ def linear_inpterpolation(sample, num_steps=50):
 #        stepsizse: output of linear_interpolation()
 #        _output: output tensor to be explained. It needs to be connected to samples.
 # OUTPUT: explanations: A list of tensors with explanation values. 
-
 def build_ig(samples, stepsizes, _output, num_steps=50):
     grads = tf.gradients(ys=_output, xs=samples)
     
@@ -67,3 +66,5 @@ def build_ig(samples, stepsizes, _output, num_steps=50):
         return output[0]
     else:
         return output
+
+# -- end code --

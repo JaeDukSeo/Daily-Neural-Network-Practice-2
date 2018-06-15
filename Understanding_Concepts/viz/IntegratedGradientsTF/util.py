@@ -19,6 +19,7 @@ class BatchFeeder:
         self.X = x_
         self.y = y_
         self.index = 0
+
         # self.base_index = np.arange(len(X))
         if ini_random:
             _ = self.randomize(np.arange(len(x_)))
@@ -50,6 +51,7 @@ class BatchFeeder:
         return index
 
 class testnet:
+    
     def __init__(self):
         # Reset all existing tensors
         self.dimensions = [128, 64]
@@ -60,12 +62,12 @@ class testnet:
         self.ops = self.build()
         self.sesh.run(tf.global_variables_initializer())
     
+
     def build(self):
+        
         # Placeholders for input and dropout probs.
-        if self.built:
-            return -1
-        else:
-            self.built = True
+        if self.built: return -1
+        else: self.built = True
             
         x = tf.placeholder(tf.float32, shape=[None, 28, 28], name="x")
         _x = tf.contrib.slim.flatten(x)
@@ -91,9 +93,11 @@ class testnet:
         
         explanations = []
         for i in range(10):
-            explanations.append(ig.build_ig(inter, stepsize, prediction2[:, i], num_steps=50))
+            explanations.append(
+                ig.build_ig(inter, stepsize, prediction2[:, i], num_steps=50)
+                )
         
-        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=dense, labels=y))                                   
+        loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=dense, labels=y))                                   
                                             
         # Define cost as the sum of KL and reconstrunction ross with BinaryXent.
         with tf.name_scope("cost"):
@@ -137,15 +141,13 @@ class testnet:
                 #Training happens here.
                 batch = X.next()
                 feed_dict = {self.ops["x"]: batch[0], self.ops["y"]: batch[1]}
-                ops_to_run = [self.ops["prediction"],\
-                              self.ops["cost"],\
-                              self.ops["train"]]
+                ops_to_run = [self.ops["prediction"],self.ops["cost"],self.ops["train"]]
                 prediction, cost, _ = self.sesh.run(ops_to_run, feed_dict)
             
             self.e+=1
             e+= 1
                 
-            print "Epoch:"+str(self.e)
+            print("Epoch:"+str(self.e))
     
     # Encode examples
     def predict(self, x):
@@ -155,3 +157,5 @@ class testnet:
     def explain(self, x):
         feed_dict = {self.ops["x"]: x}
         return self.sesh.run(self.ops["explanations"], feed_dict=feed_dict)
+
+# -- end code --
