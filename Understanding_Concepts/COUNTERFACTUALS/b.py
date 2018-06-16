@@ -392,11 +392,12 @@ with tf.Session() as sess:
         print(returned_gradient_batch.shape)
         print(returned_gradient_batch.max())
         print(returned_gradient_batch.min())
-        aggregated_gradient = np.average(returned_gradient_batch,axis=3)
+        aggregated_gradient = np.expand_dims(np.average(returned_gradient_batch,axis=3),axis=3)
+        aggregated_gradient = np.repeat(aggregated_gradient,3,axis=3)
 
-        print(aggregated_gradient[0,:,:].shape)
-        print(aggregated_gradient[0,:,:].max())
-        print(aggregated_gradient[0,:,:].min())  
+        print(aggregated_gradient[0,:,:,:].shape)
+        print(aggregated_gradient[0,:,:,:].max())
+        print(aggregated_gradient[0,:,:,:].min())  
 
         temp =  sess_result[4][0,:,:,:]
         temp2 = gray_scale(temp)
