@@ -102,6 +102,29 @@ class CNN():
         update_w.append(tf.assign( self.v_hat_prev,v_max ))        
         return grad_pass,update_w   
 
+# Def: Simple function to show 9 image with different channels
+def show_9_images(image,layer_num=None,image_num=None,channel_increase=3,alpha=None,image_index=None,gt=None,predict=None):
+    image = (image-image.min())/(image.max()-image.min())
+    fig = plt.figure()
+    color_channel = 0
+    for i in range(1,10):
+        ax = fig.add_subplot(3,3,i)
+        ax.grid(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        if alpha:
+            ax.set_title("GT: "+str(gt[i-1])+" Predict: "+str(predict[i-1]))
+        else:
+            ax.set_title("Channel : " + str(color_channel) + " : " + str(color_channel+channel_increase-1))
+        ax.imshow(np.squeeze(image[:,:,color_channel:color_channel+channel_increase]))
+        color_channel = color_channel + channel_increase
+    
+    if alpha:
+        plt.savefig('viz/y_'+str(image_index)+ "_" +str(alpha) + "_alpha_image.png")
+    else:
+        plt.savefig('viz/'+str(layer_num) + "_layer_"+str(image_num)+"_image.png")
+    plt.close('all')
+
 # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
 lstFilesDCM = []  # create an empty list
@@ -136,8 +159,8 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-test_label = test_label[:50,:]
-test_batch = test_batch[:50,:,:,:]
+test_label = test_label[50:100,:]
+test_batch = test_batch[50:100,:,:,:]
 
 # simple normalize
 train_batch = train_batch/255.0
@@ -317,32 +340,7 @@ with tf.Session() as sess:
     show_hist_of_weigt(sess.run(all_weights),status='After')
     # ------- histogram of weights after training ------
 
-    # get random 50 images from the test set and vis the gradient
-    test_batch = test_batch[:batch_size,:,:,:]
-    test_label = test_label[:batch_size,:]
 
-    # Def: Simple function to show 9 image with different channels
-    def show_9_images(image,layer_num=None,image_num=None,channel_increase=3,alpha=None,image_index=None,gt=None,predict=None):
-        image = (image-image.min())/(image.max()-image.min())
-        fig = plt.figure()
-        color_channel = 0
-        for i in range(1,10):
-            ax = fig.add_subplot(3,3,i)
-            ax.grid(False)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            if alpha:
-                ax.set_title("GT: "+str(gt[i-1])+" Predict: "+str(predict[i-1]))
-            else:
-                ax.set_title("Channel : " + str(color_channel) + " : " + str(color_channel+channel_increase-1))
-            ax.imshow(np.squeeze(image[:,:,color_channel:color_channel+channel_increase]))
-            color_channel = color_channel + channel_increase
-        
-        if alpha:
-            plt.savefig('viz/y_'+str(image_index)+ "_" +str(alpha) + "_alpha_image.png")
-        else:
-            plt.savefig('viz/'+str(layer_num) + "_layer_"+str(image_num)+"_image.png")
-        plt.close('all')
 
     # ------ layer wise activation -------
     layer3_values = sess.run(layer3,feed_dict={x:test_batch})
