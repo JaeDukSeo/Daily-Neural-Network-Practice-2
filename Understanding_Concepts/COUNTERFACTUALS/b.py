@@ -139,17 +139,17 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-# train_batch = train_batch[:50,:,:,:]
-# train_label = train_label[:50,:]
-# test_label = test_label[:50,:]
-# test_batch = test_batch[:50,:,:,:]
+train_batch = train_batch[:350,:,:,:]
+train_label = train_label[:350,:]
+test_label = test_label[:50,:]
+test_batch = test_batch[:50,:,:,:]
 
 # simple normalize
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
 # hyper parameter
-num_epoch = 2
+num_epoch = 21
 batch_size = 50
 print_size = 1
 
@@ -344,7 +344,7 @@ with tf.Session() as sess:
             color_channel = color_channel + channel_increase
         
         if alpha:
-            plt.savefig('viz/y_'+str(alpha) + "_alpha_image" + str(image_index) +".png")
+            plt.savefig('viz/y_'+str(image_index)+ "_" +str(alpha) + "_alpha_image.png")
         else:
             plt.savefig('viz/'+str(layer_num) + "_layer_"+str(image_num)+"_image.png")
         plt.close('all')
@@ -367,6 +367,15 @@ with tf.Session() as sess:
     # portion of code from: https://github.com/ankurtaly/Integrated-Gradients/blob/master/attributions.ipynb
     final_prediction_argmax = None
     final_gt_argmax = None
+    def gray_scale(img):
+        img = np.average(img, axis=2)
+        return np.transpose([img, img, img], axes=[1,2,0])
+
+    def normalize(attrs, ptile=99):
+        h = np.percentile(attrs, ptile)
+        l = np.percentile(attrs, 100-ptile)
+        return np.clip(attrs/max(abs(h), abs(l)), -1.0, 1.0) 
+
     for alpha_values in [0.01, 0.02, 0.03, 0.04,0.1, 0.5, 0.6, 0.7, 0.8, 1.0]:
 
         # create the counterfactual input and feed it to get the gradient
@@ -392,36 +401,36 @@ with tf.Session() as sess:
         # show
         show_9_images(stacked_grad,alpha=alpha_values,gt=final_gt_argmax,predict=final_prediction_argmax,image_index='1')
 
-        # overlay 
-        image_gray = np.expand_dims(np.average(test_batch,axis=3),axis=3)
-        h = np.percentile(aggregated_gradient, 99)
-        l = np.percentile(aggregated_gradient, 100-99)
-        aggregated_gradient_norm= np.clip(attrs/max(abs(h), abs(l)), -1.0, 1.0) 
-        pos_attrs = aggregated_gradient_norm * (aggregated_gradient_norm >= 0.0)
-        neg_attrs = -1.0 * aggregated_gradient_norm * (aggregated_gradient_norm < 0.0) 
+        # overlay interior gradient
+        image_gray = np.expand_dims(np.average(test_batch,axis=3),axis=3)[:9,:,:,:]
+        grad_norm = np.expand_dims(normalize(gray_scale(aggregated_gradient[0,:,:,:])),0)
+        for indexing in range(1,9):
+            current_image_norm = np.expand_dims(normalize(gray_scale(aggregated_gradient[indexing,:,:,:])),0)
+            grad_norm = np.vstack((grad_norm,current_image_norm))
+
+        pos_attrs = grad_norm * (grad_norm >= 0.0)
+        neg_attrs = -1.0 * grad_norm * (grad_norm < 0.0) 
 
         # overlayer
-        red_channel = np.zeros_like(test_batch)
+        red_channel = np.zeros_like(grad_norm)
         red_channel[:,:,:,0] = 1.0
 
-        blue_channel = np.zeros_like(test_batch)
+        blue_channel = np.zeros_like(grad_norm)
         blue_channel[:,:,:,2] = 1.0
 
         attrs_mask = pos_attrs*blue_channel + neg_attrs*red_channel
-        vis = 0.4*image_gray + 0.6*attrs_mask
+        vis = 0.6*image_gray + 0.4*attrs_mask
 
-        stacked_grad = vis[0,:,:,:]
+        stacked_grad2 = vis[0,:,:,:]
         for indexing in range(1,9):
-            stacked_grad = np.vstack((stacked_grad.T,vis[indexing,:,:,:].T)).T
-        
+            stacked_grad2 = np.vstack((stacked_grad2.T,vis[indexing,:,:,:].T)).T
+
         # show
-        show_9_images(stacked_grad,alpha=alpha_values*10,gt=final_gt_argmax,predict=final_prediction_argmax,image_index='2')
-
-
+        show_9_images(stacked_grad2,alpha=alpha_values,gt=final_gt_argmax,predict=final_prediction_argmax,image_index='2')
     # -------- Interior Gradients -----------
 
     # -------- Intergral Gradients ----------
-    base_line = test_batch * 0.0
+    base_line  = test_batch * 0.0
     difference = test_batch - base_line
     step_size = 1000
 
@@ -434,16 +443,45 @@ with tf.Session() as sess:
         final_prediction_argmax = sess_result[3]
 
     running_example = running_example * difference
-    running_example = np.sum(running_example,axis=3)  
-    running_example = (running_example-running_example.min())/(running_example.max()-running_example.min())
-    overlayed_image = np.expand_dims(running_example,axis=3) * test_batch
+    attrs = np.expand_dims(np.average(running_example,axis=3),axis=3)
+    attrs = abs(np.repeat(attrs,3,axis=3))
+    attrs = np.clip(attrs/np.percentile(attrs, 99), 0,1)
 
-    stacked_images = overlayed_image[0,:,:,:]
-    for stacking in range(1,10):
-        stacked_images = np.vstack((stacked_images.T,overlayed_image[stacking,:,:,:].T)).T
+    # Intergral grad
+    Intergral_grad = test_batch * attrs
+    stacked_grad = Intergral_grad[0,:,:,:]
+    for indexing in range(1,9):
+        stacked_grad = np.vstack((stacked_grad.T,Intergral_grad[indexing,:,:,:].T)).T
 
-    final_prediction_argmax = [-1] + list(np.argmax(final_prediction_argmax,axis=1))
-    show_9_images(stacked_images,0,0,alpha=-99,gt=final_gt_argmax,predict=final_prediction_argmax)
+    # show
+    show_9_images(stacked_grad,alpha=-99,gt=final_gt_argmax,predict=final_prediction_argmax,image_index='1') 
+
+    # overlay Intergral gradient
+    image_gray = np.expand_dims(np.average(test_batch,axis=3),axis=3)[:9,:,:,:]
+    grad_norm = np.expand_dims(normalize(gray_scale(running_example[0,:,:,:])),0)
+    for indexing in range(1,9):
+        current_image_norm = np.expand_dims(normalize(gray_scale(aggregated_gradient[indexing,:,:,:])),0)
+        grad_norm = np.vstack((grad_norm,current_image_norm))
+
+    pos_attrs = grad_norm * (grad_norm >= 0.0)
+    neg_attrs = -1.0 * grad_norm * (grad_norm < 0.0) 
+
+    # overlayer
+    red_channel = np.zeros_like(grad_norm)
+    red_channel[:,:,:,0] = 1.0
+
+    blue_channel = np.zeros_like(grad_norm)
+    blue_channel[:,:,:,2] = 1.0
+
+    attrs_mask = pos_attrs*blue_channel + neg_attrs*red_channel
+    vis = 0.6*image_gray + 0.4*attrs_mask
+
+    stacked_grad2 = vis[0,:,:,:]
+    for indexing in range(1,9):
+        stacked_grad2 = np.vstack((stacked_grad2.T,vis[indexing,:,:,:].T)).T
+
+    # show
+    show_9_images(stacked_grad2,alpha=-99,gt=final_gt_argmax,predict=final_prediction_argmax,image_index='2')
     # -------- Intergral Gradients ----------
 
 
