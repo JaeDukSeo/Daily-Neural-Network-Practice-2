@@ -358,6 +358,17 @@ with tf.Session() as sess:
         show_9_images(layer9_values[immage_index,:,:,:],9,immage_index,channel_increase=1)
     # ------ layer wise activation -------
 
+
+    # code from: https://github.com/ankurtaly/Integrated-Gradients/blob/master/attributions.ipynb
+    def normalize(attrs, ptile=99):
+        h = np.percentile(attrs, ptile)
+        l = np.percentile(attrs, 100-ptile)
+        return np.clip(attrs/max(abs(h), abs(l)), -1.0, 1.0)  
+
+    def gray_scale(img):
+        img = np.average(img, axis=2)
+        return np.transpose([img, img, img], axes=[1,2,0])
+
     # -------- Interior Gradients -----------
     final_prediction_argmax = None
     final_gt_argmax = None
@@ -388,14 +399,6 @@ with tf.Session() as sess:
             plt.imshow(overlayed_image)
             plt.show()
 
-            def normalize(attrs, ptile=99):
-                h = np.percentile(attrs, ptile)
-                l = np.percentile(attrs, 100-ptile)
-                return np.clip(attrs/max(abs(h), abs(l)), -1.0, 1.0)  
-
-            def gray_scale(img):
-                img = np.average(img, axis=2)
-                return np.transpose([img, img, img], axes=[1,2,0])
 
             grad_important = sess_result[4][tt,:,:,:]
             grad_important_avg = np.average(grad_important, axis=2)
