@@ -139,21 +139,21 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-train_batch = train_batch[:50,:,:,:]
-train_label = train_label[:50,:]
-test_label = test_label[:50,:]
-test_batch = test_batch[:50,:,:,:]
+# train_batch = train_batch[:50,:,:,:]
+# train_label = train_label[:50,:]
+# test_label = test_label[:50,:]
+# test_batch = test_batch[:50,:,:,:]
 
 # simple normalize
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
 # hyper parameter
-num_epoch = 1
+num_epoch = 5
 batch_size = 50
 print_size = 1
 
-learning_rate = 0.0004
+learning_rate = 0.0005
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -363,18 +363,8 @@ with tf.Session() as sess:
         show_9_images(layer9_values[immage_index,:,:,:],9,immage_index,channel_increase=1)
     # ------ layer wise activation -------
 
-
-    # code from: https://github.com/ankurtaly/Integrated-Gradients/blob/master/attributions.ipynb
-    def normalize(attrs, ptile=99):
-        h = np.percentile(attrs, ptile)
-        l = np.percentile(attrs, 100-ptile)
-        return np.clip(attrs/max(abs(h), abs(l)), -1.0, 1.0)  
-
-    def gray_scale(img):
-        img = np.average(img, axis=2)
-        return np.transpose([img, img, img], axes=[1,2,0])
-
     # -------- Interior Gradients -----------
+    # portion of code from: https://github.com/ankurtaly/Integrated-Gradients/blob/master/attributions.ipynb
     final_prediction_argmax = None
     final_gt_argmax = None
     for alpha_values in [0.01, 0.02, 0.03, 0.04, 0.5, 0.6, 0.7, 0.8, 1.0]:
@@ -384,26 +374,24 @@ with tf.Session() as sess:
         sess_result = sess.run([cost,accuracy,correct_prediction,final_soft,grad1],feed_dict={x:test_batch_a,y:test_label,iter_variable:1.0,phase:False})
         
         # get the final prediction and the ground truth
-        final_prediction_argmax = list(np.argmax(sess_result[3],axis=1))
-        final_gt_argmax         = list(np.argmax(test_label,axis=1))
+        final_prediction_argmax = list(np.argmax(sess_result[3],axis=1))[:9]
+        final_gt_argmax         = list(np.argmax(test_label,axis=1))[:9]
 
         # get the gradients
         returned_gradient_batch = sess_result[4]
-        print(returned_gradient_batch.shape)
-        print(returned_gradient_batch.max())
-        print(returned_gradient_batch.min())
         aggregated_gradient = np.expand_dims(np.average(returned_gradient_batch,axis=3),axis=3)
-        aggregated_gradient = np.repeat(aggregated_gradient,3,axis=3)
+        aggregated_gradient = abs(np.repeat(aggregated_gradient,3,axis=3))
+        attrs = np.clip(aggregated_gradient/np.percentile(aggregated_gradient, 99), 0,1)
 
-        print(aggregated_gradient[0,:,:,:].shape)
-        print(aggregated_gradient[0,:,:,:].max())
-        print(aggregated_gradient[0,:,:,:].min())  
+        # interior grad
+        interrior_grad = test_batch * attrs
+        stacked_grad = interrior_grad[0,:,:,:]
+        for indexing in range(1,9):
+            stacked_grad = np.vstack((stacked_grad.T,interrior_grad[indexing,:,:,:].T)).T
+        
+        # show
+        show_9_images(stacked_grad,alpha=alpha_values,gt=final_gt_argmax,predict=final_prediction_argmax)
 
-        temp =  sess_result[4][0,:,:,:]
-        temp2 = gray_scale(temp)
-        print(temp2.shape)
-        print(temp2.max())
-        print(temp2.min()) 
         sys.exit()
 
 
