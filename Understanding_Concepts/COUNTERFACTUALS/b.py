@@ -45,7 +45,7 @@ def tf_repeat(tensor, repeats):
 
 # data aug
 seq = iaa.Sequential([
-    iaa.Sometimes(0.1,
+    iaa.Sometimes(0.5,
         iaa.Affine(
             translate_percent={"x": (-0.3, 0.3), "y": (-0.3, 0.3)},
             rotate=(-10, 10),
@@ -144,11 +144,11 @@ train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
 # hyper parameter
-num_epoch = 21
+num_epoch = 8
 batch_size = 50
 print_size = 1
 
-learning_rate = 0.0001
+learning_rate = 0.0005
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -427,7 +427,7 @@ with tf.Session() as sess:
     # -------- Intergral Gradients ----------
     base_line  = test_batch * 0.0
     difference = test_batch - base_line
-    step_size = 1000
+    step_size = 3000
 
     running_example = test_batch * 0.0
     for rim in range(1,step_size+1):
