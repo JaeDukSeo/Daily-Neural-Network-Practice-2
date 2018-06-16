@@ -139,12 +139,17 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
+train_batch = train_batch[:50,:,:,:]
+train_label = train_label[:50,:]
+test_label = test_label[:50,:]
+test_batch = test_batch[:50,:,:,:]
+
 # simple normalize
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
 # hyper parameter
-num_epoch = 21
+num_epoch = 1
 batch_size = 50
 print_size = 1
 
@@ -374,11 +379,32 @@ with tf.Session() as sess:
     final_gt_argmax = None
     for alpha_values in [0.01, 0.02, 0.03, 0.04, 0.5, 0.6, 0.7, 0.8, 1.0]:
 
+        # create the counterfactual input and feed it to get the gradient
         test_batch_a = test_batch * alpha_values
         sess_result = sess.run([cost,accuracy,correct_prediction,final_soft,grad1],feed_dict={x:test_batch_a,y:test_label,iter_variable:1.0,phase:False})
         
+        # get the final prediction and the ground truth
         final_prediction_argmax = list(np.argmax(sess_result[3],axis=1))
         final_gt_argmax         = list(np.argmax(test_label,axis=1))
+
+        # get the gradients
+        returned_gradient_batch = sess_result[4]
+        print(returned_gradient_batch.shape)
+        print(returned_gradient_batch.max())
+        print(returned_gradient_batch.min())
+        aggregated_gradient = np.average(returned_gradient_batch,axis=3)
+
+        print(aggregated_gradient[0,:,:].shape)
+        print(aggregated_gradient[0,:,:].max())
+        print(aggregated_gradient[0,:,:].min())  
+
+        temp =  sess_result[4][0,:,:,:]
+        temp2 = gray_scale(temp)
+        print(temp2.shape)
+        print(temp2.max())
+        print(temp2.min()) 
+        sys.exit()
+
 
         for tt in range(100):
             grad_important = sess_result[4][tt,:,:,:]
@@ -425,10 +451,6 @@ with tf.Session() as sess:
 
 
 
-        # stacked_images = overlayed_image[0,:,:,:]
-        # for stacking in range(1,10):
-        #     stacked_images = np.vstack((stacked_images.T,overlayed_image[stacking,:,:,:].T)).T
-        # show_9_images(stacked_images,0,0,alpha=alpha_values,gt=final_gt_argmax,predict=final_prediction_argmax)
     # -------- Interior Gradients -----------
 
     # -------- Intergral Gradients ----------
