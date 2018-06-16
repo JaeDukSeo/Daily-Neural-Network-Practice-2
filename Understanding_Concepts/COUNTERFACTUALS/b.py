@@ -139,8 +139,8 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-train_batch = train_batch[:350,:,:,:]
-train_label = train_label[:350,:]
+train_batch = train_batch[:1050,:,:,:]
+train_label = train_label[:1050,:]
 test_label = test_label[:50,:]
 test_batch = test_batch[:50,:,:,:]
 
@@ -440,7 +440,7 @@ with tf.Session() as sess:
         test_batch_a = current_alpha * test_batch
         sess_result = sess.run([cost,accuracy,correct_prediction,final_soft,grad1],feed_dict={x:test_batch_a,y:test_label,iter_variable:1.0,phase:False})
         running_example = running_example + sess_result[4]
-        final_prediction_argmax = sess_result[3]
+        final_prediction_argmax = list(np.argmax(sess_result[3],axis=1))[:9]
 
     running_example = running_example * difference
     attrs = np.expand_dims(np.average(running_example,axis=3),axis=3)
