@@ -149,7 +149,7 @@ train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
 # hyper parameter
-num_epoch = 5
+num_epoch = 2
 batch_size = 50
 print_size = 1
 
@@ -240,7 +240,7 @@ with tf.Session() as sess:
                 ax.legend()
             ax.set_title('From Layer : '+str(weight_index+1)+' to '+str(weight_index+3))
             weight_index = weight_index + 3
-        plt.savefig('viz/weights_'+str(status)+"_training.png")
+        plt.savefig('viz/z_weights_'+str(status)+"_training.png")
         plt.close('all')
 
     # ------- histogram of weights before training ------
@@ -307,7 +307,7 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("viz/Case Train.png")
+    plt.savefig("viz/z_Case Train.png")
     plt.close('all')
 
     plt.figure()
@@ -315,7 +315,7 @@ with tf.Session() as sess:
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("viz/Case Test.png")
+    plt.savefig("viz/z_Case Test.png")
     plt.close('all')
 
     # ------- histogram of weights after training ------
@@ -327,7 +327,7 @@ with tf.Session() as sess:
     test_label = test_label[:batch_size,:]
 
     # Def: Simple function to show 9 image with different channels
-    def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=None,predict=None):
+    def show_9_images(image,layer_num=None,image_num=None,channel_increase=3,alpha=None,image_index=None,gt=None,predict=None):
         image = (image-image.min())/(image.max()-image.min())
         fig = plt.figure()
         color_channel = 0
@@ -344,7 +344,7 @@ with tf.Session() as sess:
             color_channel = color_channel + channel_increase
         
         if alpha:
-            plt.savefig('viz/z_'+str(alpha) + "_alpha_image.png")
+            plt.savefig('viz/y_'+str(alpha) + "_alpha_image" + str(image_index) +".png")
         else:
             plt.savefig('viz/'+str(layer_num) + "_layer_"+str(image_num)+"_image.png")
         plt.close('all')
@@ -367,7 +367,7 @@ with tf.Session() as sess:
     # portion of code from: https://github.com/ankurtaly/Integrated-Gradients/blob/master/attributions.ipynb
     final_prediction_argmax = None
     final_gt_argmax = None
-    for alpha_values in [0.01, 0.02, 0.03, 0.04, 0.5, 0.6, 0.7, 0.8, 1.0]:
+    for alpha_values in [0.01, 0.02, 0.03, 0.04,0.1, 0.5, 0.6, 0.7, 0.8, 1.0]:
 
         # create the counterfactual input and feed it to get the gradient
         test_batch_a = test_batch * alpha_values
@@ -380,8 +380,8 @@ with tf.Session() as sess:
         # get the gradients
         returned_gradient_batch = sess_result[4]
         aggregated_gradient = np.expand_dims(np.average(returned_gradient_batch,axis=3),axis=3)
-        aggregated_gradient = abs(np.repeat(aggregated_gradient,3,axis=3))
-        attrs = np.clip(aggregated_gradient/np.percentile(aggregated_gradient, 99), 0,1)
+        attrs = abs(np.repeat(aggregated_gradient,3,axis=3))
+        attrs = np.clip(attrs/np.percentile(attrs, 99), 0,1)
 
         # interior grad
         interrior_grad = test_batch * attrs
@@ -390,54 +390,32 @@ with tf.Session() as sess:
             stacked_grad = np.vstack((stacked_grad.T,interrior_grad[indexing,:,:,:].T)).T
         
         # show
-        show_9_images(stacked_grad,alpha=alpha_values,gt=final_gt_argmax,predict=final_prediction_argmax)
+        show_9_images(stacked_grad,alpha=alpha_values,gt=final_gt_argmax,predict=final_prediction_argmax,image_index='1')
 
-        sys.exit()
+        # overlay 
+        image_gray = np.expand_dims(np.average(test_batch,axis=3),axis=3)
+        h = np.percentile(aggregated_gradient, 99)
+        l = np.percentile(aggregated_gradient, 100-99)
+        aggregated_gradient_norm= np.clip(attrs/max(abs(h), abs(l)), -1.0, 1.0) 
+        pos_attrs = aggregated_gradient_norm * (aggregated_gradient_norm >= 0.0)
+        neg_attrs = -1.0 * aggregated_gradient_norm * (aggregated_gradient_norm < 0.0) 
 
+        # overlayer
+        red_channel = np.zeros_like(test_batch)
+        red_channel[:,:,:,0] = 1.0
 
-        for tt in range(100):
-            grad_important = sess_result[4][tt,:,:,:]
-            grad_important_avg = np.average(grad_important, axis=2)
-            grad_important_avg = np.transpose([grad_important_avg, grad_important_avg, grad_important_avg], axes=[1,2,0])
-            grad_important_avg = abs(grad_important_avg)
-            attrs = np.clip(grad_important_avg/np.percentile(grad_important_avg, 99), 0,1)
-            overlayed_image = test_batch[tt,:,:,:]*attrs
+        blue_channel = np.zeros_like(test_batch)
+        blue_channel[:,:,:,2] = 1.0
 
-            sss = final_prediction_argmax[tt]
-            ssss = final_gt_argmax[tt]
+        attrs_mask = pos_attrs*blue_channel + neg_attrs*red_channel
+        vis = 0.4*image_gray + 0.6*attrs_mask
 
-            plt.title(str(alpha_values)+"_"+str(sss)+"_"+str(ssss))
-            plt.imshow(np.squeeze(test_batch[tt,:,:,:]))
-            plt.show()
-
-            plt.title(str(alpha_values)+"_"+str(sss)+"_"+str(ssss))
-            plt.imshow(overlayed_image)
-            plt.show()
-
-
-            grad_important = sess_result[4][tt,:,:,:]
-            grad_important_avg = np.average(grad_important, axis=2)
-            grad_important_avg = normalize(grad_important_avg,ptile=99)
-            pos_attrs = grad_important_avg * (grad_important_avg >= 0.0)
-            neg_attrs = -1.0 * grad_important_avg * (grad_important_avg < 0.0)
-
-            R=np.array([1.0,0,0])
-            G=np.array([0,1.0,0])
-            B=np.array([0,0,1.0])
-
-            tempR = np.zeros_like(test_batch[tt,:,:,:])
-            tempR[:,:,0] = 1.0
-
-            tempG = np.zeros_like(test_batch[tt,:,:,:])
-            tempG[:,:,2] = 1.0
-
-            attrs_mask = np.expand_dims(pos_attrs,axis=2)*tempR + np.expand_dims(neg_attrs,axis=2)*tempG
-            vis = 0.5*gray_scale(test_batch[tt,:,:,:]) + 0.5*attrs_mask
-
-            plt.title(str(alpha_values)+"_"+str(sss)+"_"+str(ssss))
-            plt.imshow(vis)
-            plt.show()
-
+        stacked_grad = vis[0,:,:,:]
+        for indexing in range(1,9):
+            stacked_grad = np.vstack((stacked_grad.T,vis[indexing,:,:,:].T)).T
+        
+        # show
+        show_9_images(stacked_grad,alpha=alpha_values*10,gt=final_gt_argmax,predict=final_prediction_argmax,image_index='2')
 
 
     # -------- Interior Gradients -----------
