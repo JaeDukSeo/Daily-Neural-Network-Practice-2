@@ -47,13 +47,10 @@ def tf_repeat(tensor, repeats):
 seq = iaa.Sequential([
     iaa.Sometimes(0.1,
         iaa.Affine(
-            translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
+            translate_percent={"x": (-0.3, 0.3), "y": (-0.3, 0.3)},
             rotate=(-10, 10),
-            scale={"x": (0.9, 1.1), "y": (0.9, 1.1)},
+            scale={"x": (0.5, 1.1), "y": (0.5, 1.1)},
         )
-    ),
-    iaa.Sometimes(0.1,
-            iaa.Flipud(1.0) # Horizonatl flips
     ),
     iaa.Fliplr(1.0), # Horizonatl flips
 ], random_order=True) # apply augmenters in random order
@@ -139,8 +136,6 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-train_batch = train_batch[:1050,:,:,:]
-train_label = train_label[:1050,:]
 test_label = test_label[:50,:]
 test_batch = test_batch[:50,:,:,:]
 
@@ -262,12 +257,12 @@ with tf.Session() as sess:
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
 
-            # online data augmentation here and standard normalization
+            # online data augmentation here 
             images_aug1 = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug1)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
-            # online data augmentation here and standard normalization
+            # online data augmentation here 
 
             sess_result = sess.run([cost,accuracy,correct_prediction,grad_update],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
