@@ -45,14 +45,14 @@ def tf_repeat(tensor, repeats):
 
 # data aug
 seq = iaa.Sequential([
-    iaa.Sometimes(0.5,
+    iaa.Sometimes(0.1,
         iaa.Affine(
             translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
             rotate=(-10, 10),
             scale={"x": (0.9, 1.1), "y": (0.9, 1.1)},
         )
     ),
-    iaa.Sometimes(0.5,
+    iaa.Sometimes(0.1,
             iaa.Flipud(1.0) # Horizonatl flips
     ),
     iaa.Fliplr(1.0), # Horizonatl flips
