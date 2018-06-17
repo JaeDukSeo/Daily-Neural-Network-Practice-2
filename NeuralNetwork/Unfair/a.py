@@ -16,7 +16,7 @@ tf.set_random_seed(678)
 ia.seed(678)
 
 def tf_elu(x): return tf.nn.elu(x)
-def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + ( tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
+def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
     import pickle
@@ -63,16 +63,15 @@ def show_hist_of_weigt(all_weight_list,status='before'):
 
 # ================= DATA AUGMENTATION =================
 seq = iaa.Sequential([
-    iaa.Sometimes(0.01,
-        iaa.Affine(
-            # translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
-            rotate=(-25, 25),
-            # scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
-        )
-    ),
     iaa.Fliplr(1.0), 
-    # iaa.Flipud(0.5), 
-], random_order=True) # apply augmenters in random order
+], random_order=True) 
+seq1 = iaa.Sequential([
+    iaa.Flipud(1.0), 
+], random_order=True) 
+seq2 = iaa.Sequential([
+    iaa.Fliplr(1.0), 
+    iaa.Flipud(1.0), 
+], random_order=True) 
 # ================= DATA AUGMENTATION =================
 
 
@@ -81,19 +80,19 @@ seq = iaa.Sequential([
 class CNN():
     
     def __init__(self,k,inc,out,stddev):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=stddev))
+        self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=stddev))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
 
     def getw(self): return self.w
 
-    def feedforward(self,input,stride=1,padding='VALID'):
+    def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
         self.layerA = tf_elu(self.layer)
         return self.layerA 
 
-    def backprop(self,gradient,learning_rate_change,stride=1,padding='VALID'):
+    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME'):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -205,17 +204,25 @@ test_label_f  = open(PathDicom+"test_y.bin",'rb')
 # So I am going to switch 
 onehot_encoder = OneHotEncoder(sparse=True)
 
-train_batch = np.fromfile(train_file, dtype=np.uint8)
-train_batch = np.reshape(train_batch, (-1, 3, 96, 96))
-train_batch = np.transpose(train_batch, (0, 3, 2, 1))
+x_data = np.fromfile(train_file, dtype=np.uint8)
+x_data = np.reshape(x_data, (-1, 3, 96, 96))
+x_data = np.transpose(x_data, (0, 3, 2, 1))
 train_label_pure = np.expand_dims(np.fromfile(train_label_f, dtype=np.uint8).astype(np.float64),axis=1)
 train_label = onehot_encoder.fit_transform(train_label_pure).toarray().astype(np.float32)
 
-test_batch = np.fromfile(test_file, dtype=np.uint8)
-test_batch = np.reshape(test_batch, (-1, 3, 96, 96))
-test_batch = np.transpose(test_batch, (0, 3, 2, 1))
+y_data = np.fromfile(test_file, dtype=np.uint8)
+y_data = np.reshape(y_data, (-1, 3, 96, 96))
+y_data = np.transpose(y_data, (0, 3, 2, 1))
 test_label = np.expand_dims(np.fromfile(test_label_f, dtype=np.uint8).astype(np.float64),axis=1)
 test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
+
+train_batch = np.zeros((len(x_data),64,64,3))
+test_batch = np.zeros((len(y_data),64,64,3))
+
+for x in range(len(x_data)):
+    train_batch[x,:,:,:] = imresize(x_data[x,:,:,:],(64,64))
+for x in range(len(y_data)):
+    test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(64,64))
 
 # print out the data shape
 print(train_batch.shape)
@@ -240,26 +247,26 @@ test_batch = test_batch/255.0
 
 # hyper parameter
 num_epoch = 21
-batch_size = 2
+batch_size = 16
 print_size = 1
 
 learning_rate = 0.00001
 learnind_rate_decay = 0.0
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class
-channel_sizes = 64
+channel_sizes = 200
 l1 = CNN(3,3,channel_sizes,stddev=0.04)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l3 = CNN(1,channel_sizes,channel_sizes,stddev=0.06)
+l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 
 l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
 l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l6 = CNN(1,channel_sizes,channel_sizes,stddev=0.06)
+l6 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
 
 l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l8 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l9 = CNN(2,channel_sizes,channel_sizes,stddev=0.04)
+l9 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
 
 l10 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l11 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
@@ -273,7 +280,7 @@ all_weights = [
     ]
 
 # graph
-x = tf.placeholder(shape=[batch_size,96,96,3],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,64,64,3],dtype=tf.float32)
 y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
@@ -282,23 +289,23 @@ learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*ite
 phase = tf.placeholder(tf.bool)
 
 layer1 = l1.feedforward(x)
-layer2 = l2.feedforward(layer1)
+layer2 = l2.feedforward(layer1) 
 layer3 = l3.feedforward(layer2)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer4 = l4.feedforward(layer4_Input)
-layer5 = l5.feedforward(layer4)
-layer6 = l6.feedforward(layer5)
+layer5 = l5.feedforward(layer4) 
+layer6 = l6.feedforward(layer5) 
 
 layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer7 = l7.feedforward(layer7_Input)
-layer8 = l8.feedforward(layer7)
-layer9 = l9.feedforward(layer8)
+layer8 = l8.feedforward(layer7) 
+layer9 = l9.feedforward(layer8) 
 
 layer10_Input = tf.nn.avg_pool(layer9,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer10 = l10.feedforward(layer10_Input)
-layer11 = l11.feedforward(layer10)
-layer12 = l12.feedforward(layer11)
+layer11 = l11.feedforward(layer10) 
+layer12 = l12.feedforward(layer11) 
 
 final_global = tf.reduce_mean(layer12,[1,2])
 final_soft = tf_softmax(final_global)
@@ -307,16 +314,16 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-# grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,12,12,1])
+# grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,6,6,1])
 grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10]) # Broken Back Prop
 grad12,grad12_up = l12.backprop(grad_prepare,learning_rate_change=learning_rate_change)
-grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change)
-grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change)
+grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change) 
+grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change) 
 
 grad9_Input = tf_repeat(grad10,[1,2,2,1])
-grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change)
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change)
-grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change)
+grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change) 
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change) 
+grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change) 
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
 grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
@@ -354,14 +361,23 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
 
-        for batch_size_index in range(0,len(train_batch),batch_size//2):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
+        for batch_size_index in range(0,len(train_batch),batch_size//4):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//4]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//4]
 
             # online data augmentation here and standard normalization
+            images_aug  = seq.augment_images(current_batch.astype(np.float32))
             images_aug1 = seq.augment_images(current_batch.astype(np.float32))
-            current_batch = np.vstack((current_batch,images_aug1)).astype(np.float32)
-            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            images_aug2 = seq.augment_images(current_batch.astype(np.float32))
+
+            current_batch1 = np.vstack((current_batch,images_aug)).astype(np.float32)
+            current_batch2 = np.vstack((images_aug1,images_aug2)).astype(np.float32)
+            current_batch = np.vstack((current_batch1,current_batch2)).astype(np.float32)
+
+            current_batch_label1 = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            current_batch_label2 = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label1,current_batch_label2)).astype(np.float32)
+
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
@@ -383,12 +399,12 @@ with tf.Session() as sess:
 
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
-            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size//4)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//4) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
-        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
+        train_acc.append(train_acca/(len(train_batch)/(batch_size//4)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size//4)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
