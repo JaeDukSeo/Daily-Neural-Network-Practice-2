@@ -171,70 +171,6 @@ class CNN():
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
 
         return grad_pass,update_w   
-
-# Followed the implmentation from: https://wiseodd.github.io/techblog/2016/07/04/batchnorm/
-# Followed the implmentation from: https://kratzert.github.io/2016/02/12/understanding-the-gradient-flow-through-the-batch-normalization-layer.html
-class batch_norm():
-    
-    def __init__(self,dim,channel):
-        
-        self.gamma = tf.Variable(tf.ones(shape=[dim,dim,channel]))
-        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.gamma)),tf.Variable(tf.zeros_like(self.gamma))
-        self.v_hat_prev = tf.Variable(tf.zeros_like(self.gamma))
-
-        # for one update
-        self.input = None
-        self.current_mean = None
-        self.current_var = None
-        self.x_norm = None
-
-        # exp moving average
-        self.moving_mean = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
-        self.moving_var  = tf.Variable(tf.zeros(shape=[dim,dim,channel]))
-
-    def feedforward(self,input,is_training):
-        moving_update = []
-
-        self.input = input
-        self.current_mean,self.current_var = tf.nn.moments(input,axes=0)
-
-        def training_fn(): 
-            # Update the moving average
-            self.x_norm = (input - self.current_mean) / (tf.sqrt(self.current_var + 1e-8))
-            moving_update.append(tf.assign(self.moving_mean,self.moving_mean*0.9 + self.current_mean*0.1 ))
-            moving_update.append(tf.assign(self.moving_var,self.moving_var*0.9 + self.current_var*0.1 ))
-            return self.x_norm,moving_update
-
-        def testing_fn(): 
-            # In the Testing Data use the moving average  
-            self.x_norm = (input-self.moving_mean)/ (tf.sqrt(self.moving_var + 1e-8))
-            return self.x_norm ,moving_update
-
-        self.x_norm,moving_update = tf.cond(is_training, true_fn=training_fn, false_fn=testing_fn)
-        self.out = self.gamma * self.x_norm
-        return self.out,moving_update
-
-    def backprop(self,gradient):
-        
-        grad_mean_prep = self.input - self.current_mean
-        grad_var_prep  = 1. / tf.sqrt(self.current_var + 1e-8)
-
-        grad_norm = gradient * self.gamma
-        grad_var  = tf.reduce_sum(grad_norm * grad_mean_prep, axis=0) * -.5 * grad_var_prep ** 3
-        grad_mean = tf.reduce_sum(grad_norm * -1.0 * grad_var_prep, axis=0) + grad_var * tf.reduce_mean(-2. * grad_mean_prep, axis=0)
-        
-        grad_pass = (grad_norm * grad_var_prep) + (grad_var * 2 * grad_mean_prep / batch_size) + (grad_mean / batch_size    )
-        grad = tf.reduce_sum(gradient * self.x_norm , axis=0)
-
-        update_w = []
-        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
-        update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
-        m_hat = self.m / (1-beta1)
-        v_hat = self.v_prev / (1-beta2)
-        adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))   
-
-        return grad_pass,update_w   
 # ================= LAYER CLASSES =================
 
 
@@ -271,11 +207,6 @@ for x in range(len(x_data)):
     train_batch[x,:,:,:] = imresize(x_data[x,:,:,:],(64,64))
 for x in range(len(y_data)):
     test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(64,64))
-
-train_batch = train_batch[:40,:,:,:]
-train_label = train_label[:40,:]
-test_batch = test_batch[:40,:,:,:]
-test_label = test_label[:40,:]
 
 # print out the data shape
 print(train_batch.shape)
