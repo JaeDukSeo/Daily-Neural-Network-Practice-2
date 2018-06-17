@@ -46,7 +46,8 @@ def tf_repeat(tensor, repeats):
 def show_hist_of_weigt(all_weight_list,status='before'):
     fig = plt.figure()
     weight_index = 0
-    for i in range(1,4):
+
+    for i in range(1,1+int(len(all_weight_list)//3)):
         ax = fig.add_subplot(1,4,i)
         ax.grid(False)
         temp_weight_list = all_weight_list[weight_index:weight_index+3]
@@ -411,8 +412,8 @@ with tf.Session() as sess:
         train_cota,train_acca = 0,0
 
     # Normalize the cost of the training
-    train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot)+1-10)
-    test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot)+1-10)
+    train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
+    test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
 
     # plot the training and testing graph
     plt.figure()
@@ -420,14 +421,14 @@ with tf.Session() as sess:
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("Case Train.png")
+    plt.savefig("viz/Case Train.png")
 
     plt.figure()
     plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
     plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Test Average Accuracy / Cost Over Time")
-    plt.savefig("Case Test.png")
+    plt.savefig("viz/Case Test.png")
     plt.close('all')
 
     # ------- histogram of weights after training ------
