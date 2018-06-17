@@ -71,7 +71,7 @@ seq = iaa.Sequential([
         )
     ),
     iaa.Fliplr(1.0), 
-    iaa.Flipud(0.3), 
+    iaa.Flipud(0.5), 
 ], random_order=True) # apply augmenters in random order
 # ================= DATA AUGMENTATION =================
 
@@ -224,8 +224,8 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # simple normalize
-# train_batch = train_batch/255.0
-# test_batch = test_batch/255.0
+train_batch = train_batch/255.0
+test_batch = test_batch/255.0
 
 # Number of each classes
 # 1 -> airplane
@@ -362,9 +362,6 @@ with tf.Session() as sess:
             images_aug1 = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug1)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
-            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
-            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
@@ -377,9 +374,6 @@ with tf.Session() as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size].astype(np.float32)
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size].astype(np.float32)
-            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
-            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
-            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
             sess_result = sess.run([cost,accuracy,correct_prediction],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,phase:False})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
