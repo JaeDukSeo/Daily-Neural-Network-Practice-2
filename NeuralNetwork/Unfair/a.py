@@ -42,20 +42,42 @@ def tf_repeat(tensor, repeats):
     repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
     return repeated_tesnor
 
-# data aug
+# ================= VIZ =================
+def show_hist_of_weigt(all_weight_list,status='before'):
+    fig = plt.figure()
+    weight_index = 0
+    for i in range(1,4):
+        ax = fig.add_subplot(1,4,i)
+        ax.grid(False)
+        temp_weight_list = all_weight_list[weight_index:weight_index+3]
+        for temp_index in range(len(temp_weight_list)):
+            current_flat = temp_weight_list[temp_index].flatten()
+            ax.hist(current_flat,histtype='step',bins='auto',label=str(temp_index+weight_index))
+            ax.legend()
+        ax.set_title('From Layer : '+str(weight_index+1)+' to '+str(weight_index+3))
+        weight_index = weight_index + 3
+    plt.savefig('viz/weights_'+str(status)+"_training.png")
+    plt.close('all')
+# ================= VIZ =================
+
+
+# ================= DATA AUGMENTATION =================
 seq = iaa.Sequential([
-    iaa.Sometimes(0.1,
+    iaa.Sometimes(0.01,
         iaa.Affine(
             translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
             rotate=(-25, 25),
             scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
         )
     ),
-    iaa.Fliplr(1.0), # Horizonatl flips
-    # iaa.Flipud(0.2), # Horizonatl flips
+    iaa.Fliplr(1.0), 
+    iaa.Flipud(0.3), 
 ], random_order=True) # apply augmenters in random order
+# ================= DATA AUGMENTATION =================
 
-# class
+
+
+# ================= LAYER CLASSES =================
 class CNN():
     
     def __init__(self,k,inc,out,stddev):
@@ -65,13 +87,13 @@ class CNN():
 
     def getw(self): return self.w
 
-    def feedforward(self,input,stride=1,padding='VALID'):
+    def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
         self.layerA = tf_elu(self.layer)
         return self.layerA 
 
-    def backprop(self,gradient,learning_rate_change,stride=1,padding='VALID'):
+    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME'):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -157,19 +179,17 @@ class batch_norm():
         grad = tf.reduce_sum(gradient * self.x_norm , axis=0)
 
         update_w = []
-        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   ))
-        v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
-
-        def f1(): return v_t
-        def f2(): return self.v_hat_prev
-
-        v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
-        adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
-        update_w.append(tf.assign(self.gamma,tf.subtract(self.gamma,adam_middel  )  ))
-        update_w.append(tf.assign( self.v_prev,v_t ))
-        update_w.append(tf.assign( self.v_hat_prev,v_max ))   
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v_prev / (1-beta2)
+        adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))   
 
         return grad_pass,update_w   
+# ================= LAYER CLASSES =================
+
+
 
 # stl 10 data
 PathDicom = "../../Dataset/STL10/stl10_binary/"
@@ -188,8 +208,8 @@ onehot_encoder = OneHotEncoder(sparse=True)
 train_batch = np.fromfile(train_file, dtype=np.uint8)
 train_batch = np.reshape(train_batch, (-1, 3, 96, 96))
 train_batch = np.transpose(train_batch, (0, 3, 2, 1))
-train_label = np.expand_dims(np.fromfile(train_label_f, dtype=np.uint8).astype(np.float64),axis=1)
-train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
+train_label_pure = np.expand_dims(np.fromfile(train_label_f, dtype=np.uint8).astype(np.float64),axis=1)
+train_label = onehot_encoder.fit_transform(train_label_pure).toarray().astype(np.float32)
 
 test_batch = np.fromfile(test_file, dtype=np.uint8)
 test_batch = np.reshape(test_batch, (-1, 3, 96, 96))
@@ -204,18 +224,28 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # simple normalize
-train_batch = train_batch/255.0
-test_batch = test_batch/255.0
+# train_batch = train_batch/255.0
+# test_batch = test_batch/255.0
+
+# Number of each classes
+# 1 -> airplane
+# 2 -> bird
+# 4 -> cat
+# 5 -> deer
+# 6 -> Dog
+# 7 -> horse
+# 8 -> monkey
+# 9 -> ship
+# 10 -> truck
 
 # hyper parameter
 num_epoch = 21
 batch_size = 8
 print_size = 1
 
-# learning_rate = 0.0004
-learning_rate = 0.00002
+learning_rate = 0.00001
 learnind_rate_decay = 0.0
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class
 channel_sizes = 128
@@ -225,7 +255,7 @@ l3 = CNN(5,channel_sizes,channel_sizes,stddev=0.06)
 
 l4 = CNN(5,channel_sizes,channel_sizes,stddev=0.04)
 l5 = CNN(5,channel_sizes,channel_sizes,stddev=0.05)
-l6 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
+l6 = CNN(5,channel_sizes,channel_sizes,stddev=0.06)
 
 l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l8 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
@@ -235,7 +265,12 @@ l10 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l11 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
 l12 = CNN(1,channel_sizes,10,stddev=0.04)
 
-all_weights = [l1.getw(),l2.getw(),l3.getw(),l4.getw(),l5.getw(),l6.getw(),l7.getw(),l8.getw(),l9.getw()]
+all_weights = [
+    l1.getw(),l2.getw(),l3.getw(),
+    l4.getw(),l5.getw(),l6.getw(),
+    l7.getw(),l8.getw(),l9.getw(),
+    l10.getw(),l11.getw(),l12.getw()
+    ]
 
 # graph
 x = tf.placeholder(shape=[batch_size,96,96,3],dtype=tf.float32)
@@ -246,24 +281,24 @@ learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
 learning_rate_change = learning_rate_dynamic * (1.0/(1.0+learnind_rate_decay*iter_variable))
 phase = tf.placeholder(tf.bool)
 
-layer1 = l1.feedforward(x,padding='VALID')
-layer2 = l2.feedforward(layer1,padding='VALID')
-layer3 = l3.feedforward(layer2,padding='VALID')
+layer1 = l1.feedforward(x)
+layer2 = l2.feedforward(layer1)
+layer3 = l3.feedforward(layer2)
 
 layer4_Input = tf.nn.avg_pool(layer3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer4 = l4.feedforward(layer4_Input,padding='VALID')
-layer5 = l5.feedforward(layer4,padding='VALID')
-layer6 = l6.feedforward(layer5,padding='VALID')
+layer4 = l4.feedforward(layer4_Input)
+layer5 = l5.feedforward(layer4)
+layer6 = l6.feedforward(layer5)
 
 layer7_Input = tf.nn.avg_pool(layer6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer7 = l7.feedforward(layer7_Input,padding='VALID')
-layer8 = l8.feedforward(layer7,padding='VALID')
-layer9 = l9.feedforward(layer8,padding='VALID')
+layer7 = l7.feedforward(layer7_Input)
+layer8 = l8.feedforward(layer7)
+layer9 = l9.feedforward(layer8)
 
 layer10_Input = tf.nn.avg_pool(layer9,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer10 = l10.feedforward(layer10_Input,padding='VALID')
-layer11 = l11.feedforward(layer10,padding='VALID')
-layer12 = l12.feedforward(layer11,padding='VALID')
+layer10 = l10.feedforward(layer10_Input)
+layer11 = l11.feedforward(layer10)
+layer12 = l12.feedforward(layer11)
 
 final_global = tf.reduce_mean(layer12,[1,2])
 final_soft = tf_softmax(final_global)
@@ -272,14 +307,15 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,3,3,1])
-grad12,grad12_up = l12.backprop(grad_prepare,learning_rate_change=learning_rate_change,padding='VALID')
-grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change,padding='VALID')
+# grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,12,12,1])
+grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10]) # Broken Back Prop
+grad12,grad12_up = l12.backprop(grad_prepare,learning_rate_change=learning_rate_change)
+grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change)
 grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change)
 
 grad9_Input = tf_repeat(grad10,[1,2,2,1])
-grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change,padding='VALID')
-grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change,padding='VALID')
+grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change)
+grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change)
 grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change)
 
 grad6_Input = tf_repeat(grad7,[1,2,2,1])
@@ -302,21 +338,6 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     
-    def show_hist_of_weigt(all_weight_list,status='before'):
-        fig = plt.figure()
-        weight_index = 0
-        for i in range(1,4):
-            ax = fig.add_subplot(1,3,i)
-            ax.grid(False)
-            temp_weight_list = all_weight_list[weight_index:weight_index+3]
-            for temp_index in range(len(temp_weight_list)):
-                current_flat = temp_weight_list[temp_index].flatten()
-                ax.hist(current_flat,histtype='step',bins='auto',label=str(temp_index+weight_index))
-                ax.legend()
-            ax.set_title('From Layer : '+str(weight_index+1)+' to '+str(weight_index+3))
-            weight_index = weight_index + 3
-        plt.savefig('viz/weights_'+str(status)+"_training.png")
-        plt.close('all')
 
     # ------- histogram of weights before training ------
     show_hist_of_weigt(sess.run(all_weights),status='before')
@@ -341,6 +362,9 @@ with tf.Session() as sess:
             images_aug1 = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug1)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
@@ -353,6 +377,9 @@ with tf.Session() as sess:
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size].astype(np.float32)
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size].astype(np.float32)
+            current_batch[:,:,:,0]  = (current_batch[:,:,:,0] - current_batch[:,:,:,0].mean(axis=0)) / ( current_batch[:,:,:,0].std(axis=0)+1e-10)
+            current_batch[:,:,:,1]  = (current_batch[:,:,:,1] - current_batch[:,:,:,1].mean(axis=0)) / ( current_batch[:,:,:,1].std(axis=0)+1e-10)
+            current_batch[:,:,:,2]  = (current_batch[:,:,:,2] - current_batch[:,:,:,2].mean(axis=0)) / ( current_batch[:,:,:,2].std(axis=0)+1e-10)
             sess_result = sess.run([cost,accuracy,correct_prediction],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,phase:False})
             print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
@@ -396,6 +423,8 @@ with tf.Session() as sess:
     # ------- histogram of weights after training ------
     show_hist_of_weigt(sess.run(all_weights),status='After')
     # ------- histogram of weights after training ------
+
+    sys.exit()
 
     # get random 50 images from the test set and vis the gradient
     test_batch = test_batch[:batch_size,:,:,:]
