@@ -247,15 +247,15 @@ test_batch = test_batch/255.0
 
 # hyper parameter
 num_epoch = 21
-batch_size = 16
+batch_size = 24
 print_size = 1
 
-learning_rate = 0.00001
+learning_rate = 0.00003
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-channel_sizes = 200
+channel_sizes = 196
 l1 = CNN(3,3,channel_sizes,stddev=0.04)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
 l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
