@@ -109,16 +109,7 @@ class CNN():
         self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=stddev))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
-        self.w_dummy = tf.Variable(tf.zeros_like(self.w))
-
     def getw(self): return self.w
-
-    def dummy(self): 
-        update_w = []
-        update_w.append(tf.assign( self.w,self.w ))
-        update_w.append(tf.assign( self.m,self.m ))
-        update_w.append(tf.assign( self.v_prev,self.v_prev ))
-        return update_w
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
@@ -378,10 +369,53 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-def grad(iter_variable): 
+
+
+def unfair_grad(): 
+
+    s = [tf.Print(iter_variable, [iter_variable], message="This is a: UNFAIR \r ")]
+
+    grad_prepare_u1 = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,1,1,1])
+    grad12_u1,grad12_up_u1 = l12.backprop(grad_prepare_u1,learning_rate_change=learning_rate_change)
+    layer12_u1 = l12.feedforward(layer11)     
+
+    final_global_u1 = tf.reduce_mean(layer12_u1,[1,2])
+    final_soft_u1 = tf_softmax(final_global_u1)
+
+    grad_prepare = tf_repeat(tf.reshape(final_soft_u1-y,[batch_size,1,1,10]),[1,1,1,1])
+    grad12,grad12_up = l12.backprop(grad_prepare,learning_rate_change=learning_rate_change)
+    grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change) 
+    grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change) 
+
+    grad9_Input = tf_repeat(grad10,[1,2,2,1])
+    grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change) 
+    grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change) 
+    grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change) 
+
+    grad6_Input = tf_repeat(grad7,[1,2,2,1])
+    grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
+    grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
+    grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
+
+    grad3_Input = tf_repeat(grad4,[1,2,2,1])
+    grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change)
+    grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
+    grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
+
+    grad_update =\
+                grad12_up_u1 + \
+                grad12_up + grad11_up + grad10_up + \
+                grad9_up + grad8_up + grad7_up + \
+                grad6_up + grad5_up + grad4_up + \
+                grad3_up + grad2_up + grad1_up + s
+
+    return grad_update
+
+def fair_grad(): 
 
     s = [tf.Print(iter_variable, [iter_variable], message="This is a: FAIR \r")]
-    grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,8,8,1])
+
+    grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,1,1,1])
     # grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10]) # Broken Back Prop
     grad12,grad12_up = l12.backprop1(grad_prepare,learning_rate_change=learning_rate_change)
     grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change) 
@@ -410,57 +444,11 @@ def grad(iter_variable):
 
     return grad_update
 
-def unfair_grad(iter_variable): 
-
-    s = [tf.Print(iter_variable, [iter_variable], message="This is a: UNFAIR \r ")]
-
-    grad_prepare_u1 = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12_u1,grad12_up_u1 = l12.backprop(grad_prepare_u1,learning_rate_change=learning_rate_change)
-    grad11_u1,grad11_up_u1 = l11.backprop(grad12_u1,learning_rate_change=learning_rate_change) 
-    grad10_u1,grad10_up_u1 = l10.backprop(grad11_u1,learning_rate_change=learning_rate_change) 
-
-    layer10_u1 = l10.feedforward(layer10_Input)
-    layer11_u1 = l11.feedforward(layer10_u1) 
-    layer12_u1 = l12.feedforward(layer11_u1)     
-
-    final_global_u1 = tf.reduce_mean(layer12_u1,[1,2])
-    final_soft_u1 = tf_softmax(final_global_u1)
-
-    grad_prepare = tf_repeat(tf.reshape(final_soft_u1-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12,grad12_up = l12.backprop(grad_prepare,learning_rate_change=learning_rate_change)
-    grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change) 
-    grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change) 
-
-    grad9_Input = tf_repeat(grad10,[1,2,2,1])
-    grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change) 
-    grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change) 
-    grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change) 
-
-    grad6_Input = tf_repeat(grad7,[1,2,2,1])
-    grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
-    grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
-    grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
-
-    grad3_Input = tf_repeat(grad4,[1,2,2,1])
-    grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change)
-    grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
-    grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
-
-    # [tf.zeros_like(grad12_up)]  + [tf.zeros_like(grad11_up)] + [tf.zeros_like(grad10_up)] +\
-    # grad12_up_u1 + grad11_up + grad10_up + \
-    grad_update =\
-                grad12_up_u1 + \
-                grad12_up + grad11_up + grad10_up + \
-                grad9_up + grad8_up + grad7_up + \
-                grad6_up + grad5_up + grad4_up + \
-                grad3_up + grad2_up + grad1_up + s
-
-    return grad_update
-
 # Every 2 iteration we are going to perform unfair back prop
-grad_update = tf.cond( tf.equal(tf.mod(iter_variable,2),0.0),
-        true_fn=lambda: unfair_grad(iter_variable),
-        false_fn=lambda: grad(iter_variable)
+# grad_update = tf.cond( tf.equal(tf.mod(iter_variable,2),0.0),
+grad_update = tf.cond( tf.equal(iter_variable,1.0),
+        true_fn= fair_grad,
+        false_fn=unfair_grad
         )
 
 
