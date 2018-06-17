@@ -112,17 +112,48 @@ class CNN():
         self.w_dummy = tf.Variable(tf.zeros_like(self.w))
 
     def getw(self): return self.w
+
     def dummy(self): 
         update_w = []
-        update_w.append(tf.assign( self.w_dummy,self.w_dummy ))
-        update_w.append(tf.assign( self.w_dummy,self.w_dummy ))
-        update_w.append(tf.assign( self.w_dummy,self.w_dummy ))
+        update_w.append(tf.assign( self.w,self.w ))
+        update_w.append(tf.assign( self.m,self.m ))
+        update_w.append(tf.assign( self.v_prev,self.v_prev ))
         return update_w
+
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
         self.layerA = tf_elu(self.layer)
         return self.layerA 
+
+    def backprop1(self,gradient,learning_rate_change,stride=1,padding='SAME'):
+        grad_part_1 = gradient 
+        grad_part_2 = d_tf_elu(self.layer) 
+        grad_part_3 = self.input
+
+        grad_middle = grad_part_1 * grad_part_2
+
+        grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,filter_sizes = self.w.shape,out_backprop = grad_middle,
+            strides=[1,stride,stride,1],padding=padding
+        )
+
+        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
+            strides=[1,stride,stride,1],padding=padding
+        )
+
+        update_w = []
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v_prev / (1-beta2)
+        adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
+
+        update_w.append(tf.assign( self.w,self.w ))
+        update_w.append(tf.assign( self.m,self.m ))
+        update_w.append(tf.assign( self.v_prev,self.v_prev ))
+          
+        return grad_pass,update_w 
 
     def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME'):
         grad_part_1 = gradient 
@@ -145,7 +176,10 @@ class CNN():
         m_hat = self.m / (1-beta1)
         v_hat = self.v_prev / (1-beta2)
         adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))           
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
+
+
+
         return grad_pass,update_w   
 
 # Followed the implmentation from: https://wiseodd.github.io/techblog/2016/07/04/batchnorm/
@@ -347,10 +381,9 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 def grad(iter_variable): 
 
     s = [tf.Print(iter_variable, [iter_variable], message="This is a: FAIR \r")]
-    l12_dummy = l12.dummy()
     grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,8,8,1])
     # grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10]) # Broken Back Prop
-    grad12,grad12_up = l12.backprop(grad_prepare,learning_rate_change=learning_rate_change)
+    grad12,grad12_up = l12.backprop1(grad_prepare,learning_rate_change=learning_rate_change)
     grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change) 
     grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change) 
 
@@ -370,7 +403,6 @@ def grad(iter_variable):
     grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
 
     grad_update = \
-                l12_dummy + \
                 grad12_up + grad11_up + grad10_up + \
                 grad9_up + grad8_up + grad7_up + \
                 grad6_up + grad5_up + grad4_up + \
