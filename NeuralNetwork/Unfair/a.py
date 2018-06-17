@@ -254,7 +254,7 @@ learning_rate = 0.00001
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
-# define class
+# define class here
 channel_sizes = 200
 l1 = CNN(3,3,channel_sizes,stddev=0.04)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
