@@ -59,6 +59,31 @@ def show_hist_of_weigt(all_weight_list,status='before'):
         weight_index = weight_index + 3
     plt.savefig('viz/weights_'+str(status)+"_training.png")
     plt.close('all')
+
+# Def: Simple function to show 9 image with different channels
+def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=None,predict=None):
+    image = (image-image.min())/(image.max()-image.min())
+    fig = plt.figure()
+    color_channel = 0
+    limit = 10
+    if alpha: limit = len(gt)
+    for i in range(1,limit):
+        ax = fig.add_subplot(3,3,i)
+        ax.grid(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        if alpha:
+            ax.set_title("GT: "+str(gt[i-1])+" Predict: "+str(predict[i-1]))
+        else:
+            ax.set_title("Channel : " + str(color_channel) + " : " + str(color_channel+channel_increase-1))
+        ax.imshow(np.squeeze(image[:,:,color_channel:color_channel+channel_increase]))
+        color_channel = color_channel + channel_increase
+    
+    if alpha:
+        plt.savefig('viz/z_'+str(alpha) + "_alpha_image.png")
+    else:
+        plt.savefig('viz/'+str(layer_num) + "_layer_"+str(image_num)+"_image.png")
+    plt.close('all')
 # ================= VIZ =================
 
 
@@ -225,6 +250,12 @@ for x in range(len(x_data)):
 for x in range(len(y_data)):
     test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(64,64))
 
+
+train_batch = train_batch[:100,:,:,:]
+train_label = train_label[:100,:]
+test_batch = test_batch[:100,:,:,:]
+test_label = test_label[:100,:]
+
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
@@ -316,37 +347,9 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 
-def grad(): 
-    # grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,6,6,1])
-    grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10]) # Broken Back Prop
-    grad12,grad12_up = l12.backprop(grad_prepare,learning_rate_change=learning_rate_change)
-    grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change) 
-    grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change) 
+def grad(iter_variable): 
 
-    grad9_Input = tf_repeat(grad10,[1,2,2,1])
-    grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change) 
-    grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change) 
-    grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change) 
-
-    grad6_Input = tf_repeat(grad7,[1,2,2,1])
-    grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
-    grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
-    grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
-
-    grad3_Input = tf_repeat(grad4,[1,2,2,1])
-    grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change)
-    grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
-    grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
-
-    grad_update = grad12_up + grad11_up + grad10_up + \
-                grad9_up + grad8_up + grad7_up + \
-                grad6_up + grad5_up + grad4_up + \
-                grad3_up + grad2_up + grad1_up 
-    return grad_update
-
-def unfair_grad(): 
-
-    tf.Print(None, None, message="This is a: UNFAIR")
+    s = [tf.Print(iter_variable, [iter_variable], message="This is a: FAIR \r")]
 
     # grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,6,6,1])
     grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10]) # Broken Back Prop
@@ -372,11 +375,46 @@ def unfair_grad():
     grad_update = grad12_up + grad11_up + grad10_up + \
                 grad9_up + grad8_up + grad7_up + \
                 grad6_up + grad5_up + grad4_up + \
-                grad3_up + grad2_up + grad1_up 
+                grad3_up + grad2_up + grad1_up + s
+    return grad_update
+
+def unfair_grad(iter_variable): 
+
+    s = [tf.Print(iter_variable, [iter_variable], message="This is a: UNFAIR \r ")]
+
+    # grad_prepare = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,6,6,1])
+    grad_prepare = tf.reshape(final_soft-y,[batch_size,1,1,10]) # Broken Back Prop
+    grad12,grad12_up = l12.backprop(grad_prepare,learning_rate_change=learning_rate_change)
+    grad11,grad11_up = l11.backprop(grad12,learning_rate_change=learning_rate_change) 
+    grad10,grad10_up = l10.backprop(grad11,learning_rate_change=learning_rate_change) 
+
+    grad9_Input = tf_repeat(grad10,[1,2,2,1])
+    grad9,grad9_up = l9.backprop(grad9_Input,learning_rate_change=learning_rate_change) 
+    grad8,grad8_up = l8.backprop(grad9,learning_rate_change=learning_rate_change) 
+    grad7,grad7_up = l7.backprop(grad8,learning_rate_change=learning_rate_change) 
+
+    grad6_Input = tf_repeat(grad7,[1,2,2,1])
+    grad6,grad6_up = l6.backprop(grad6_Input,learning_rate_change=learning_rate_change)
+    grad5,grad5_up = l5.backprop(grad6,learning_rate_change=learning_rate_change)
+    grad4,grad4_up = l4.backprop(grad5,learning_rate_change=learning_rate_change)
+
+    grad3_Input = tf_repeat(grad4,[1,2,2,1])
+    grad3,grad3_up = l3.backprop(grad3_Input,learning_rate_change=learning_rate_change)
+    grad2,grad2_up = l2.backprop(grad3,learning_rate_change=learning_rate_change)
+    grad1,grad1_up = l1.backprop(grad2,learning_rate_change=learning_rate_change)
+
+    grad_update = grad12_up + grad11_up + grad10_up + \
+                grad9_up + grad8_up + grad7_up + \
+                grad6_up + grad5_up + grad4_up + \
+                grad3_up + grad2_up + grad1_up + s
 
     return grad_update
 
-grad_updpate = tf.cond( tf.equal(tf.mod(iter_variable,10),0),true_fn=grad,false_fn=unfair_grad)
+# Every 2 iteration we are going to perform unfair back prop
+grad_update = tf.cond( tf.equal(tf.mod(iter_variable,2),0.0),
+        true_fn=lambda: unfair_grad(iter_variable),
+        false_fn=lambda: grad(iter_variable)
+        )
 
 
 
@@ -427,8 +465,6 @@ with tf.Session() as sess:
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
 
-            sys.exit()
-
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size].astype(np.float32)
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size].astype(np.float32)
@@ -451,6 +487,7 @@ with tf.Session() as sess:
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
+    sys.exit()
 
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
@@ -476,36 +513,9 @@ with tf.Session() as sess:
     show_hist_of_weigt(sess.run(all_weights),status='After')
     # ------- histogram of weights after training ------
 
-    sys.exit()
-
     # get random 50 images from the test set and vis the gradient
     test_batch = test_batch[:batch_size,:,:,:]
     test_label = test_label[:batch_size,:]
-
-    # Def: Simple function to show 9 image with different channels
-    def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=None,predict=None):
-        image = (image-image.min())/(image.max()-image.min())
-        fig = plt.figure()
-        color_channel = 0
-        limit = 10
-        if alpha: limit = len(gt)
-        for i in range(1,limit):
-            ax = fig.add_subplot(3,3,i)
-            ax.grid(False)
-            ax.set_xticks([])
-            ax.set_yticks([])
-            if alpha:
-                ax.set_title("GT: "+str(gt[i-1])+" Predict: "+str(predict[i-1]))
-            else:
-                ax.set_title("Channel : " + str(color_channel) + " : " + str(color_channel+channel_increase-1))
-            ax.imshow(np.squeeze(image[:,:,color_channel:color_channel+channel_increase]))
-            color_channel = color_channel + channel_increase
-        
-        if alpha:
-            plt.savefig('viz/z_'+str(alpha) + "_alpha_image.png")
-        else:
-            plt.savefig('viz/'+str(layer_num) + "_layer_"+str(image_num)+"_image.png")
-        plt.close('all')
 
     # ------ layer wise activation -------
     layer3_values = sess.run(layer3,feed_dict={x:test_batch})
