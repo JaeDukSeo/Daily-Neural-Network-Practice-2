@@ -65,13 +65,13 @@ def show_hist_of_weigt(all_weight_list,status='before'):
 seq = iaa.Sequential([
     iaa.Sometimes(0.01,
         iaa.Affine(
-            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+            # translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
             rotate=(-25, 25),
-            scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+            # scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
         )
     ),
     iaa.Fliplr(1.0), 
-    iaa.Flipud(0.5), 
+    # iaa.Flipud(0.5), 
 ], random_order=True) # apply augmenters in random order
 # ================= DATA AUGMENTATION =================
 
@@ -87,13 +87,13 @@ class CNN():
 
     def getw(self): return self.w
 
-    def feedforward(self,input,stride=1,padding='SAME'):
+    def feedforward(self,input,stride=1,padding='VALID'):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
         self.layerA = tf_elu(self.layer)
         return self.layerA 
 
-    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME'):
+    def backprop(self,gradient,learning_rate_change,stride=1,padding='VALID'):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -245,23 +245,23 @@ print_size = 1
 
 learning_rate = 0.00001
 learnind_rate_decay = 0.0
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
-channel_sizes = 128
-l1 = CNN(5,3,channel_sizes,stddev=0.04)
-l2 = CNN(5,channel_sizes,channel_sizes,stddev=0.05)
-l3 = CNN(5,channel_sizes,channel_sizes,stddev=0.06)
+channel_sizes = 192
+l1 = CNN(2,3,channel_sizes,stddev=0.04)
+l2 = CNN(2,channel_sizes,channel_sizes,stddev=0.05)
+l3 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
 
-l4 = CNN(5,channel_sizes,channel_sizes,stddev=0.04)
-l5 = CNN(5,channel_sizes,channel_sizes,stddev=0.05)
-l6 = CNN(5,channel_sizes,channel_sizes,stddev=0.06)
+l4 = CNN(2,channel_sizes,channel_sizes,stddev=0.04)
+l5 = CNN(2,channel_sizes,channel_sizes,stddev=0.05)
+l6 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
 
-l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
-l8 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l9 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
+l7 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
+l8 = CNN(2,channel_sizes,channel_sizes,stddev=0.05)
+l9 = CNN(2,channel_sizes,channel_sizes,stddev=0.04)
 
-l10 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
+l10 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
 l11 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
 l12 = CNN(1,channel_sizes,10,stddev=0.04)
 
