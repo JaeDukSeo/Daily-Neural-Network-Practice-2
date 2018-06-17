@@ -454,9 +454,9 @@ def fair_grad():
     return grad_update
 
 # Every 2 iteration we are going to perform unfair back prop
-grad_update = tf.cond( tf.equal(tf.mod(iter_variable,2),0.0),
-        true_fn= unfair_grad,
-        false_fn=fair_grad
+grad_update = tf.cond( tf.not_equal(tf.mod(iter_variable,2),0.0),
+        true_fn= fair_grad,
+        false_fn=unfair_grad
         )
 
 # sess
