@@ -651,19 +651,19 @@ with tf.Session() as sess:
             # online data augmentation here and standard normalization
 
             # Select which back prop we should use
-            if iter < 5 or iter%5 == 0 : 
+            if  iter%5 == 0 : 
                 which_grad = grad_update_0
                 which_grad_print = 0
-            elif iter > 5 and iter % 5 == 1: 
+            elif  iter % 5 == 1: 
                 which_grad = grad_update_1
                 which_grad_print = 1
-            elif iter > 5 and iter % 5 == 2: 
+            elif  iter % 5 == 2: 
                 which_grad = grad_update_2
                 which_grad_print = 2
-            elif iter > 5 and iter % 5 == 3: 
+            elif  iter % 5 == 3: 
                 which_grad = grad_update_3
                 which_grad_print = 3
-            elif iter > 5 and iter % 5 == 4: 
+            elif  iter % 5 == 4: 
                 which_grad = grad_update_4
                 which_grad_print = 4
 
