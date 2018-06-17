@@ -101,7 +101,6 @@ seq2 = iaa.Sequential([
 # ================= DATA AUGMENTATION =================
 
 
-
 # ================= LAYER CLASSES =================
 class CNN():
     
@@ -274,10 +273,10 @@ for x in range(len(x_data)):
 for x in range(len(y_data)):
     test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(64,64))
 
-train_batch = train_batch[:40,:,:,:]
-train_label = train_label[:40,:]
-test_batch = test_batch[:40,:,:,:]
-test_label = test_label[:40,:]
+# train_batch = train_batch[:40,:,:,:]
+# train_label = train_label[:40,:]
+# test_batch = test_batch[:40,:,:,:]
+# test_label = test_label[:40,:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -370,7 +369,6 @@ correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 
-
 def unfair_grad(): 
     '''
         Def: Peform unfair back propagation
@@ -417,7 +415,7 @@ def unfair_grad():
                 grad12_up + grad11_up + grad10_up + \
                 grad9_up + grad8_up + grad7_up + \
                 grad6_up + grad5_up + grad4_up + \
-                grad3_up + grad2_up + grad1_up + s
+                grad3_up + grad2_up + grad1_up 
 
     return grad_update
 
@@ -460,7 +458,6 @@ grad_update = tf.cond( tf.equal(tf.mod(iter_variable,2),0.0),
         true_fn= unfair_grad,
         false_fn=fair_grad
         )
-
 
 # sess
 with tf.Session() as sess:
