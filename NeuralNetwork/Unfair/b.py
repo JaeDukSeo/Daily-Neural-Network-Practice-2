@@ -251,10 +251,10 @@ for x in range(len(y_data)):
     test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(64,64))
 
 
-train_batch = train_batch[:100,:,:,:]
-train_label = train_label[:100,:]
-test_batch = test_batch[:100,:,:,:]
-test_label = test_label[:100,:]
+train_batch = train_batch[:40,:,:,:]
+train_label = train_label[:40,:]
+test_batch = test_batch[:40,:,:,:]
+test_label = test_label[:40,:]
 
 # print out the data shape
 print(train_batch.shape)
