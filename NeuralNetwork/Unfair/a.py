@@ -240,7 +240,7 @@ test_batch = test_batch/255.0
 
 # hyper parameter
 num_epoch = 21
-batch_size = 8
+batch_size = 2
 print_size = 1
 
 learning_rate = 0.00001
@@ -248,20 +248,20 @@ learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class
-channel_sizes = 192
-l1 = CNN(2,3,channel_sizes,stddev=0.04)
-l2 = CNN(2,channel_sizes,channel_sizes,stddev=0.05)
-l3 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
+channel_sizes = 64
+l1 = CNN(3,3,channel_sizes,stddev=0.04)
+l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
+l3 = CNN(1,channel_sizes,channel_sizes,stddev=0.06)
 
-l4 = CNN(2,channel_sizes,channel_sizes,stddev=0.04)
-l5 = CNN(2,channel_sizes,channel_sizes,stddev=0.05)
-l6 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
+l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
+l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
+l6 = CNN(1,channel_sizes,channel_sizes,stddev=0.06)
 
-l7 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
-l8 = CNN(2,channel_sizes,channel_sizes,stddev=0.05)
+l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
+l8 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
 l9 = CNN(2,channel_sizes,channel_sizes,stddev=0.04)
 
-l10 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
+l10 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l11 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
 l12 = CNN(1,channel_sizes,10,stddev=0.04)
 
