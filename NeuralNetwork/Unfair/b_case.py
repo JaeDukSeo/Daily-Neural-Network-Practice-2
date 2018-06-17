@@ -633,7 +633,6 @@ def unfair_grad_4():
     grad10_u,grad10_up_u = l10.backprop_unfair(grad11_u,learning_rate_change=learning_rate_change) 
 
     # perform feed forward operation and prepare for again back prop
-    layer10_Input_u = tf.nn.avg_pool(layer9_u,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
     layer10_u = l10.feedforward(layer10_Input)
     layer11_u = l11.feedforward(layer10_u) 
     layer12_u = l12.feedforward(layer11_u) 
@@ -699,7 +698,7 @@ with tf.Session() as sess:
     for iter in range(num_epoch):
 
         train_batch,train_label = shuffle(train_batch,train_label)
-
+        which_grad,which_grad_print = None,None
         for batch_size_index in range(0,len(train_batch),batch_size//4):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//4]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//4]
@@ -720,9 +719,26 @@ with tf.Session() as sess:
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
-            sess_result = sess.run([cost,accuracy,correct_prediction,grad_update_4],
+            # Select which back prop we should use
+            if iter < 5 or iter%5 == 0 : 
+                which_grad = grad_update_0
+                which_grad_print = 0
+            elif iter > 5 and iter % 5 == 1: 
+                which_grad = grad_update_1
+                which_grad_print = 1
+            elif iter > 5 and iter % 5 == 2: 
+                which_grad = grad_update_2
+                which_grad_print = 2
+            elif iter > 5 and iter % 5 == 3: 
+                which_grad = grad_update_3
+                which_grad_print = 3
+            elif iter > 5 and iter % 5 == 4: 
+                which_grad = grad_update_4
+                which_grad_print = 4
+
+            sess_result = sess.run([cost,accuracy,correct_prediction,which_grad],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+            print("Current Iter : ",iter," Using grad: ",which_grad_print ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
 
