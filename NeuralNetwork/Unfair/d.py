@@ -146,6 +146,7 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 # rotate data
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+
 # standardize Normalize data per channel
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
@@ -162,7 +163,6 @@ batch_size = 50
 print_size = 1
 
 learning_rate = 0.0002
-# learnind_rate_decay = 0.03
 learnind_rate_decay = 0.001
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
