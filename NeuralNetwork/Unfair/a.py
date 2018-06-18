@@ -89,13 +89,12 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
     plt.close('all')
 # ================= VIZ =================
 
-
 # ================= DATA AUGMENTATION =================
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # horizontal flips
     # iaa.Flipud(1.0), # horizontal flips
     # Strengthen or weaken the contrast in each image.
-    iaa.Sometimes(0.3,
+    iaa.Sometimes(0.0,
         iaa.Crop(percent=(0, 0.1)), # random crops
         iaa.GaussianBlur(sigma=(0,0.5))
     )
@@ -106,7 +105,7 @@ seq = iaa.Sequential([
 class CNN():
     
     def __init__(self,k,inc,out,stddev):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=stddev))
+        self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=stddev))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
     def getw(self): return self.w
@@ -209,32 +208,36 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
+# simple normalizaiton
+train_batch  = train_batch/255.0
+test_batch  = test_batch/255.0
+
 # hyper parameter
 num_epoch = 21
-batch_size = 8
+batch_size = 50
 print_size = 1
 
-learning_rate = 0.000003
+learning_rate = 0.000001
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
 channel_sizes = 192
-l1 = CNN(3,3,channel_sizes,stddev=0.054)
-l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.055)
-l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.056)
+l1 = CNN(3,3,channel_sizes,stddev=0.05)
+l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
+l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 
-l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.054)
-l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.055)
-l6 = CNN(3,channel_sizes,channel_sizes,stddev=0.056)
+l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
+l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
+l6 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
 
-l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.056)
-l8 = CNN(3,channel_sizes,channel_sizes,stddev=0.055)
-l9 = CNN(3,channel_sizes,channel_sizes,stddev=0.054)
+l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
+l8 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
+l9 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 
-l10 = CNN(3,channel_sizes,channel_sizes,stddev=0.056)
-l11 = CNN(1,channel_sizes,channel_sizes,stddev=0.054)
-l12 = CNN(1,channel_sizes,100,stddev=0.055)
+l10 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
+l11 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
+l12 = CNN(1,channel_sizes,100,stddev=0.04)
 
 all_weights = [
     l1.getw(),l2.getw(),l3.getw(),
