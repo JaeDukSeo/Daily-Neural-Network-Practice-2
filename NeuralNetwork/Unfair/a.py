@@ -15,11 +15,10 @@ np.random.seed(678)
 tf.set_random_seed(678)
 ia.seed(678)
 
-# def tf_elu(x): return tf.nn.elu(x)
-# def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  +  \
-# (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x)+1.0)
-def tf_elu(x): return tf.nn.relu(x)
-def d_tf_elu(x): return tf.cast(tf.greater_equal(x,0),tf.float32) 
+def tf_elu(x): return tf.nn.elu(x)
+def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  +  \
+(tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x)+1.0)
+
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
     import pickle
@@ -195,6 +194,9 @@ onehot_encoder = OneHotEncoder(sparse=True)
 train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
 test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
 
+print(train_label[0])
+print(test_label[0])
+
 # reshape data
 train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
 test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
@@ -214,15 +216,15 @@ test_batch  = test_batch/255.0
 
 # hyper parameter
 num_epoch = 21
-batch_size = 50
+batch_size = 40
 print_size = 1
 
-learning_rate = 0.000001
+learning_rate = 0.000003
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-channel_sizes = 192
+channel_sizes = 256
 l1 = CNN(3,3,channel_sizes,stddev=0.05)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
 l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
