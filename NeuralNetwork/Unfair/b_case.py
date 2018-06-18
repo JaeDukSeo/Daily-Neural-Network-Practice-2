@@ -90,9 +90,9 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 # ================= DATA AUGMENTATION =================
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), 
+    iaa.Flipud(1.0), 
 ], random_order=True) 
 # ================= DATA AUGMENTATION =================
-
 
 # ================= LAYER CLASSES =================
 class CNN():
@@ -208,8 +208,8 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # simple normalize
-train_batch = train_batch/255.0
-test_batch = test_batch/255.0
+# train_batch = train_batch/255.0
+# test_batch = test_batch/255.0
 
 # Number of each classes
 # 1 -> airplane
@@ -229,21 +229,21 @@ print_size = 1
 
 learning_rate = 0.00002
 learnind_rate_decay = 0.0
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.99,1e-8
 
 # define class here
-channel_sizes = 128
+channel_sizes = 164
 l1 = CNN(3,3,channel_sizes,stddev=0.04)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
+l3 = CNN(1,channel_sizes,channel_sizes,stddev=0.06)
 
 l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
 l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l6 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
+l6 = CNN(1,channel_sizes,channel_sizes,stddev=0.06)
 
 l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l8 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l9 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
+l9 = CNN(1,channel_sizes,channel_sizes,stddev=0.04)
 
 l10 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l11 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
