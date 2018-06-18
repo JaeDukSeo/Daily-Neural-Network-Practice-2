@@ -132,12 +132,11 @@ class CNN():
         v_hat = self.v_prev / (1-beta2)
         adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
-
         return grad_pass,update_w 
    
 # ================= LAYER CLASSES =================
 
-# # data
+# data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
 lstFilesDCM = []  # create an empty list
 for dirName, subdirList, fileList in os.walk(PathDicom):
@@ -181,12 +180,12 @@ num_epoch = 21
 batch_size = 50
 print_size = 1
 
-learning_rate = 0.0002
+learning_rate = 0.00008
 learnind_rate_decay = 0.0
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
-channel_sizes = 128
+channel_sizes = 164
 l1 = CNN(3,3,channel_sizes,stddev=0.05)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
 l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
@@ -199,11 +198,7 @@ l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
 l8 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
 l9 = CNN(1,channel_sizes,10,stddev=0.06)
 
-all_weights = [
-    l1.getw(),l2.getw(),l3.getw(),
-    l4.getw(),l5.getw(),l6.getw(),
-    l7.getw(),l8.getw(),l9.getw()
-    ]
+all_weights = [l1.getw(),l2.getw(),l3.getw(),l4.getw(),l5.getw(),l6.getw(),l7.getw(),l8.getw(),l9.getw()]
 
 # graph
 x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
