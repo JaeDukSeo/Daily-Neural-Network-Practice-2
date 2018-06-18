@@ -227,12 +227,12 @@ num_epoch = 21
 batch_size = 10
 print_size = 1
 
-learning_rate = 0.00001
+learning_rate = 0.00002
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
-channel_sizes = 196
+channel_sizes = 128
 l1 = CNN(3,3,channel_sizes,stddev=0.04)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
 l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
@@ -679,7 +679,6 @@ with tf.Session() as sess:
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
-    sys.exit()
 
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
@@ -705,11 +704,11 @@ with tf.Session() as sess:
     show_hist_of_weigt(sess.run(all_weights),status='After')
     # ------- histogram of weights after training ------
 
+    sys.exit()
+
     # get random 50 images from the test set and vis the gradient
     test_batch = test_batch[:batch_size,:,:,:]
     test_label = test_label[:batch_size,:]
-
-    sys.exit()
 
     # ------ layer wise activation -------
     layer3_values = sess.run(layer3,feed_dict={x:test_batch})
