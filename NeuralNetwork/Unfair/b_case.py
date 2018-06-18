@@ -91,13 +91,6 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), 
 ], random_order=True) 
-seq1 = iaa.Sequential([
-    iaa.Flipud(1.0), 
-], random_order=True) 
-seq2 = iaa.Sequential([
-    iaa.Fliplr(1.0), 
-    iaa.Flipud(1.0), 
-], random_order=True) 
 # ================= DATA AUGMENTATION =================
 
 
@@ -200,13 +193,13 @@ y_data = np.transpose(y_data, (0, 3, 2, 1))
 test_label = np.expand_dims(np.fromfile(test_label_f, dtype=np.uint8).astype(np.float64),axis=1)
 test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
 
-train_batch = np.zeros((len(x_data),64,64,3))
-test_batch = np.zeros((len(y_data),64,64,3))
+train_batch = np.zeros((len(x_data),48,48,3))
+test_batch = np.zeros((len(y_data),48,48,3))
 
 for x in range(len(x_data)):
-    train_batch[x,:,:,:] = imresize(x_data[x,:,:,:],(64,64))
+    train_batch[x,:,:,:] = imresize(x_data[x,:,:,:],(48,48))
 for x in range(len(y_data)):
-    test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(64,64))
+    test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(48,48))
 
 # print out the data shape
 print(train_batch.shape)
@@ -231,15 +224,15 @@ test_batch = test_batch/255.0
 
 # hyper parameter
 num_epoch = 21
-batch_size = 8
+batch_size = 10
 print_size = 1
 
-learning_rate = 0.000008
+learning_rate = 0.00001
 learnind_rate_decay = 0.0
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
-channel_sizes = 256
+channel_sizes = 196
 l1 = CNN(3,3,channel_sizes,stddev=0.04)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
 l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
@@ -264,7 +257,7 @@ all_weights = [
     ]
 
 # graph
-x = tf.placeholder(shape=[batch_size,64,64,3],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,48,48,3],dtype=tf.float32)
 y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
@@ -601,7 +594,6 @@ def unfair_grad_4():
 
     return grad_update
 
-
 # Every 2 iteration we are going to perform unfair back prop
 grad_update_0 = fair_grad()
 grad_update_1 = unfair_grad_1()
@@ -630,22 +622,14 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
         which_grad,which_grad_print = None,None
-        for batch_size_index in range(0,len(train_batch),batch_size//4):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//4]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//4]
+        for batch_size_index in range(0,len(train_batch),batch_size//2):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
 
             # online data augmentation here and standard normalization
             images_aug  = seq.augment_images(current_batch.astype(np.float32))
-            images_aug1 = seq.augment_images(current_batch.astype(np.float32))
-            images_aug2 = seq.augment_images(current_batch.astype(np.float32))
-
-            current_batch1 = np.vstack((current_batch,images_aug)).astype(np.float32)
-            current_batch2 = np.vstack((images_aug1,images_aug2)).astype(np.float32)
-            current_batch = np.vstack((current_batch1,current_batch2)).astype(np.float32)
-
-            current_batch_label1 = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch_label2 = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch_label = np.vstack((current_batch_label1,current_batch_label2)).astype(np.float32)
+            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
 
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
@@ -685,12 +669,12 @@ with tf.Session() as sess:
 
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
-            print(" Using grad: ",which_grad_print,'Train Current cost: ', train_cota/(len(train_batch)/(batch_size//4)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//4) ),end='\n')
+            print(" Using grad: ",which_grad_print,'Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/(batch_size//4)))
-        train_cot.append(train_cota/(len(train_batch)/(batch_size//4)))
+        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
@@ -724,6 +708,8 @@ with tf.Session() as sess:
     # get random 50 images from the test set and vis the gradient
     test_batch = test_batch[:batch_size,:,:,:]
     test_label = test_label[:batch_size,:]
+
+    sys.exit()
 
     # ------ layer wise activation -------
     layer3_values = sess.run(layer3,feed_dict={x:test_batch})
