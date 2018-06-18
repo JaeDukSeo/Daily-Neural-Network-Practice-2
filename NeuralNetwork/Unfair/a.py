@@ -209,15 +209,6 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-
-for ss in range(10):
-    plt.imshow(train_batch[ss,:,:,:])
-    plt.show()
-    plt.imshow(test_batch[ss,:,:,:])
-    plt.show()
-
-sys.exit()
-
 # hyper parameter
 num_epoch = 21
 batch_size = 8
@@ -243,7 +234,7 @@ l9 = CNN(3,channel_sizes,channel_sizes,stddev=0.054)
 
 l10 = CNN(3,channel_sizes,channel_sizes,stddev=0.056)
 l11 = CNN(1,channel_sizes,channel_sizes,stddev=0.054)
-l12 = CNN(1,channel_sizes,10,stddev=0.055)
+l12 = CNN(1,channel_sizes,100,stddev=0.055)
 
 all_weights = [
     l1.getw(),l2.getw(),l3.getw(),
@@ -253,8 +244,8 @@ all_weights = [
     ]
 
 # graph
-x = tf.placeholder(shape=[batch_size,48,48,3],dtype=tf.float32)
-y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
+y = tf.placeholder(shape=[batch_size,100],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
 learning_rate_dynamic  = tf.placeholder(tf.float32, shape=())
@@ -296,7 +287,7 @@ def unfair_grad_1():
     '''
 
     # back prop via the first block
-    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,6,6,1])
+    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,100]),[1,1,1,1])
     grad12_u,_ = l12.backprop_unfair(grad_prepare_u,learning_rate_change=learning_rate_change)
     grad11_u,_ = l11.backprop_unfair(grad12_u,learning_rate_change=learning_rate_change) 
     grad10_u,_ = l10.backprop_unfair(grad11_u,learning_rate_change=learning_rate_change) 
@@ -340,7 +331,7 @@ def unfair_grad_1():
     final_soft_u = tf_softmax(final_global_u)
 
     # back prop again but this time fully
-    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,10]),[1,6,6,1])
+    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,100]),[1,1,1,1])
     grad12,grad12_up = l12.backprop_unfair(grad_prepare,learning_rate_change=learning_rate_change)
     grad11,grad11_up = l11.backprop_unfair(grad12,learning_rate_change=learning_rate_change) 
     grad10,grad10_up = l10.backprop_unfair(grad11,learning_rate_change=learning_rate_change) 
@@ -378,7 +369,7 @@ def unfair_grad_2():
     '''
 
     # back prop via the first block
-    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,6,6,1])
+    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,100]),[1,1,1,1])
     grad12_u,_ = l12.backprop_unfair(grad_prepare_u,learning_rate_change=learning_rate_change)
     grad11_u,_ = l11.backprop_unfair(grad12_u,learning_rate_change=learning_rate_change) 
     grad10_u,_ = l10.backprop_unfair(grad11_u,learning_rate_change=learning_rate_change) 
@@ -412,7 +403,7 @@ def unfair_grad_2():
     final_soft_u = tf_softmax(final_global_u)
 
     # back prop again but this time fully
-    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,10]),[1,6,6,1])
+    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,100]),[1,1,1,1])
     grad12,grad12_up = l12.backprop_unfair(grad_prepare,learning_rate_change=learning_rate_change)
     grad11,grad11_up = l11.backprop_unfair(grad12,learning_rate_change=learning_rate_change) 
     grad10,grad10_up = l10.backprop_unfair(grad11,learning_rate_change=learning_rate_change) 
@@ -450,7 +441,7 @@ def unfair_grad_3():
     '''
 
     # back prop via the first block
-    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,6,6,1])
+    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,100]),[1,1,1,1])
     grad12_u,grad12_up_u = l12.backprop_unfair(grad_prepare_u,learning_rate_change=learning_rate_change)
     grad11_u,grad11_up_u = l11.backprop_unfair(grad12_u,learning_rate_change=learning_rate_change) 
     grad10_u,grad10_up_u = l10.backprop_unfair(grad11_u,learning_rate_change=learning_rate_change) 
@@ -474,7 +465,7 @@ def unfair_grad_3():
     final_soft_u = tf_softmax(final_global_u)
 
     # back prop again but this time fully
-    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,10]),[1,6,6,1])
+    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,100]),[1,1,1,1])
     grad12,grad12_up = l12.backprop_unfair(grad_prepare,learning_rate_change=learning_rate_change)
     grad11,grad11_up = l11.backprop_unfair(grad12,learning_rate_change=learning_rate_change) 
     grad10,grad10_up = l10.backprop_unfair(grad11,learning_rate_change=learning_rate_change) 
@@ -512,7 +503,7 @@ def unfair_grad_4():
     '''
 
     # back prop via the first block
-    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,6,6,1])
+    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,100]),[1,1,1,1])
     grad12_u,grad12_up_u = l12.backprop_unfair(grad_prepare_u,learning_rate_change=learning_rate_change)
     grad11_u,grad11_up_u = l11.backprop_unfair(grad12_u,learning_rate_change=learning_rate_change) 
     grad10_u,grad10_up_u = l10.backprop_unfair(grad11_u,learning_rate_change=learning_rate_change) 
@@ -556,7 +547,7 @@ def unfair_grad_4():
     final_soft_u = tf_softmax(final_global_u)
 
     # back prop again but this time fully
-    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,10]),[1,6,6,1])
+    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,100]),[1,1,1,1])
     grad12,grad12_up = l12.backprop_unfair(grad_prepare,learning_rate_change=learning_rate_change)
     grad11,grad11_up = l11.backprop_unfair(grad12,learning_rate_change=learning_rate_change) 
     grad10,grad10_up = l10.backprop_unfair(grad11,learning_rate_change=learning_rate_change) 
