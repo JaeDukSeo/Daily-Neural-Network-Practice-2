@@ -244,7 +244,7 @@ test_batch = test_batch/255.0
 # 10 -> truck
 
 # hyper parameter
-num_epoch = 51
+num_epoch = 31
 batch_size = 10
 print_size = 1
 
