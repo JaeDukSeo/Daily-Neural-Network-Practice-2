@@ -89,9 +89,30 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 
 # ================= DATA AUGMENTATION =================
 seq = iaa.Sequential([
-    iaa.Fliplr(1.0), 
-    iaa.Flipud(1.0), 
-], random_order=True) 
+    iaa.Fliplr(0.5), # horizontal flips
+    # iaa.Crop(percent=(0, 0.1)), # random crops
+    # Small gaussian blur with random sigma between 0 and 0.5.
+    # But we only blur about 50% of all images.
+    iaa.Sometimes(0.5,
+        iaa.GaussianBlur(sigma=(0, 0.5))
+    ),
+    # Strengthen or weaken the contrast in each image.
+    # iaa.ContrastNormalization((0.75, 1.5)),
+    # Add gaussian noise.
+    # For 50% of all images, we sample the noise once per pixel.
+    # For the other 50% of all images, we sample the noise per pixel AND
+    # channel. This can change the color (not only brightness) of the
+    # pixels.
+    # iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5),
+    # Apply affine transformations to each image.
+    # Scale/zoom them, translate/move them, rotate them and shear them.
+    iaa.Affine(
+        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        rotate=(-25, 25),
+        shear=(-8, 8)
+    )
+], random_order=True) # apply augmenters in random order
 # ================= DATA AUGMENTATION =================
 
 # ================= LAYER CLASSES =================
@@ -208,8 +229,8 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # simple normalize
-# train_batch = train_batch/255.0
-# test_batch = test_batch/255.0
+train_batch = train_batch/255.0
+test_batch = test_batch/255.0
 
 # Number of each classes
 # 1 -> airplane
@@ -223,27 +244,27 @@ print(test_label.shape)
 # 10 -> truck
 
 # hyper parameter
-num_epoch = 21
+num_epoch = 51
 batch_size = 10
 print_size = 1
 
-learning_rate = 0.00002
+learning_rate = 0.00001
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.99,1e-8
 
 # define class here
-channel_sizes = 164
+channel_sizes = 196
 l1 = CNN(3,3,channel_sizes,stddev=0.04)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l3 = CNN(1,channel_sizes,channel_sizes,stddev=0.06)
+l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 
 l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
 l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l6 = CNN(1,channel_sizes,channel_sizes,stddev=0.06)
+l6 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 
 l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l8 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l9 = CNN(1,channel_sizes,channel_sizes,stddev=0.04)
+l9 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
 
 l10 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l11 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
@@ -290,7 +311,6 @@ final_soft = tf_softmax(final_global)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
 
 def fair_grad(): 
     '''
@@ -622,6 +642,7 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
         which_grad,which_grad_print = None,None
+
         for batch_size_index in range(0,len(train_batch),batch_size//2):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
@@ -630,7 +651,6 @@ with tf.Session() as sess:
             images_aug  = seq.augment_images(current_batch.astype(np.float32))
             current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
             current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 

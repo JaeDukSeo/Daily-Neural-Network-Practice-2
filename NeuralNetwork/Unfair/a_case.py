@@ -89,17 +89,31 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 
 # ================= DATA AUGMENTATION =================
 seq = iaa.Sequential([
-    iaa.Fliplr(1.0), 
-], random_order=True) 
-seq1 = iaa.Sequential([
-    iaa.Flipud(1.0), 
-], random_order=True) 
-seq2 = iaa.Sequential([
-    iaa.Fliplr(1.0), 
-    iaa.Flipud(1.0), 
-], random_order=True) 
+    iaa.Fliplr(0.5), # horizontal flips
+    # iaa.Crop(percent=(0, 0.1)), # random crops
+    # Small gaussian blur with random sigma between 0 and 0.5.
+    # But we only blur about 50% of all images.
+    iaa.Sometimes(0.5,
+        iaa.GaussianBlur(sigma=(0, 0.5))
+    ),
+    # Strengthen or weaken the contrast in each image.
+    # iaa.ContrastNormalization((0.75, 1.5)),
+    # Add gaussian noise.
+    # For 50% of all images, we sample the noise once per pixel.
+    # For the other 50% of all images, we sample the noise per pixel AND
+    # channel. This can change the color (not only brightness) of the
+    # pixels.
+    # iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5),
+    # Apply affine transformations to each image.
+    # Scale/zoom them, translate/move them, rotate them and shear them.
+    iaa.Affine(
+        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        rotate=(-25, 25),
+        shear=(-8, 8)
+    )
+], random_order=True) # apply augmenters in random order
 # ================= DATA AUGMENTATION =================
-
 
 # ================= LAYER CLASSES =================
 class CNN():
@@ -200,13 +214,13 @@ y_data = np.transpose(y_data, (0, 3, 2, 1))
 test_label = np.expand_dims(np.fromfile(test_label_f, dtype=np.uint8).astype(np.float64),axis=1)
 test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
 
-train_batch = np.zeros((len(x_data),64,64,3))
-test_batch = np.zeros((len(y_data),64,64,3))
+train_batch = np.zeros((len(x_data),48,48,3))
+test_batch = np.zeros((len(y_data),48,48,3))
 
 for x in range(len(x_data)):
-    train_batch[x,:,:,:] = imresize(x_data[x,:,:,:],(64,64))
+    train_batch[x,:,:,:] = imresize(x_data[x,:,:,:],(48,48))
 for x in range(len(y_data)):
-    test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(64,64))
+    test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(48,48))
 
 # print out the data shape
 print(train_batch.shape)
@@ -231,22 +245,22 @@ test_batch = test_batch/255.0
 
 # hyper parameter
 num_epoch = 51
-batch_size = 8
+batch_size = 10
 print_size = 1
 
-learning_rate = 0.000008
+learning_rate = 0.00001
 learnind_rate_decay = 0.0
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+beta1,beta2,adam_e = 0.9,0.99,1e-8
 
 # define class here
-channel_sizes = 256
+channel_sizes = 196
 l1 = CNN(3,3,channel_sizes,stddev=0.04)
 l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
 l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 
 l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
 l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
-l6 = CNN(2,channel_sizes,channel_sizes,stddev=0.06)
+l6 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 
 l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
 l8 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
@@ -264,7 +278,7 @@ all_weights = [
     ]
 
 # graph
-x = tf.placeholder(shape=[batch_size,64,64,3],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,48,48,3],dtype=tf.float32)
 y = tf.placeholder(shape=[batch_size,10],dtype=tf.float32)
 
 iter_variable = tf.placeholder(tf.float32, shape=())
@@ -297,7 +311,6 @@ final_soft = tf_softmax(final_global)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
 
 def fair_grad(): 
     '''
@@ -333,281 +346,8 @@ def fair_grad():
                 grad3_up + grad2_up + grad1_up 
     return grad_update
 
-def unfair_grad_1(): 
-    '''
-        Def: Peform unfair back propagation on block 1
-
-        Return:
-            Array of Update Tensors
-    '''
-
-    # back prop via the first block
-    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12_u,_ = l12.backprop_unfair(grad_prepare_u,learning_rate_change=learning_rate_change)
-    grad11_u,_ = l11.backprop_unfair(grad12_u,learning_rate_change=learning_rate_change) 
-    grad10_u,_ = l10.backprop_unfair(grad11_u,learning_rate_change=learning_rate_change) 
-
-    grad9_Input_u = tf_repeat(grad10_u,[1,2,2,1])
-    grad9_u,_ = l9.backprop_unfair(grad9_Input_u,learning_rate_change=learning_rate_change) 
-    grad8_u,_ = l8.backprop_unfair(grad9_u,learning_rate_change=learning_rate_change) 
-    grad7_u,_ = l7.backprop_unfair(grad8_u,learning_rate_change=learning_rate_change) 
-
-    grad6_Input_u = tf_repeat(grad7_u,[1,2,2,1])
-    grad6_u,_ = l6.backprop_unfair(grad6_Input_u,learning_rate_change=learning_rate_change)
-    grad5_u,_ = l5.backprop_unfair(grad6_u,learning_rate_change=learning_rate_change)
-    grad4_u,_ = l4.backprop_unfair(grad5_u,learning_rate_change=learning_rate_change)
-
-    grad3_Input_u = tf_repeat(grad4_u,[1,2,2,1])
-    grad3_u,grad3_up_u = l3.backprop_unfair(grad3_Input_u,learning_rate_change=learning_rate_change)
-    grad2_u,grad2_up_u = l2.backprop_unfair(grad3_u,learning_rate_change=learning_rate_change)
-    grad1_u,grad1_up_u = l1.backprop_unfair(grad2_u,learning_rate_change=learning_rate_change)
-
-    # perform feed forward operation and prepare for again back prop
-    layer1_u = l1.feedforward(x)
-    layer2_u = l2.feedforward(layer1_u) 
-    layer3_u = l3.feedforward(layer2_u)
-
-    layer4_Input_u = tf.nn.avg_pool(layer3_u,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-    layer4_u = l4.feedforward(layer4_Input_u)
-    layer5_u = l5.feedforward(layer4_u) 
-    layer6_u = l6.feedforward(layer5_u) 
-
-    layer7_Input_u = tf.nn.avg_pool(layer6_u,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-    layer7_u = l7.feedforward(layer7_Input_u)
-    layer8_u = l8.feedforward(layer7_u) 
-    layer9_u = l9.feedforward(layer8_u) 
-
-    layer10_Input_u = tf.nn.avg_pool(layer9_u,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-    layer10_u = l10.feedforward(layer10_Input_u)
-    layer11_u = l11.feedforward(layer10_u) 
-    layer12_u = l12.feedforward(layer11_u) 
-
-    final_global_u = tf.reduce_mean(layer12_u,[1,2])
-    final_soft_u = tf_softmax(final_global_u)
-
-    # back prop again but this time fully
-    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12,grad12_up = l12.backprop_unfair(grad_prepare,learning_rate_change=learning_rate_change)
-    grad11,grad11_up = l11.backprop_unfair(grad12,learning_rate_change=learning_rate_change) 
-    grad10,grad10_up = l10.backprop_unfair(grad11,learning_rate_change=learning_rate_change) 
-
-    grad9_Input = tf_repeat(grad10,[1,2,2,1])
-    grad9,grad9_up = l9.backprop_unfair(grad9_Input,learning_rate_change=learning_rate_change) 
-    grad8,grad8_up = l8.backprop_unfair(grad9,learning_rate_change=learning_rate_change) 
-    grad7,grad7_up = l7.backprop_unfair(grad8,learning_rate_change=learning_rate_change) 
-
-    grad6_Input = tf_repeat(grad7,[1,2,2,1])
-    grad6,grad6_up = l6.backprop_unfair(grad6_Input,learning_rate_change=learning_rate_change)
-    grad5,grad5_up = l5.backprop_unfair(grad6,learning_rate_change=learning_rate_change)
-    grad4,grad4_up = l4.backprop_unfair(grad5,learning_rate_change=learning_rate_change)
-
-    grad3_Input = tf_repeat(grad4,[1,2,2,1])
-    grad3,grad3_up = l3.backprop_unfair(grad3_Input,learning_rate_change=learning_rate_change)
-    grad2,grad2_up = l2.backprop_unfair(grad3,learning_rate_change=learning_rate_change)
-    grad1,grad1_up = l1.backprop_unfair(grad2,learning_rate_change=learning_rate_change)
-
-    grad_update =\
-                grad1_up_u + grad2_up_u + grad3_up_u + \
-                grad12_up + grad11_up + grad10_up + \
-                grad9_up + grad8_up + grad7_up + \
-                grad6_up + grad5_up + grad4_up + \
-                grad3_up + grad2_up + grad1_up 
-
-    return grad_update
-
-def unfair_grad_2(): 
-    '''
-        Def: Peform unfair back propagation on block 2
-
-        Return:
-            Array of Update Tensors
-    '''
-
-    # back prop via the first block
-    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12_u,_ = l12.backprop_unfair(grad_prepare_u,learning_rate_change=learning_rate_change)
-    grad11_u,_ = l11.backprop_unfair(grad12_u,learning_rate_change=learning_rate_change) 
-    grad10_u,_ = l10.backprop_unfair(grad11_u,learning_rate_change=learning_rate_change) 
-
-    grad9_Input_u = tf_repeat(grad10_u,[1,2,2,1])
-    grad9_u,_ = l9.backprop_unfair(grad9_Input_u,learning_rate_change=learning_rate_change) 
-    grad8_u,_ = l8.backprop_unfair(grad9_u,learning_rate_change=learning_rate_change) 
-    grad7_u,_ = l7.backprop_unfair(grad8_u,learning_rate_change=learning_rate_change) 
-
-    grad6_Input_u = tf_repeat(grad7_u,[1,2,2,1])
-    grad6_u,grad6_up_u = l6.backprop_unfair(grad6_Input_u,learning_rate_change=learning_rate_change)
-    grad5_u,grad5_up_u = l5.backprop_unfair(grad6_u,learning_rate_change=learning_rate_change)
-    grad4_u,grad4_up_u = l4.backprop_unfair(grad5_u,learning_rate_change=learning_rate_change)
-
-    # perform feed forward operation and prepare for again back prop
-    layer4_u = l4.feedforward(layer4_Input)
-    layer5_u = l5.feedforward(layer4_u) 
-    layer6_u = l6.feedforward(layer5_u) 
-
-    layer7_Input_u = tf.nn.avg_pool(layer6_u,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-    layer7_u = l7.feedforward(layer7_Input_u)
-    layer8_u = l8.feedforward(layer7_u) 
-    layer9_u = l9.feedforward(layer8_u) 
-
-    layer10_Input_u = tf.nn.avg_pool(layer9_u,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-    layer10_u = l10.feedforward(layer10_Input_u)
-    layer11_u = l11.feedforward(layer10_u) 
-    layer12_u = l12.feedforward(layer11_u) 
-
-    final_global_u = tf.reduce_mean(layer12_u,[1,2])
-    final_soft_u = tf_softmax(final_global_u)
-
-    # back prop again but this time fully
-    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12,grad12_up = l12.backprop_unfair(grad_prepare,learning_rate_change=learning_rate_change)
-    grad11,grad11_up = l11.backprop_unfair(grad12,learning_rate_change=learning_rate_change) 
-    grad10,grad10_up = l10.backprop_unfair(grad11,learning_rate_change=learning_rate_change) 
-
-    grad9_Input = tf_repeat(grad10,[1,2,2,1])
-    grad9,grad9_up = l9.backprop_unfair(grad9_Input,learning_rate_change=learning_rate_change) 
-    grad8,grad8_up = l8.backprop_unfair(grad9,learning_rate_change=learning_rate_change) 
-    grad7,grad7_up = l7.backprop_unfair(grad8,learning_rate_change=learning_rate_change) 
-
-    grad6_Input = tf_repeat(grad7,[1,2,2,1])
-    grad6,grad6_up = l6.backprop_unfair(grad6_Input,learning_rate_change=learning_rate_change)
-    grad5,grad5_up = l5.backprop_unfair(grad6,learning_rate_change=learning_rate_change)
-    grad4,grad4_up = l4.backprop_unfair(grad5,learning_rate_change=learning_rate_change)
-
-    grad3_Input = tf_repeat(grad4,[1,2,2,1])
-    grad3,grad3_up = l3.backprop_unfair(grad3_Input,learning_rate_change=learning_rate_change)
-    grad2,grad2_up = l2.backprop_unfair(grad3,learning_rate_change=learning_rate_change)
-    grad1,grad1_up = l1.backprop_unfair(grad2,learning_rate_change=learning_rate_change)
-
-    grad_update =\
-                grad4_up_u + grad5_up_u + grad6_up_u + \
-                grad12_up + grad11_up + grad10_up + \
-                grad9_up + grad8_up + grad7_up + \
-                grad6_up + grad5_up + grad4_up + \
-                grad3_up + grad2_up + grad1_up 
-
-    return grad_update
-
-def unfair_grad_3(): 
-    '''
-        Def: Peform unfair back propagation on block 3
-
-        Return:
-            Array of Update Tensors
-    '''
-
-    # back prop via the first block
-    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12_u,_ = l12.backprop_unfair(grad_prepare_u,learning_rate_change=learning_rate_change)
-    grad11_u,_ = l11.backprop_unfair(grad12_u,learning_rate_change=learning_rate_change) 
-    grad10_u,_ = l10.backprop_unfair(grad11_u,learning_rate_change=learning_rate_change) 
-
-    grad9_Input_u = tf_repeat(grad10_u,[1,2,2,1])
-    grad9_u,grad9_up_u = l9.backprop_unfair(grad9_Input_u,learning_rate_change=learning_rate_change) 
-    grad8_u,grad8_up_u = l8.backprop_unfair(grad9_u,learning_rate_change=learning_rate_change) 
-    grad7_u,grad7_up_u = l7.backprop_unfair(grad8_u,learning_rate_change=learning_rate_change) 
-
-    # perform feed forward operation and prepare for again back prop
-    layer7_u = l7.feedforward(layer7_Input)
-    layer8_u = l8.feedforward(layer7_u) 
-    layer9_u = l9.feedforward(layer8_u) 
-
-    layer10_Input_u = tf.nn.avg_pool(layer9_u,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-    layer10_u = l10.feedforward(layer10_Input_u)
-    layer11_u = l11.feedforward(layer10_u) 
-    layer12_u = l12.feedforward(layer11_u) 
-
-    final_global_u = tf.reduce_mean(layer12_u,[1,2])
-    final_soft_u = tf_softmax(final_global_u)
-
-    # back prop again but this time fully
-    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12,grad12_up = l12.backprop_unfair(grad_prepare,learning_rate_change=learning_rate_change)
-    grad11,grad11_up = l11.backprop_unfair(grad12,learning_rate_change=learning_rate_change) 
-    grad10,grad10_up = l10.backprop_unfair(grad11,learning_rate_change=learning_rate_change) 
-
-    grad9_Input = tf_repeat(grad10,[1,2,2,1])
-    grad9,grad9_up = l9.backprop_unfair(grad9_Input,learning_rate_change=learning_rate_change) 
-    grad8,grad8_up = l8.backprop_unfair(grad9,learning_rate_change=learning_rate_change) 
-    grad7,grad7_up = l7.backprop_unfair(grad8,learning_rate_change=learning_rate_change) 
-
-    grad6_Input = tf_repeat(grad7,[1,2,2,1])
-    grad6,grad6_up = l6.backprop_unfair(grad6_Input,learning_rate_change=learning_rate_change)
-    grad5,grad5_up = l5.backprop_unfair(grad6,learning_rate_change=learning_rate_change)
-    grad4,grad4_up = l4.backprop_unfair(grad5,learning_rate_change=learning_rate_change)
-
-    grad3_Input = tf_repeat(grad4,[1,2,2,1])
-    grad3,grad3_up = l3.backprop_unfair(grad3_Input,learning_rate_change=learning_rate_change)
-    grad2,grad2_up = l2.backprop_unfair(grad3,learning_rate_change=learning_rate_change)
-    grad1,grad1_up = l1.backprop_unfair(grad2,learning_rate_change=learning_rate_change)
-
-    grad_update =\
-                grad7_up_u + grad8_up_u + grad9_up_u + \
-                grad12_up + grad11_up + grad10_up + \
-                grad9_up + grad8_up + grad7_up + \
-                grad6_up + grad5_up + grad4_up + \
-                grad3_up + grad2_up + grad1_up 
-
-    return grad_update
-
-def unfair_grad_4(): 
-    '''
-        Def: Peform unfair back propagation on block 4
-
-        Return:
-            Array of Update Tensors
-    '''
-
-    # back prop via the first block
-    grad_prepare_u = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12_u,grad12_up_u = l12.backprop_unfair(grad_prepare_u,learning_rate_change=learning_rate_change)
-    grad11_u,grad11_up_u = l11.backprop_unfair(grad12_u,learning_rate_change=learning_rate_change) 
-    grad10_u,grad10_up_u = l10.backprop_unfair(grad11_u,learning_rate_change=learning_rate_change) 
-
-    # perform feed forward operation and prepare for again back prop
-    layer10_u = l10.feedforward(layer10_Input)
-    layer11_u = l11.feedforward(layer10_u) 
-    layer12_u = l12.feedforward(layer11_u) 
-
-    final_global_u = tf.reduce_mean(layer12_u,[1,2])
-    final_soft_u = tf_softmax(final_global_u)
-
-    # back prop again but this time fully
-    grad_prepare = tf_repeat(tf.reshape(final_soft_u-y,[batch_size,1,1,10]),[1,1,1,1])
-    grad12,grad12_up = l12.backprop_unfair(grad_prepare,learning_rate_change=learning_rate_change)
-    grad11,grad11_up = l11.backprop_unfair(grad12,learning_rate_change=learning_rate_change) 
-    grad10,grad10_up = l10.backprop_unfair(grad11,learning_rate_change=learning_rate_change) 
-
-    grad9_Input = tf_repeat(grad10,[1,2,2,1])
-    grad9,grad9_up = l9.backprop_unfair(grad9_Input,learning_rate_change=learning_rate_change) 
-    grad8,grad8_up = l8.backprop_unfair(grad9,learning_rate_change=learning_rate_change) 
-    grad7,grad7_up = l7.backprop_unfair(grad8,learning_rate_change=learning_rate_change) 
-
-    grad6_Input = tf_repeat(grad7,[1,2,2,1])
-    grad6,grad6_up = l6.backprop_unfair(grad6_Input,learning_rate_change=learning_rate_change)
-    grad5,grad5_up = l5.backprop_unfair(grad6,learning_rate_change=learning_rate_change)
-    grad4,grad4_up = l4.backprop_unfair(grad5,learning_rate_change=learning_rate_change)
-
-    grad3_Input = tf_repeat(grad4,[1,2,2,1])
-    grad3,grad3_up = l3.backprop_unfair(grad3_Input,learning_rate_change=learning_rate_change)
-    grad2,grad2_up = l2.backprop_unfair(grad3,learning_rate_change=learning_rate_change)
-    grad1,grad1_up = l1.backprop_unfair(grad2,learning_rate_change=learning_rate_change)
-
-    grad_update =\
-                grad12_up_u + grad11_up_u + grad10_up_u + \
-                grad12_up + grad11_up + grad10_up + \
-                grad9_up + grad8_up + grad7_up + \
-                grad6_up + grad5_up + grad4_up + \
-                grad3_up + grad2_up + grad1_up 
-
-    return grad_update
-
-
 # Every 2 iteration we are going to perform unfair back prop
 grad_update_0 = fair_grad()
-grad_update_1 = unfair_grad_1()
-grad_update_2 = unfair_grad_2()
-grad_update_3 = unfair_grad_3()
-grad_update_4 = unfair_grad_4()
 
 # sess
 with tf.Session() as sess:
@@ -630,23 +370,15 @@ with tf.Session() as sess:
 
         train_batch,train_label = shuffle(train_batch,train_label)
         which_grad,which_grad_print = None,None
-        for batch_size_index in range(0,len(train_batch),batch_size//4):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//4]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//4]
+
+        for batch_size_index in range(0,len(train_batch),batch_size//2):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
 
             # online data augmentation here and standard normalization
             images_aug  = seq.augment_images(current_batch.astype(np.float32))
-            images_aug1 = seq.augment_images(current_batch.astype(np.float32))
-            images_aug2 = seq.augment_images(current_batch.astype(np.float32))
-
-            current_batch1 = np.vstack((current_batch,images_aug)).astype(np.float32)
-            current_batch2 = np.vstack((images_aug1,images_aug2)).astype(np.float32)
-            current_batch = np.vstack((current_batch1,current_batch2)).astype(np.float32)
-
-            current_batch_label1 = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch_label2 = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch_label = np.vstack((current_batch_label1,current_batch_label2)).astype(np.float32)
-
+            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
@@ -672,17 +404,16 @@ with tf.Session() as sess:
 
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
-            print(" Using grad: ",which_grad_print,'Train Current cost: ', train_cota/(len(train_batch)/(batch_size//4)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//4) ),end='\n')
+            print(" Using grad: ",which_grad_print,'Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/(batch_size//4)))
-        train_cot.append(train_cota/(len(train_batch)/(batch_size//4)))
+        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
         train_cota,train_acca = 0,0
-    sys.exit()
 
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
@@ -707,6 +438,8 @@ with tf.Session() as sess:
     # ------- histogram of weights after training ------
     show_hist_of_weigt(sess.run(all_weights),status='After')
     # ------- histogram of weights after training ------
+
+    sys.exit()
 
     # get random 50 images from the test set and vis the gradient
     test_batch = test_batch[:batch_size,:,:,:]
