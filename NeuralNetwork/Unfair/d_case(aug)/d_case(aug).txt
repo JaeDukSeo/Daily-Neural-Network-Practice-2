@@ -1,0 +1,50 @@
+Current Iter :  0  current batch:  9990  Current cost:  2.0633202  Current Acc:  0.4rrent Acc:  0.5.4
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  2.1934584878563883  Current Acc:  0.2796700056098402
+Test Current cost:  1.9394521307945252  Current Acc:  0.5757000061199069
+----------
+Current Iter :  1  current batch:  9990  Current cost:  1.8083016  Current Acc:  0.7urrent Acc:  0.45
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  2.0858038519263267  Current Acc:  0.3949700070485473
+Test Current cost:  1.8297519900798798  Current Acc:  0.6813000032231211
+----------
+Current Iter :  2  current batch:  9990  Current cost:  1.6966368  Current Acc:  0.9urrent Acc:  0.55
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  2.040879367983341  Current Acc:  0.4363300069235265
+Test Current cost:  1.7687826970815659  Current Acc:  0.7452000004500151
+----------
+Current Iter :  3  current batch:  9990  Current cost:  1.6692829  Current Acc:  0.9Current Acc:  0.4
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  2.0150963282465937  Current Acc:  0.4584600068718195
+Test Current cost:  1.7533997391462326  Current Acc:  0.761699998319149
+----------
+Current Iter :  4  current batch:  9990  Current cost:  1.6594117  Current Acc:  0.9Current Acc:  0.3
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  1.9971981280207634  Current Acc:  0.47400000680834053
+Test Current cost:  1.7124215676784516  Current Acc:  0.8003999971747399
+----------
+Current Iter :  5  current batch:  9990  Current cost:  1.6027682  Current Acc:  0.9Current Acc:  0.4
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  1.9850892190217972  Current Acc:  0.483110006980598
+Test Current cost:  1.7108160061836242  Current Acc:  0.7927999982237816
+----------
+Current Iter :  6  current batch:  9990  Current cost:  1.6501547  Current Acc:  0.9Current Acc:  0.5
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  1.9775859617710114  Current Acc:  0.488470006980747
+Test Current cost:  1.701685666203499  Current Acc:  0.797299997061491
+----------
+Current Iter :  7  current batch:  9990  Current cost:  1.7025722  Current Acc:  0.8Current Acc:  0.7
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  1.970860373198986  Current Acc:  0.49427000698149204
+Test Current cost:  1.6924165481328963  Current Acc:  0.8025999969542027
+----------
+Current Iter :  8  current batch:  9990  Current cost:  1.7261242  Current Acc:  0.8Current Acc:  0.3
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  1.9661874076366423  Current Acc:  0.49653000714480877
+Test Current cost:  1.7210502159595489  Current Acc:  0.7840999974906444
+----------
+Current Iter :  9  current batch:  9990  Current cost:  1.6392205  Current Acc:  0.8Current Acc:  0.5
+---------- Learning Rate :  0.0001
+ Using grad:  1 Train Current cost:  1.9620398842453957  Current Acc:  0.49974000701382754
+Test Current cost:  1.6682313923835754  Current Acc:  0.8130999964773655
+----------
