@@ -92,6 +92,15 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 # data aug
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # Horizonatl flips
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+            rotate=(-25, 25),
+        )
+    ),
+    iaa.Sometimes(0.1,
+        iaa.Flipud(1.0)
+    ),
 ], random_order=True) # apply augmenters in random order
 # ================= DATA AUGMENTATION =================
 

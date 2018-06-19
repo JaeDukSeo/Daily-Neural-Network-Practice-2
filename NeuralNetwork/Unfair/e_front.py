@@ -92,6 +92,15 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 # data aug
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # Horizonatl flips
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+            rotate=(-25, 25),
+        )
+    ),
+    iaa.Sometimes(0.1,
+        iaa.Flipud(1.0)
+    ),
 ], random_order=True) # apply augmenters in random order
 # ================= DATA AUGMENTATION =================
 
@@ -230,7 +239,7 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_gl
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
-def unfair_grad_1(): 
+def unfair_grad_front(): 
     '''
         Def: Peform unfair back propagation on block 1
 
@@ -433,7 +442,7 @@ def unfair_grad_1():
     return grad_update
 
 # choose a random unfair grad
-grad_update_1 = unfair_grad_1()
+grad_update = unfair_grad_front()
 
 # sess
 with tf.Session() as sess:
@@ -454,7 +463,7 @@ with tf.Session() as sess:
     for iter in range(num_epoch):
 
         train_batch,train_label = shuffle(train_batch,train_label)
-        which_grad,which_grad_print = grad_update_1,1
+        which_grad,which_grad_print = grad_update,1
 
         for batch_size_index in range(0,len(train_batch),batch_size//2):
             

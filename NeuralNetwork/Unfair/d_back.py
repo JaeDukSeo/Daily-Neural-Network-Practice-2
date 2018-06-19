@@ -92,6 +92,9 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 # data aug
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # Horizonatl flips
+    iaa.Sometimes(0.05,
+        iaa.Flipud(1.0)
+    ),
 ], random_order=True) # apply augmenters in random order
 # ================= DATA AUGMENTATION =================
 
@@ -133,7 +136,6 @@ class CNN():
         adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
         return grad_pass,update_w 
-   
 # ================= LAYER CLASSES =================
 
 # data
@@ -180,7 +182,8 @@ num_epoch = 21
 batch_size = 50
 print_size = 1
 
-learning_rate = 0.00008
+# learning_rate = 0.00008
+learning_rate = 0.00003
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -226,11 +229,7 @@ layer9 = l9.feedforward(layer8)
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
 
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
-correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-
-def unfair_grad_1(): 
+def unfair_grad_back(): 
     '''
         Def: Peform unfair back propagation on block 1
 
@@ -419,6 +418,28 @@ def unfair_grad_1():
     grad2_u9,grad2_up_u9 = l2.backprop_unfair(grad3_u9,learning_rate_change=learning_rate_change) 
     grad1_u9,grad1_up_u9 = l1.backprop_unfair(grad2_u9,learning_rate_change=learning_rate_change) 
 
+    # final output for score
+    layer1_u9 = l1.feedforward(x) 
+    layer2_u9 = l2.feedforward(layer1_u9) 
+    layer3_u9 = l3.feedforward(layer2_u9) 
+
+    layer4_Input_u9 = tf.nn.avg_pool(layer3_u9,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer4_u9 = l4.feedforward(layer4_Input_u9) 
+    layer5_u9 = l5.feedforward(layer4_u9) 
+    layer6_u9 = l6.feedforward(layer5_u9) 
+
+    layer7_Input_u9 = tf.nn.avg_pool(layer6_u9,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer7_u9 = l7.feedforward(layer7_Input_u9) 
+    layer8_u9 = l8.feedforward(layer7_u9) 
+    layer9_u9 = l9.feedforward(layer8_u9) 
+
+    final_global_u9 = tf.reduce_mean(layer9_u9,[1,2])
+    final_soft_u9 = tf_softmax(final_global_u9)
+
+    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft_u9,labels=y) )
+    correct_prediction = tf.equal(tf.argmax(final_soft_u9, 1), tf.argmax(y, 1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
     grad_update =\
                 grad9_up_u1 + \
                 grad9_up_u2 + grad8_up_u2 + \
@@ -430,10 +451,10 @@ def unfair_grad_1():
                 grad9_up_u8 + grad8_up_u8 + grad7_up_u8 + grad6_up_u8 + grad5_up_u8 + grad4_up_u8 + grad3_up_u8 + grad2_up_u8 + \
                 grad9_up_u9 + grad8_up_u9 + grad7_up_u9 + grad6_up_u9 + grad5_up_u9 + grad4_up_u9 + grad3_up_u9 + grad2_up_u9 + grad1_up_u9 
 
-    return grad_update
+    return grad_update,cost,correct_prediction,accuracy
 
 # choose a random unfair grad
-grad_update_1 = unfair_grad_1()
+grad_update,cost,correct_prediction,accuracy = unfair_grad_back()
 
 # sess
 with tf.Session() as sess:
@@ -454,7 +475,7 @@ with tf.Session() as sess:
     for iter in range(num_epoch):
 
         train_batch,train_label = shuffle(train_batch,train_label)
-        which_grad,which_grad_print = grad_update_1,1
+        which_grad,which_grad_print = grad_update,1
 
         for batch_size_index in range(0,len(train_batch),batch_size//2):
             
