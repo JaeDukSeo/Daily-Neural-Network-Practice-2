@@ -17,7 +17,7 @@ Current Iter :  3  current batch:  9990  Current cost:  0.78170717  Current Acc:
 ---------- Learning Rate :  0.0001
  Using grad:  0 Train Current cost:  1.5648045598685743  Current Acc:  0.4133200068838894
 Test Current cost:  0.8500884484499693  Current Acc:  0.6997000016570091
-----------
+----------  
 Current Iter :  4  current batch:  9990  Current cost:  0.6468565  Current Acc:  0.60rrent Acc:  0.257
 ---------- Learning Rate :  0.0001
  Using grad:  0 Train Current cost:  1.5080755590975286  Current Acc:  0.4353300069153309
