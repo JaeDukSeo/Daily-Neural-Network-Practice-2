@@ -18,7 +18,6 @@ ia.seed(678)
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  +  \
 (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x)+1.0)
-
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
     import pickle
@@ -50,7 +49,7 @@ def show_hist_of_weigt(all_weight_list,status='before'):
     weight_index = 0
 
     for i in range(1,1+int(len(all_weight_list)//3)):
-        ax = fig.add_subplot(1,4,i)
+        ax = fig.add_subplot(1,3,i)
         ax.grid(False)
         temp_weight_list = all_weight_list[weight_index:weight_index+3]
         for temp_index in range(len(temp_weight_list)):
@@ -92,7 +91,13 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 # data aug
 seq = iaa.Sequential([
     iaa.Fliplr(1.0), # Horizonatl flips
-    iaa.Sometimes(0.05,
+    iaa.Sometimes(0.1,
+        iaa.Affine(
+            translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+            rotate=(-25, 25),
+        )
+    ),
+    iaa.Sometimes(0.1,
         iaa.Flipud(1.0)
     ),
 ], random_order=True) # apply augmenters in random order
@@ -178,28 +183,26 @@ train_batch  = train_batch/255.0
 test_batch  = test_batch/255.0
 
 # hyper parameter
-num_epoch = 21
-batch_size = 50
+num_epoch = 10
+batch_size = 10
 print_size = 1
 
-# learning_rate = 0.00008
-learning_rate = 0.00003
+learning_rate = 0.0001
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
-channel_sizes = 164
-l1 = CNN(3,3,channel_sizes,stddev=0.05)
-l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
-l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
+l1 = CNN(3,3,256,stddev=0.05)
+l2 = CNN(3,256,256,stddev=0.04)
+l3 = CNN(3,256,128,stddev=0.06)
 
-l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
-l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
-l6 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
+l4 = CNN(3,128,128,stddev=0.04)
+l5 = CNN(3,128,128,stddev=0.06)
+l6 = CNN(3,128,64,stddev=0.05)
 
-l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
-l8 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
-l9 = CNN(1,channel_sizes,10,stddev=0.06)
+l7 = CNN(3,64,64,stddev=0.04)
+l8 = CNN(1,64,64,stddev=0.05)
+l9 = CNN(1,64,10,stddev=0.06)
 
 all_weights = [l1.getw(),l2.getw(),l3.getw(),l4.getw(),l5.getw(),l6.getw(),l7.getw(),l8.getw(),l9.getw()]
 
@@ -228,6 +231,10 @@ layer9 = l9.feedforward(layer8)
 
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
+
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft,labels=y) )
+correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 def unfair_grad_back(): 
     '''
@@ -436,9 +443,9 @@ def unfair_grad_back():
     final_global_u9 = tf.reduce_mean(layer9_u9,[1,2])
     final_soft_u9 = tf_softmax(final_global_u9)
 
-    cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft_u9,labels=y) )
-    correct_prediction = tf.equal(tf.argmax(final_soft_u9, 1), tf.argmax(y, 1))
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    cost_u9 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft_u9,labels=y) )
+    correct_prediction_u9 = tf.equal(tf.argmax(final_soft_u9, 1), tf.argmax(y, 1))
+    accuracy_u9 = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     grad_update =\
                 grad9_up_u1 + \
@@ -451,10 +458,10 @@ def unfair_grad_back():
                 grad9_up_u8 + grad8_up_u8 + grad7_up_u8 + grad6_up_u8 + grad5_up_u8 + grad4_up_u8 + grad3_up_u8 + grad2_up_u8 + \
                 grad9_up_u9 + grad8_up_u9 + grad7_up_u9 + grad6_up_u9 + grad5_up_u9 + grad4_up_u9 + grad3_up_u9 + grad2_up_u9 + grad1_up_u9 
 
-    return grad_update,cost,correct_prediction,accuracy
+    return grad_update,cost_u9,correct_prediction_u9,accuracy_u9
 
 # choose a random unfair grad
-grad_update,cost,correct_prediction,accuracy = unfair_grad_back()
+grad_update,cost_u9,correct_prediction_u9,accuracy_u9 = unfair_grad_back()
 
 # sess
 with tf.Session() as sess:
@@ -489,7 +496,7 @@ with tf.Session() as sess:
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
-            sess_result = sess.run([cost,accuracy,correct_prediction,which_grad],
+            sess_result = sess.run([cost_u9,accuracy_u9,correct_prediction_u9,which_grad],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
             print("Current Iter : ",iter," Using grad: ",which_grad_print ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
@@ -542,34 +549,6 @@ with tf.Session() as sess:
     show_hist_of_weigt(sess.run(all_weights),status='After')
     # ------- histogram of weights after training ------
 
-    # get random 50 images from the test set and vis the gradient
-    test_batch = test_batch[:batch_size,:,:,:]
-    test_label = test_label[:batch_size,:]
-
-    # -------- Intergral Gradients ----------
-    base_line = test_batch * 0.0
-    difference = test_batch - base_line
-    step_size = 1000
-
-    running_example = test_batch * 0.0
-    for rim in range(1,step_size+1):
-        current_alpha = rim / step_size
-        test_batch_a = current_alpha * test_batch
-        sess_result = sess.run([cost,accuracy,correct_prediction,final_soft,grad1],feed_dict={x:test_batch_a,y:test_label,iter_variable:1.0,phase:False})
-        running_example = running_example + sess_result[4]
-        final_prediction_argmax = sess_result[3]
-
-    running_example = running_example * difference
-    running_example = np.sum(running_example,axis=3)  
-    running_example = (running_example-running_example.min())/(running_example.max()-running_example.min())
-    overlayed_image = np.repeat(np.expand_dims(running_example,axis=3),3,axis=3) * test_batch
-    stacked_images = overlayed_image[0,:,:,:]
-    for stacking in range(0,len(overlayed_image)):
-        stacked_images = np.vstack((stacked_images.T,overlayed_image[stacking,:,:,:].T)).T
-
-    final_prediction_argmax = [-1] + list(np.argmax(final_prediction_argmax,axis=1))
-    show_9_images(stacked_images,0,0,alpha=-99,gt=final_gt_argmax,predict=final_prediction_argmax)
-    # -------- Intergral Gradients ----------
 
 
 # -- end code --

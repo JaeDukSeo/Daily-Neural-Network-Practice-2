@@ -18,7 +18,6 @@ ia.seed(678)
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  +  \
 (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x)+1.0)
-
 def tf_softmax(x): return tf.nn.softmax(x)
 def unpickle(file):
     import pickle
@@ -50,7 +49,7 @@ def show_hist_of_weigt(all_weight_list,status='before'):
     weight_index = 0
 
     for i in range(1,1+int(len(all_weight_list)//3)):
-        ax = fig.add_subplot(1,4,i)
+        ax = fig.add_subplot(1,3,i)
         ax.grid(False)
         temp_weight_list = all_weight_list[weight_index:weight_index+3]
         for temp_index in range(len(temp_weight_list)):
@@ -142,7 +141,6 @@ class CNN():
         adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
         return grad_pass,update_w 
-   
 # ================= LAYER CLASSES =================
 
 # data
@@ -185,27 +183,26 @@ train_batch  = train_batch/255.0
 test_batch  = test_batch/255.0
 
 # hyper parameter
-num_epoch = 21
-batch_size = 50
+num_epoch = 10
+batch_size = 10
 print_size = 1
 
-learning_rate = 0.00008
+learning_rate = 0.0001
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
-channel_sizes = 164
-l1 = CNN(3,3,channel_sizes,stddev=0.05)
-l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
-l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
+l1 = CNN(3,3,256,stddev=0.05)
+l2 = CNN(3,256,256,stddev=0.04)
+l3 = CNN(3,256,128,stddev=0.06)
 
-l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
-l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
-l6 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
+l4 = CNN(3,128,128,stddev=0.04)
+l5 = CNN(3,128,128,stddev=0.06)
+l6 = CNN(3,128,64,stddev=0.05)
 
-l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
-l8 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
-l9 = CNN(1,channel_sizes,10,stddev=0.06)
+l7 = CNN(3,64,64,stddev=0.04)
+l8 = CNN(1,64,64,stddev=0.05)
+l9 = CNN(1,64,10,stddev=0.06)
 
 all_weights = [l1.getw(),l2.getw(),l3.getw(),l4.getw(),l5.getw(),l6.getw(),l7.getw(),l8.getw(),l9.getw()]
 
@@ -235,7 +232,7 @@ layer9 = l9.feedforward(layer8)
 final_global = tf.reduce_mean(layer9,[1,2])
 final_soft = tf_softmax(final_global)
 
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_global,labels=y) )
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft,labels=y) )
 correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
@@ -250,20 +247,66 @@ def unfair_grad_front():
     # u1
     grad_prepare_u1 = tf_repeat(tf.reshape(final_soft-y,[batch_size,1,1,10]),[1,8,8,1])
 
-    grad9_u1,grad9_up_u1 = l9.backprop_unfair(grad_prepare_u1,learning_rate_change=learning_rate_change) 
+    grad9_u1,_ = l9.backprop_unfair(grad_prepare_u1,learning_rate_change=learning_rate_change) 
+    grad8_u1,_ = l8.backprop_unfair(grad9_u1,learning_rate_change=learning_rate_change) 
+    grad7_u1,_ = l7.backprop_unfair(grad8_u1,learning_rate_change=learning_rate_change) 
 
-    layer9_u1 = l9.feedforward(layer8) 
+    grad6_Input_u1 = tf_repeat(grad7_u1,[1,2,2,1])
+    grad6_u1,_ = l6.backprop_unfair(grad6_Input_u1,learning_rate_change=learning_rate_change) 
+    grad5_u1,_ = l5.backprop_unfair(grad6_u1,learning_rate_change=learning_rate_change) 
+    grad4_u1,_ = l4.backprop_unfair(grad5_u1,learning_rate_change=learning_rate_change) 
+
+    grad3_Input_u1 = tf_repeat(grad4_u1,[1,2,2,1])
+    grad3_u1,_ = l3.backprop_unfair(grad3_Input_u1,learning_rate_change=learning_rate_change) 
+    grad2_u1,_ = l2.backprop_unfair(grad3_u1,learning_rate_change=learning_rate_change) 
+    grad1_u1,grad1_up_u1 = l1.backprop_unfair(grad2_u1,learning_rate_change=learning_rate_change) 
+
+    layer1_u1 = l1.feedforward(x) 
+    layer2_u1 = l2.feedforward(layer1_u1) 
+    layer3_u1 = l3.feedforward(layer2_u1) 
+
+    layer4_Input_u1 = tf.nn.avg_pool(layer3_u1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer4_u1 = l4.feedforward(layer4_Input_u1) 
+    layer5_u1 = l5.feedforward(layer4_u1) 
+    layer6_u1 = l6.feedforward(layer5_u1) 
+
+    layer7_Input_u1 = tf.nn.avg_pool(layer6_u1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer7_u1 = l7.feedforward(layer7_Input_u1) 
+    layer8_u1 = l8.feedforward(layer7_u1) 
+    layer9_u1 = l9.feedforward(layer8_u1) 
 
     final_global_u1 = tf.reduce_mean(layer9_u1,[1,2])
     final_soft_u1 = tf_softmax(final_global_u1)
 
-    # u2 
+    # u2
     grad_prepare_u2 = tf_repeat(tf.reshape(final_soft_u1-y,[batch_size,1,1,10]),[1,8,8,1])
 
-    grad9_u2,grad9_up_u2 = l9.backprop_unfair(grad_prepare_u2,learning_rate_change=learning_rate_change) 
-    grad8_u2,grad8_up_u2 = l8.backprop_unfair(grad9_u2,learning_rate_change=learning_rate_change) 
+    grad9_u2,_ = l9.backprop_unfair(grad_prepare_u2,learning_rate_change=learning_rate_change) 
+    grad8_u2,_ = l8.backprop_unfair(grad9_u2,learning_rate_change=learning_rate_change) 
+    grad7_u2,_ = l7.backprop_unfair(grad8_u2,learning_rate_change=learning_rate_change) 
 
-    layer8_u2 = l8.feedforward(layer7) 
+    grad6_Input_u2 = tf_repeat(grad7_u2,[1,2,2,1])
+    grad6_u2,_ = l6.backprop_unfair(grad6_Input_u2,learning_rate_change=learning_rate_change) 
+    grad5_u2,_ = l5.backprop_unfair(grad6_u2,learning_rate_change=learning_rate_change) 
+    grad4_u2,_ = l4.backprop_unfair(grad5_u2,learning_rate_change=learning_rate_change) 
+
+    grad3_Input_u2 = tf_repeat(grad4_u2,[1,2,2,1])
+    grad3_u2,_ = l3.backprop_unfair(grad3_Input_u2,learning_rate_change=learning_rate_change) 
+    grad2_u2,grad2_up_u2 = l2.backprop_unfair(grad3_u2,learning_rate_change=learning_rate_change) 
+    grad1_u2,grad1_up_u2 = l1.backprop_unfair(grad2_u2,learning_rate_change=learning_rate_change) 
+
+    layer1_u2 = l1.feedforward(x) 
+    layer2_u2 = l2.feedforward(layer1_u2) 
+    layer3_u2 = l3.feedforward(layer2_u2) 
+
+    layer4_Input_u2 = tf.nn.avg_pool(layer3_u2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer4_u2 = l4.feedforward(layer4_Input_u2) 
+    layer5_u2 = l5.feedforward(layer4_u2) 
+    layer6_u2 = l6.feedforward(layer5_u2) 
+
+    layer7_Input_u2 = tf.nn.avg_pool(layer6_u2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer7_u2 = l7.feedforward(layer7_Input_u2) 
+    layer8_u2 = l8.feedforward(layer7_u2) 
     layer9_u2 = l9.feedforward(layer8_u2) 
 
     final_global_u2 = tf.reduce_mean(layer9_u2,[1,2])
@@ -272,11 +315,31 @@ def unfair_grad_front():
     # u3 
     grad_prepare_u3 = tf_repeat(tf.reshape(final_soft_u2-y,[batch_size,1,1,10]),[1,8,8,1])
 
-    grad9_u3,grad9_up_u3 = l9.backprop_unfair(grad_prepare_u3,learning_rate_change=learning_rate_change) 
-    grad8_u3,grad8_up_u3 = l8.backprop_unfair(grad9_u3,learning_rate_change=learning_rate_change) 
-    grad7_u3,grad7_up_u3 = l7.backprop_unfair(grad8_u3,learning_rate_change=learning_rate_change) 
+    grad9_u3,_ = l9.backprop_unfair(grad_prepare_u3,learning_rate_change=learning_rate_change) 
+    grad8_u3,_ = l8.backprop_unfair(grad9_u3,learning_rate_change=learning_rate_change) 
+    grad7_u3,_ = l7.backprop_unfair(grad8_u3,learning_rate_change=learning_rate_change) 
 
-    layer7_u3 = l7.feedforward(layer7_Input) 
+    grad6_Input_u3 = tf_repeat(grad7_u3,[1,2,2,1])
+    grad6_u3,_ = l6.backprop_unfair(grad6_Input_u3,learning_rate_change=learning_rate_change) 
+    grad5_u3,_ = l5.backprop_unfair(grad6_u3,learning_rate_change=learning_rate_change) 
+    grad4_u3,_ = l4.backprop_unfair(grad5_u3,learning_rate_change=learning_rate_change) 
+
+    grad3_Input_u3 = tf_repeat(grad4_u3,[1,2,2,1])
+    grad3_u3,grad3_up_u3 = l3.backprop_unfair(grad3_Input_u3,learning_rate_change=learning_rate_change) 
+    grad2_u3,grad2_up_u3 = l2.backprop_unfair(grad3_u3,learning_rate_change=learning_rate_change) 
+    grad1_u3,grad1_up_u3 = l1.backprop_unfair(grad2_u3,learning_rate_change=learning_rate_change) 
+
+    layer1_u3 = l1.feedforward(x) 
+    layer2_u3 = l2.feedforward(layer1_u3) 
+    layer3_u3 = l3.feedforward(layer2_u3) 
+
+    layer4_Input_u3 = tf.nn.avg_pool(layer3_u3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer4_u3 = l4.feedforward(layer4_Input_u3) 
+    layer5_u3 = l5.feedforward(layer4_u3) 
+    layer6_u3 = l6.feedforward(layer5_u3) 
+
+    layer7_Input_u3 = tf.nn.avg_pool(layer6_u3,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer7_u3 = l7.feedforward(layer7_Input_u3) 
     layer8_u3 = l8.feedforward(layer7_u3) 
     layer9_u3 = l9.feedforward(layer8_u3) 
 
@@ -286,16 +349,30 @@ def unfair_grad_front():
     # u4 
     grad_prepare_u4 = tf_repeat(tf.reshape(final_soft_u3-y,[batch_size,1,1,10]),[1,8,8,1])
 
-    grad9_u4,grad9_up_u4 = l9.backprop_unfair(grad_prepare_u4,learning_rate_change=learning_rate_change) 
-    grad8_u4,grad8_up_u4 = l8.backprop_unfair(grad9_u4,learning_rate_change=learning_rate_change) 
-    grad7_u4,grad7_up_u4 = l7.backprop_unfair(grad8_u4,learning_rate_change=learning_rate_change) 
+    grad9_u4,_ = l9.backprop_unfair(grad_prepare_u4,learning_rate_change=learning_rate_change) 
+    grad8_u4,_ = l8.backprop_unfair(grad9_u4,learning_rate_change=learning_rate_change) 
+    grad7_u4,_ = l7.backprop_unfair(grad8_u4,learning_rate_change=learning_rate_change) 
 
     grad6_Input_u4 = tf_repeat(grad7_u4,[1,2,2,1])
-    grad6_u4,grad6_up_u4 = l6.backprop_unfair(grad6_Input_u4,learning_rate_change=learning_rate_change) 
+    grad6_u4,_ = l6.backprop_unfair(grad6_Input_u4,learning_rate_change=learning_rate_change) 
+    grad5_u4,_ = l5.backprop_unfair(grad6_u4,learning_rate_change=learning_rate_change) 
+    grad4_u4,grad4_up_u4 = l4.backprop_unfair(grad5_u4,learning_rate_change=learning_rate_change) 
 
-    layer6_u4 = l6.feedforward(layer5) 
+    grad3_Input_u4 = tf_repeat(grad4_u4,[1,2,2,1])
+    grad3_u4,grad3_up_u4 = l3.backprop_unfair(grad3_Input_u4,learning_rate_change=learning_rate_change) 
+    grad2_u4,grad2_up_u4 = l2.backprop_unfair(grad3_u4,learning_rate_change=learning_rate_change) 
+    grad1_u4,grad1_up_u4 = l1.backprop_unfair(grad2_u4,learning_rate_change=learning_rate_change) 
+
+    layer1_u4 = l1.feedforward(x) 
+    layer2_u4 = l2.feedforward(layer1_u4) 
+    layer3_u4 = l3.feedforward(layer2_u4) 
+
+    layer4_Input_u4 = tf.nn.avg_pool(layer3_u4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer4_u4 = l4.feedforward(layer4_Input_u4) 
+    layer5_u4 = l5.feedforward(layer4_u4) 
+    layer6_u4 = l6.feedforward(layer5_u4) 
+
     layer7_Input_u4 = tf.nn.avg_pool(layer6_u4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-
     layer7_u4 = l7.feedforward(layer7_Input_u4) 
     layer8_u4 = l8.feedforward(layer7_u4) 
     layer9_u4 = l9.feedforward(layer8_u4) 
@@ -303,21 +380,33 @@ def unfair_grad_front():
     final_global_u4 = tf.reduce_mean(layer9_u4,[1,2])
     final_soft_u4 = tf_softmax(final_global_u4)
 
-    # u5
+    # u5 
     grad_prepare_u5 = tf_repeat(tf.reshape(final_soft_u4-y,[batch_size,1,1,10]),[1,8,8,1])
 
-    grad9_u5,grad9_up_u5 = l9.backprop_unfair(grad_prepare_u5,learning_rate_change=learning_rate_change) 
-    grad8_u5,grad8_up_u5 = l8.backprop_unfair(grad9_u5,learning_rate_change=learning_rate_change) 
-    grad7_u5,grad7_up_u5 = l7.backprop_unfair(grad8_u5,learning_rate_change=learning_rate_change) 
+    grad9_u5,_ = l9.backprop_unfair(grad_prepare_u5,learning_rate_change=learning_rate_change) 
+    grad8_u5,_ = l8.backprop_unfair(grad9_u5,learning_rate_change=learning_rate_change) 
+    grad7_u5,_ = l7.backprop_unfair(grad8_u5,learning_rate_change=learning_rate_change) 
 
     grad6_Input_u5 = tf_repeat(grad7_u5,[1,2,2,1])
-    grad6_u5,grad6_up_u5 = l6.backprop_unfair(grad6_Input_u5,learning_rate_change=learning_rate_change) 
+    grad6_u5,_ = l6.backprop_unfair(grad6_Input_u5,learning_rate_change=learning_rate_change) 
     grad5_u5,grad5_up_u5 = l5.backprop_unfair(grad6_u5,learning_rate_change=learning_rate_change) 
+    grad4_u5,grad4_up_u5 = l4.backprop_unfair(grad5_u5,learning_rate_change=learning_rate_change) 
 
-    layer5_u5 = l5.feedforward(layer4) 
+    grad3_Input_u5 = tf_repeat(grad4_u5,[1,2,2,1])
+    grad3_u5,grad3_up_u5 = l3.backprop_unfair(grad3_Input_u5,learning_rate_change=learning_rate_change) 
+    grad2_u5,grad2_up_u5 = l2.backprop_unfair(grad3_u5,learning_rate_change=learning_rate_change) 
+    grad1_u5,grad1_up_u5 = l1.backprop_unfair(grad2_u5,learning_rate_change=learning_rate_change) 
+
+    layer1_u5 = l1.feedforward(x) 
+    layer2_u5 = l2.feedforward(layer1_u5) 
+    layer3_u5 = l3.feedforward(layer2_u5) 
+
+    layer4_Input_u5 = tf.nn.avg_pool(layer3_u4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer4_u5 = l4.feedforward(layer4_Input_u5) 
+    layer5_u5 = l5.feedforward(layer4_u5) 
     layer6_u5 = l6.feedforward(layer5_u5) 
-    layer7_Input_u5 = tf.nn.avg_pool(layer6_u5,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 
+    layer7_Input_u5 = tf.nn.avg_pool(layer6_u4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
     layer7_u5 = l7.feedforward(layer7_Input_u5) 
     layer8_u5 = l8.feedforward(layer7_u5) 
     layer9_u5 = l9.feedforward(layer8_u5) 
@@ -325,23 +414,33 @@ def unfair_grad_front():
     final_global_u5 = tf.reduce_mean(layer9_u5,[1,2])
     final_soft_u5 = tf_softmax(final_global_u5)
 
-    # u6
+    # u6 
     grad_prepare_u6 = tf_repeat(tf.reshape(final_soft_u5-y,[batch_size,1,1,10]),[1,8,8,1])
 
-    grad9_u6,grad9_up_u6 = l9.backprop_unfair(grad_prepare_u6,learning_rate_change=learning_rate_change) 
-    grad8_u6,grad8_up_u6 = l8.backprop_unfair(grad9_u6,learning_rate_change=learning_rate_change) 
-    grad7_u6,grad7_up_u6 = l7.backprop_unfair(grad8_u6,learning_rate_change=learning_rate_change) 
+    grad9_u6,_ = l9.backprop_unfair(grad_prepare_u6,learning_rate_change=learning_rate_change) 
+    grad8_u6,_ = l8.backprop_unfair(grad9_u6,learning_rate_change=learning_rate_change) 
+    grad7_u6,_ = l7.backprop_unfair(grad8_u6,learning_rate_change=learning_rate_change) 
 
     grad6_Input_u6 = tf_repeat(grad7_u6,[1,2,2,1])
     grad6_u6,grad6_up_u6 = l6.backprop_unfair(grad6_Input_u6,learning_rate_change=learning_rate_change) 
     grad5_u6,grad5_up_u6 = l5.backprop_unfair(grad6_u6,learning_rate_change=learning_rate_change) 
     grad4_u6,grad4_up_u6 = l4.backprop_unfair(grad5_u6,learning_rate_change=learning_rate_change) 
 
-    layer4_u6 = l4.feedforward(layer4_Input) 
+    grad3_Input_u6 = tf_repeat(grad4_u6,[1,2,2,1])
+    grad3_u6,grad3_up_u6 = l3.backprop_unfair(grad3_Input_u6,learning_rate_change=learning_rate_change) 
+    grad2_u6,grad2_up_u6 = l2.backprop_unfair(grad3_u6,learning_rate_change=learning_rate_change) 
+    grad1_u6,grad1_up_u6 = l1.backprop_unfair(grad2_u6,learning_rate_change=learning_rate_change) 
+
+    layer1_u6 = l1.feedforward(x) 
+    layer2_u6 = l2.feedforward(layer1_u6) 
+    layer3_u6 = l3.feedforward(layer2_u6) 
+
+    layer4_Input_u6 = tf.nn.avg_pool(layer3_u6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer4_u6 = l4.feedforward(layer4_Input_u6) 
     layer5_u6 = l5.feedforward(layer4_u6) 
     layer6_u6 = l6.feedforward(layer5_u6) 
-    layer7_Input_u6 = tf.nn.avg_pool(layer6_u6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 
+    layer7_Input_u6 = tf.nn.avg_pool(layer6_u6,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
     layer7_u6 = l7.feedforward(layer7_Input_u6) 
     layer8_u6 = l8.feedforward(layer7_u6) 
     layer9_u6 = l9.feedforward(layer8_u6) 
@@ -349,11 +448,11 @@ def unfair_grad_front():
     final_global_u6 = tf.reduce_mean(layer9_u6,[1,2])
     final_soft_u6 = tf_softmax(final_global_u6)
 
-    # u7
+    # u7 
     grad_prepare_u7 = tf_repeat(tf.reshape(final_soft_u6-y,[batch_size,1,1,10]),[1,8,8,1])
 
-    grad9_u7,grad9_up_u7 = l9.backprop_unfair(grad_prepare_u7,learning_rate_change=learning_rate_change) 
-    grad8_u7,grad8_up_u7 = l8.backprop_unfair(grad9_u7,learning_rate_change=learning_rate_change) 
+    grad9_u7,_ = l9.backprop_unfair(grad_prepare_u7,learning_rate_change=learning_rate_change) 
+    grad8_u7,_ = l8.backprop_unfair(grad9_u7,learning_rate_change=learning_rate_change) 
     grad7_u7,grad7_up_u7 = l7.backprop_unfair(grad8_u7,learning_rate_change=learning_rate_change) 
 
     grad6_Input_u7 = tf_repeat(grad7_u7,[1,2,2,1])
@@ -363,8 +462,12 @@ def unfair_grad_front():
 
     grad3_Input_u7 = tf_repeat(grad4_u7,[1,2,2,1])
     grad3_u7,grad3_up_u7 = l3.backprop_unfair(grad3_Input_u7,learning_rate_change=learning_rate_change) 
+    grad2_u7,grad2_up_u7 = l2.backprop_unfair(grad3_u7,learning_rate_change=learning_rate_change) 
+    grad1_u7,grad1_up_u7 = l1.backprop_unfair(grad2_u7,learning_rate_change=learning_rate_change) 
 
-    layer3_u7 = l3.feedforward(layer2) 
+    layer1_u7 = l1.feedforward(x) 
+    layer2_u7 = l2.feedforward(layer1_u7) 
+    layer3_u7 = l3.feedforward(layer2_u7) 
 
     layer4_Input_u7 = tf.nn.avg_pool(layer3_u7,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
     layer4_u7 = l4.feedforward(layer4_Input_u7) 
@@ -379,10 +482,10 @@ def unfair_grad_front():
     final_global_u7 = tf.reduce_mean(layer9_u7,[1,2])
     final_soft_u7 = tf_softmax(final_global_u7)
 
-    # u8
+    # u8 
     grad_prepare_u8 = tf_repeat(tf.reshape(final_soft_u7-y,[batch_size,1,1,10]),[1,8,8,1])
 
-    grad9_u8,grad9_up_u8 = l9.backprop_unfair(grad_prepare_u8,learning_rate_change=learning_rate_change) 
+    grad9_u8,_ = l9.backprop_unfair(grad_prepare_u8,learning_rate_change=learning_rate_change) 
     grad8_u8,grad8_up_u8 = l8.backprop_unfair(grad9_u8,learning_rate_change=learning_rate_change) 
     grad7_u8,grad7_up_u8 = l7.backprop_unfair(grad8_u8,learning_rate_change=learning_rate_change) 
 
@@ -391,11 +494,13 @@ def unfair_grad_front():
     grad5_u8,grad5_up_u8 = l5.backprop_unfair(grad6_u8,learning_rate_change=learning_rate_change) 
     grad4_u8,grad4_up_u8 = l4.backprop_unfair(grad5_u8,learning_rate_change=learning_rate_change) 
 
-    grad3_Input_u8 = tf_repeat(grad4_u8,[1,2,2,1])
+    grad3_Input_u8 = tf_repeat(grad4_u7,[1,2,2,1])
     grad3_u8,grad3_up_u8 = l3.backprop_unfair(grad3_Input_u8,learning_rate_change=learning_rate_change) 
     grad2_u8,grad2_up_u8 = l2.backprop_unfair(grad3_u8,learning_rate_change=learning_rate_change) 
+    grad1_u8,grad1_up_u8 = l1.backprop_unfair(grad2_u8,learning_rate_change=learning_rate_change) 
 
-    layer2_u8 = l2.feedforward(layer1) 
+    layer1_u8 = l1.feedforward(x) 
+    layer2_u8 = l2.feedforward(layer1_u8) 
     layer3_u8 = l3.feedforward(layer2_u8) 
 
     layer4_Input_u8 = tf.nn.avg_pool(layer3_u8,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
@@ -411,8 +516,8 @@ def unfair_grad_front():
     final_global_u8 = tf.reduce_mean(layer9_u8,[1,2])
     final_soft_u8 = tf_softmax(final_global_u8)
 
-    # u9
-    grad_prepare_u9 = tf_repeat(tf.reshape(final_soft_u8-y,[batch_size,1,1,10]),[1,8,8,1])
+    # u9 
+    grad_prepare_u9 = tf_repeat(tf.reshape(final_soft_u7-y,[batch_size,1,1,10]),[1,8,8,1])
 
     grad9_u9,grad9_up_u9 = l9.backprop_unfair(grad_prepare_u9,learning_rate_change=learning_rate_change) 
     grad8_u9,grad8_up_u9 = l8.backprop_unfair(grad9_u9,learning_rate_change=learning_rate_change) 
@@ -428,21 +533,42 @@ def unfair_grad_front():
     grad2_u9,grad2_up_u9 = l2.backprop_unfair(grad3_u9,learning_rate_change=learning_rate_change) 
     grad1_u9,grad1_up_u9 = l1.backprop_unfair(grad2_u9,learning_rate_change=learning_rate_change) 
 
-    grad_update =\
-                grad9_up_u1 + \
-                grad9_up_u2 + grad8_up_u2 + \
-                grad9_up_u3 + grad8_up_u3 + grad7_up_u3 + \
-                grad9_up_u4 + grad8_up_u4 + grad7_up_u4 + grad6_up_u4 + \
-                grad9_up_u5 + grad8_up_u5 + grad7_up_u5 + grad6_up_u5 + grad5_up_u5 + \
-                grad9_up_u6 + grad8_up_u6 + grad7_up_u6 + grad6_up_u6 + grad5_up_u6 + grad4_up_u6 + \
-                grad9_up_u7 + grad8_up_u7 + grad7_up_u7 + grad6_up_u7 + grad5_up_u7 + grad4_up_u7 + grad3_up_u7 + \
-                grad9_up_u8 + grad8_up_u8 + grad7_up_u8 + grad6_up_u8 + grad5_up_u8 + grad4_up_u8 + grad3_up_u8 + grad2_up_u8 + \
-                grad9_up_u9 + grad8_up_u9 + grad7_up_u9 + grad6_up_u9 + grad5_up_u9 + grad4_up_u9 + grad3_up_u9 + grad2_up_u9 + grad1_up_u9 
+    layer1_u9 = l1.feedforward(x) 
+    layer2_u9 = l2.feedforward(layer1_u9) 
+    layer3_u9 = l3.feedforward(layer2_u9) 
 
-    return grad_update
+    layer4_Input_u9 = tf.nn.avg_pool(layer3_u9,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer4_u9 = l4.feedforward(layer4_Input_u9) 
+    layer5_u9 = l5.feedforward(layer4_u9) 
+    layer6_u9 = l6.feedforward(layer5_u9) 
+
+    layer7_Input_u9 = tf.nn.avg_pool(layer6_u9,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+    layer7_u9 = l7.feedforward(layer7_Input_u9) 
+    layer8_u9 = l8.feedforward(layer7_u9) 
+    layer9_u9 = l9.feedforward(layer8_u9) 
+
+    final_global_u9 = tf.reduce_mean(layer9_u9,[1,2])
+    final_soft_u9 = tf_softmax(final_global_u9)
+
+    cost_u9 = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=final_soft_u9,labels=y) )
+    correct_prediction_u9 = tf.equal(tf.argmax(final_soft_u9, 1), tf.argmax(y, 1))
+    accuracy_u9 = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+    grad_update =\
+                grad1_up_u1 + \
+                grad1_up_u2 + grad2_up_u2 + \
+                grad1_up_u3 + grad2_up_u3 + grad3_up_u3 + \
+                grad1_up_u4 + grad2_up_u4 + grad3_up_u4 + grad4_up_u4 + \
+                grad1_up_u5 + grad2_up_u5 + grad3_up_u5 + grad4_up_u5 + grad5_up_u5 + \
+                grad1_up_u6 + grad2_up_u6 + grad3_up_u6 + grad4_up_u6 + grad5_up_u6 + grad6_up_u6 + \
+                grad1_up_u7 + grad2_up_u7 + grad3_up_u7 + grad4_up_u7 + grad5_up_u7 + grad6_up_u7 + grad7_up_u7 + \
+                grad1_up_u8 + grad2_up_u8 + grad3_up_u8 + grad4_up_u8 + grad5_up_u8 + grad6_up_u8 + grad7_up_u8 + grad8_up_u8 + \
+                grad1_up_u9 + grad2_up_u9 + grad3_up_u9 + grad4_up_u9 + grad5_up_u9 + grad6_up_u9 + grad7_up_u9 + grad8_up_u9 + grad9_up_u9 
+
+    return grad_update,cost_u9,correct_prediction_u9,accuracy_u9
 
 # choose a random unfair grad
-grad_update = unfair_grad_front()
+grad_update,cost_u9,correct_prediction_u9,accuracy_u9 = unfair_grad_front()
 
 # sess
 with tf.Session() as sess:
@@ -477,7 +603,7 @@ with tf.Session() as sess:
             current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
-            sess_result = sess.run([cost,accuracy,correct_prediction,which_grad],
+            sess_result = sess.run([cost_u9,accuracy_u9,correct_prediction_u9,which_grad],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
             print("Current Iter : ",iter," Using grad: ",which_grad_print ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
@@ -529,35 +655,5 @@ with tf.Session() as sess:
     # ------- histogram of weights after training ------
     show_hist_of_weigt(sess.run(all_weights),status='After')
     # ------- histogram of weights after training ------
-
-    # get random 50 images from the test set and vis the gradient
-    test_batch = test_batch[:batch_size,:,:,:]
-    test_label = test_label[:batch_size,:]
-
-    # -------- Intergral Gradients ----------
-    base_line = test_batch * 0.0
-    difference = test_batch - base_line
-    step_size = 1000
-
-    running_example = test_batch * 0.0
-    for rim in range(1,step_size+1):
-        current_alpha = rim / step_size
-        test_batch_a = current_alpha * test_batch
-        sess_result = sess.run([cost,accuracy,correct_prediction,final_soft,grad1],feed_dict={x:test_batch_a,y:test_label,iter_variable:1.0,phase:False})
-        running_example = running_example + sess_result[4]
-        final_prediction_argmax = sess_result[3]
-
-    running_example = running_example * difference
-    running_example = np.sum(running_example,axis=3)  
-    running_example = (running_example-running_example.min())/(running_example.max()-running_example.min())
-    overlayed_image = np.repeat(np.expand_dims(running_example,axis=3),3,axis=3) * test_batch
-    stacked_images = overlayed_image[0,:,:,:]
-    for stacking in range(0,len(overlayed_image)):
-        stacked_images = np.vstack((stacked_images.T,overlayed_image[stacking,:,:,:].T)).T
-
-    final_prediction_argmax = [-1] + list(np.argmax(final_prediction_argmax,axis=1))
-    show_9_images(stacked_images,0,0,alpha=-99,gt=final_gt_argmax,predict=final_prediction_argmax)
-    # -------- Intergral Gradients ----------
-
 
 # -- end code --

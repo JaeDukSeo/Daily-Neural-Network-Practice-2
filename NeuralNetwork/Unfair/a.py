@@ -50,7 +50,7 @@ def show_hist_of_weigt(all_weight_list,status='before'):
     weight_index = 0
 
     for i in range(1,1+int(len(all_weight_list)//3)):
-        ax = fig.add_subplot(1,4,i)
+        ax = fig.add_subplot(1,3,i)
         ax.grid(False)
         temp_weight_list = all_weight_list[weight_index:weight_index+3]
         for temp_index in range(len(temp_weight_list)):
@@ -186,26 +186,25 @@ test_batch  = test_batch/255.0
 
 # hyper parameter
 num_epoch = 10
-batch_size = 50
+batch_size = 10
 print_size = 1
 
-learning_rate = 0.00008
+learning_rate = 0.0001
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
-channel_sizes = 164
-l1 = CNN(3,3,channel_sizes,stddev=0.05)
-l2 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
-l3 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
+l1 = CNN(3,3,256,stddev=0.05)
+l2 = CNN(3,256,256,stddev=0.04)
+l3 = CNN(3,256,128,stddev=0.06)
 
-l4 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
-l5 = CNN(3,channel_sizes,channel_sizes,stddev=0.06)
-l6 = CNN(3,channel_sizes,channel_sizes,stddev=0.05)
+l4 = CNN(3,128,128,stddev=0.04)
+l5 = CNN(3,128,128,stddev=0.06)
+l6 = CNN(3,128,64,stddev=0.05)
 
-l7 = CNN(3,channel_sizes,channel_sizes,stddev=0.04)
-l8 = CNN(1,channel_sizes,channel_sizes,stddev=0.05)
-l9 = CNN(1,channel_sizes,10,stddev=0.06)
+l7 = CNN(3,64,64,stddev=0.04)
+l8 = CNN(1,64,64,stddev=0.05)
+l9 = CNN(1,64,10,stddev=0.06)
 
 all_weights = [l1.getw(),l2.getw(),l3.getw(),l4.getw(),l5.getw(),l6.getw(),l7.getw(),l8.getw(),l9.getw()]
 
@@ -325,35 +324,5 @@ with tf.Session() as sess:
     # ------- histogram of weights after training ------
     show_hist_of_weigt(sess.run(all_weights),status='After')
     # ------- histogram of weights after training ------
-
-    # get random 50 images from the test set and vis the gradient
-    test_batch = test_batch[:batch_size,:,:,:]
-    test_label = test_label[:batch_size,:]
-
-    # -------- Intergral Gradients ----------
-    base_line = test_batch * 0.0
-    difference = test_batch - base_line
-    step_size = 1000
-
-    running_example = test_batch * 0.0
-    for rim in range(1,step_size+1):
-        current_alpha = rim / step_size
-        test_batch_a = current_alpha * test_batch
-        sess_result = sess.run([cost,accuracy,correct_prediction,final_soft,grad1],feed_dict={x:test_batch_a,y:test_label,iter_variable:1.0,phase:False})
-        running_example = running_example + sess_result[4]
-        final_prediction_argmax = sess_result[3]
-
-    running_example = running_example * difference
-    running_example = np.sum(running_example,axis=3)  
-    running_example = (running_example-running_example.min())/(running_example.max()-running_example.min())
-    overlayed_image = np.repeat(np.expand_dims(running_example,axis=3),3,axis=3) * test_batch
-    stacked_images = overlayed_image[0,:,:,:]
-    for stacking in range(0,len(overlayed_image)):
-        stacked_images = np.vstack((stacked_images.T,overlayed_image[stacking,:,:,:].T)).T
-
-    final_prediction_argmax = [-1] + list(np.argmax(final_prediction_argmax,axis=1))
-    show_9_images(stacked_images,0,0,alpha=-99,gt=final_gt_argmax,predict=final_prediction_argmax)
-    # -------- Intergral Gradients ----------
-
 
 # -- end code --
