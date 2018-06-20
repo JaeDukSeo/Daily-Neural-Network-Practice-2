@@ -591,16 +591,16 @@ with tf.Session() as sess:
         train_batch,train_label = shuffle(train_batch,train_label)
         which_grad,which_grad_print = grad_update,1
 
-        for batch_size_index in range(0,len(train_batch),batch_size//2):
+        for batch_size_index in range(0,len(train_batch),batch_size//1):
             
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//1]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//1]
 
             # online data augmentation here and standard normalization
-            images_aug  = seq.augment_images(current_batch.astype(np.float32))
-            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
-            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
+            # images_aug  = seq.augment_images(current_batch.astype(np.float32))
+            # current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
+            # current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
+            # current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
             # online data augmentation here and standard normalization
 
             sess_result = sess.run([cost_u9,accuracy_u9,correct_prediction_u9,which_grad],
@@ -621,12 +621,12 @@ with tf.Session() as sess:
 
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
-            print(" Using grad: ",which_grad_print,'Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
+            print(" Using grad: ",which_grad_print,'Train Current cost: ', train_cota/(len(train_batch)/(batch_size//1)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//1) ),end='\n')
             print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
-        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
+        train_acc.append(train_acca/(len(train_batch)/(batch_size//1)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size//1)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
