@@ -152,10 +152,11 @@ class CNN_Trans():
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
-        output_shape = self.input.shape[2].value * 2
+        output_shape2 = self.input.shape[2].value * 2
         self.layer  = tf.nn.conv2d_transpose(
-            input,self.w,output_shape=[batch_size,output_shape,output_shape,self.w.shape[3].value],
-            strides=[1,stride,stride,1],padding=padding) 
+            input,self.w,output_shape=[batch_size,output_shape2,output_shape2,self.w.shape[2].value],
+            strides=[1,2,2,1],padding=padding) 
+
         self.layerA = tf_elu(self.layer)
         return self.layerA 
 # ================= LAYER CLASSES =================
@@ -204,7 +205,7 @@ for x in range(len(x_data)):
 for x in range(len(y_data)):
     test_batch[x,:,:,:] =  imresize(y_data[x,:,:,:],(96,96))
 
-train_batch = train_batch[:100]
+# train_batch = train_batch[:]
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
@@ -250,11 +251,11 @@ train_label = train_label/255.0
 test_batch = test_batch/255.0
 
 # hyper parameter
-num_epoch = 51
+num_epoch = 80
 batch_size = 10
-print_size = 1
+print_size = 10
 
-learning_rate = 0.00001
+learning_rate = 0.0000008
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.99,1e-8
 
@@ -262,12 +263,16 @@ beta1,beta2,adam_e = 0.9,0.99,1e-8
 l1 = CNN(3,3,100,stddev=0.04)
 l2 = CNN(3,100,150,stddev=0.05)
 l3 = CNN(3,150,200,stddev=0.06)
-l4 = CNN(3,200,250,stddev=0.04)
+l4 = CNN(1,200,250,stddev=0.04)
 
-l5 = CNN_Trans(3,250,200,stddev=0.05)
-l6 = CNN_Trans(3,200,150,stddev=0.06)
-l7 = CNN_Trans(3,150,100,stddev=0.06)
-l8 = CNN_Trans(3,100,3,stddev=0.05)
+l5 = CNN_Trans(1,200,250,stddev=0.05)
+l52 = CNN(1,200,200,stddev=0.05)
+l6 = CNN_Trans(3,150,200,stddev=0.06)
+l62 = CNN(3,150,150,stddev=0.06)
+l7 = CNN_Trans(3,100,150,stddev=0.06)
+l72 = CNN(3,100,100,stddev=0.06)
+l8 = CNN_Trans(3,3,100,stddev=0.05)
+l82 = CNN(3,3,3,stddev=0.05)
 
 # graph
 x = tf.placeholder(shape=[batch_size,96,96,3],dtype=tf.float32)
@@ -288,12 +293,16 @@ layer4 = l4.feedforward(layer4_Input)
 
 layer5_Input = tf.nn.avg_pool(layer4,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer5 = l5.feedforward(layer5_Input)
+layer5 = l52.feedforward(layer5)
 layer6 = l6.feedforward(layer5)
+layer6 = l62.feedforward(layer6)
 layer7 = l7.feedforward(layer6)
+layer7 = l72.feedforward(layer7)
 layer8 = l8.feedforward(layer7)
+layer8 = l82.feedforward(layer8)
 
 cost = tf.reduce_mean(tf.square(layer8-y))
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta2=0.9).minimize(cost)
 
 # sess
 with tf.Session() as sess:
@@ -310,47 +319,65 @@ with tf.Session() as sess:
     for iter in range(num_epoch):
 
         train_batch,train_label = shuffle(train_batch,train_label)
-        which_grad,which_grad_print = None,None
 
-        for batch_size_index in range(0,len(train_batch),batch_size//2):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size//2]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size//2]
-
-            # online data augmentation here and standard normalization
-            images_aug  = seq.augment_images(current_batch.astype(np.float32))
-            current_batch = np.vstack((current_batch,images_aug)).astype(np.float32)
-            current_batch_label = np.vstack((current_batch_label,current_batch_label)).astype(np.float32)
-            current_batch,current_batch_label  = shuffle(current_batch,current_batch_label)
-            # online data augmentation here and standard normalization
-
-            # Select which back prop we should use
-            which_grad = grad_update_0
-            which_grad_print = 0
-
-            sess_result = sess.run([cost,accuracy,correct_prediction,which_grad],
+        for batch_size_index in range(0,len(train_batch),batch_size):
+            current_batch = train_label[batch_size_index:batch_size_index+batch_size]
+            current_batch_label = train_batch[batch_size_index:batch_size_index+batch_size]
+            sess_result = sess.run([cost,auto_train],
             feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,learning_rate_dynamic:learning_rate,phase:True})
-            print("Current Iter : ",iter," Using grad: ",which_grad_print ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+            print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
-            train_acca = train_acca + sess_result[1]
 
-        for test_batch_index in range(0,len(test_batch),batch_size):
-            current_batch = test_batch[test_batch_index:test_batch_index+batch_size].astype(np.float32)
-            current_batch_label = test_label[test_batch_index:test_batch_index+batch_size].astype(np.float32)
-            sess_result = sess.run([cost,accuracy,correct_prediction],
-            feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,phase:False})
-            print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
-            ' Current Acc: ', sess_result[1],end='\r')
-            test_acca = sess_result[1] + test_acca
-            test_cota = sess_result[0] + test_cota
+        # for test_batch_index in range(0,len(test_batch),batch_size):
+        #     current_batch = test_batch[test_batch_index:test_batch_index+batch_size].astype(np.float32)
+        #     current_batch_label = test_label[test_batch_index:test_batch_index+batch_size].astype(np.float32)
+        #     sess_result = sess.run([cost,accuracy,correct_prediction],
+        #     feed_dict={x:current_batch,y:current_batch_label,iter_variable:iter,phase:False})
+        #     print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],
+        #     ' Current Acc: ', sess_result[1],end='\r')
+        #     test_acca = sess_result[1] + test_acca
+        #     test_cota = sess_result[0] + test_cota
 
         if iter % print_size==0:
             print("\n---------- Learning Rate : ", learning_rate * (1.0/(1.0+learnind_rate_decay*iter)) )
-            print(" Using grad: ",which_grad_print,'Train Current cost: ', train_cota/(len(train_batch)/(batch_size//2)),' Current Acc: ', train_acca/(len(train_batch)/(batch_size//2) ),end='\n')
-            print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
+            print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size)),end='\n')
+            # print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
             print("----------")
 
-        train_acc.append(train_acca/(len(train_batch)/(batch_size//2)))
-        train_cot.append(train_cota/(len(train_batch)/(batch_size//2)))
+        if iter % 2 == 0:
+            test_example =   train_label[:batch_size,:,:,:]
+            test_example_gt = train_batch[:batch_size,:,:,:]
+            sess_results = sess.run([layer8],feed_dict={x:test_example})
+
+            sess_results = sess_results[0][0,:,:,:]
+            test_example = test_example[0,:,:,:]
+            test_example_gt = test_example_gt[0,:,:,:]
+
+            plt.figure()
+            plt.imshow(np.squeeze(test_example))
+            plt.axis('off')
+            plt.title('Original Image')
+            plt.savefig('train_change/'+str(iter)+"a_Original_Image.png")
+
+            plt.figure()
+            plt.imshow(np.squeeze(test_example_gt))
+            plt.axis('off')
+            plt.title('Ground Truth Mask')
+            plt.savefig('train_change/'+str(iter)+"b_Original_Mask.png")
+
+            sess_results[:,:,0] = (sess_results[:,:,0]-sess_results[:,:,0].min())/(sess_results[:,:,0].max()-sess_results[:,:,0].min())
+            sess_results[:,:,1] = (sess_results[:,:,1]-sess_results[:,:,1].min())/(sess_results[:,:,1].max()-sess_results[:,:,1].min())
+            sess_results[:,:,2] = (sess_results[:,:,2]-sess_results[:,:,2].min())/(sess_results[:,:,2].max()-sess_results[:,:,2].min())
+
+            plt.figure()
+            plt.imshow(np.squeeze(sess_results).astype(np.float32))
+            plt.axis('off')
+            plt.title('Generated Mask')
+            plt.savefig('train_change/'+str(iter)+"c_Generated_Mask.png")
+            plt.close('all')
+
+        train_acc.append(train_acca/(len(train_batch)/(batch_size)))
+        train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         test_acc.append(test_acca/(len(test_batch)/batch_size))
         test_cot.append(test_cota/(len(test_batch)/batch_size))
         test_cota,test_acca = 0,0
