@@ -59,7 +59,7 @@ seq = iaa.Sequential([
         )
     ),
     iaa.Fliplr(1.0), # Horizonatl flips
-], random_order=True) # apply augmenters in random order
+], random_order=True) # apply augmenters in random ord
 
 # class
 class FNN():
