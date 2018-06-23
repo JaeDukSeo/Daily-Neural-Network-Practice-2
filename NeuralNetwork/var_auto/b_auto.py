@@ -95,22 +95,6 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 # ================= VIZ =================
 
 # ================= LAYER CLASSES =================
-def xavier_init_cnn(k,fan_in, fan_out, constant=1): 
-    """ Xavier initialization of network weights"""
-    # https://stackoverflow.com/questions/33640581/how-to-do-xavier-initialization-on-tensorflow
-    # code: https://jmetzen.github.io/2015-11-27/vae.html
-    low = -constant*np.sqrt(6.0/(fan_in + fan_out)) 
-    high = constant*np.sqrt(6.0/(fan_in + fan_out))
-    return tf.random_uniform((k,k,fan_in, fan_out), minval=low, maxval=high,dtype=tf.float32)
-
-def xavier_init(fan_in, fan_out, constant=1): 
-    """ Xavier initialization of network weights"""
-    # https://stackoverflow.com/questions/33640581/how-to-do-xavier-initialization-on-tensorflow
-    # code: https://jmetzen.github.io/2015-11-27/vae.html
-    low = -constant*np.sqrt(6.0/(fan_in + fan_out)) 
-    high = constant*np.sqrt(6.0/(fan_in + fan_out))
-    return tf.random_uniform((fan_in, fan_out), minval=low, maxval=high,dtype=tf.float32)
-
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
@@ -256,8 +240,8 @@ train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
 # hyper parameter
-num_epoch = 101
-batch_size = 100
+num_epoch = 100
+batch_size = 5
 print_size = 10
 
 learning_rate = 0.00008
@@ -265,15 +249,15 @@ learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-el1 = CNN(3,1,10)
-el2 = CNN(3,10,20)
-el3 = FNN(7*7*20,3,tf_tanh,d_tf_tanh)
+el1 = CNN(3,1,16)
+el2 = CNN(3,16,32)
+el3 = FNN(7*7*32,3,tf_tanh,d_tf_tanh)
 
-dl1 = FNN(3,7*7*20,tf_tanh,d_tf_tanh)
-dl2 = CNN_Trans(3,10,20)
-dl3 = CNN_Trans(3,1,10)
+dl1 = FNN(3,7*7*32,tf_tanh,d_tf_tanh)
+dl2 = CNN_Trans(3,16,32)
+dl3 = CNN_Trans(3,1,16)
 
-final_cnn = CNN(1,1,1,tf_sigmoid,d_tf_sigmoid)
+final_cnn = CNN(3,1,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32)
@@ -286,13 +270,17 @@ elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
 elayer3 = el3.feedforward(elayer3_flatten)
 
 dlayer1 = dl1.feedforward(elayer3)
-dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,20])
+dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,32])
 dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2)
 dlayer3 = dl3.feedforward(dlayer2,stride=2)
 
 final_output = final_cnn.feedforward(dlayer3)
 
-reconstr_loss = tf.reduce_mean(tf.square(final_output-x))
+final_output_vec = tf.reshape(final_output,[batch_size,-1])
+final_x = tf.reshape(x,[batch_size,-1])
+
+reconstr_loss = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
+# reconstr_loss = tf.reduce_mean(tf.square(final_output-x))
 cost = reconstr_loss
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
@@ -331,17 +319,15 @@ with tf.Session() as sess:
             test_example = test_example[0,:,:,:]
 
             plt.figure()
-            plt.imshow(np.squeeze(test_example))
+            plt.imshow(np.squeeze(test_example),cmap='gray')
             plt.axis('off')
             plt.title('Original Image')
             plt.savefig('train_change/'+str(iter)+"a_Original_Image.png")
 
             sess_results[:,:,0] = (sess_results[:,:,0]-sess_results[:,:,0].min())/(sess_results[:,:,0].max()-sess_results[:,:,0].min())
-            sess_results[:,:,1] = (sess_results[:,:,1]-sess_results[:,:,1].min())/(sess_results[:,:,1].max()-sess_results[:,:,1].min())
-            sess_results[:,:,2] = (sess_results[:,:,2]-sess_results[:,:,2].min())/(sess_results[:,:,2].max()-sess_results[:,:,2].min())
 
             plt.figure()
-            plt.imshow(np.squeeze(sess_results).astype(np.float32))
+            plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
             plt.axis('off')
             plt.title('Generated Mask')
             plt.savefig('train_change/'+str(iter)+"c_Generated_Mask.png")
