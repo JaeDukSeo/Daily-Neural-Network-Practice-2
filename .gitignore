@@ -20,6 +20,6 @@
 /NeuralNetwork/reference_seg/
 */patches.mat
 */Integrated-Gradients/InceptionModel/
-*/gif/*
-*/train_change/*
-*/viz/*
+*/gif/*.png
+*/train_change/*.png
+*/viz/*.png
