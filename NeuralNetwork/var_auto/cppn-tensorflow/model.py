@@ -9,7 +9,7 @@ https://en.wikipedia.org/wiki/Compositional_pattern-producing_network
 
 import numpy as np
 import tensorflow as tf
-
+import sys
 import matplotlib.pyplot as plt
 
 def linear(input_, output_size, scope=None, stddev=1.0, bias_start=0.0, with_w=False):
@@ -43,7 +43,7 @@ def fully_connected(input_, output_size, scope=None, stddev=1.0, with_bias = Fal
 
 class CPPN():
       
-  def __init__(self, batch_size=1, z_dim = 32, c_dim = 1, scale = 8.0, net_size = 32):
+  def __init__(self, batch_size=1, z_dim = 32, c_dim = 1, scale = 1.0, net_size = 32):
     """
 
     Args:
@@ -71,9 +71,13 @@ class CPPN():
     self.n_points = n_points
 
     self.x_vec, self.y_vec, self.r_vec = self._coordinates(x_dim, y_dim, scale)
+    print(self.x_vec.shape)
+    print(self.y_vec.shape)
+    print(self.r_vec.shape)
 
     # latent vector
     self.z = tf.placeholder(tf.float32, [self.batch_size, self.z_dim])
+    
     # inputs to cppn, like coordinates and radius from centre
     self.x = tf.placeholder(tf.float32, [self.batch_size, None, 1])
     self.y = tf.placeholder(tf.float32, [self.batch_size, None, 1])
@@ -85,7 +89,6 @@ class CPPN():
     self.init()
 
   def init(self):
-
     # Initializing the tensor flow variables
     init = tf.global_variables_initializer()
     # Launch the session
@@ -103,6 +106,7 @@ class CPPN():
     n_points = x_dim * y_dim
     x_range = scale*(np.arange(x_dim)-(x_dim-1)/2.0)/(x_dim-1)/0.5
     y_range = scale*(np.arange(y_dim)-(y_dim-1)/2.0)/(y_dim-1)/0.5
+
     x_mat = np.matmul(np.ones((y_dim, 1)), x_range.reshape((1, x_dim)))
     y_mat = np.matmul(y_range.reshape((y_dim, 1)), np.ones((1, x_dim)))
     r_mat = np.sqrt(x_mat*x_mat + y_mat*y_mat)
@@ -131,6 +135,7 @@ class CPPN():
         fully_connected(y_unroll, net_size, 'g_0_y', with_bias = False) + \
         fully_connected(r_unroll, net_size, 'g_0_r', with_bias = False)
 
+    print(U)
 
     '''
     Below are a bunch of examples of different CPPN configurations.
@@ -142,9 +147,13 @@ class CPPN():
     ###
     #'''
     H = tf.nn.tanh(U)
+    print(H)
+  
     for i in range(3):
       H = tf.nn.tanh(fully_connected(H, net_size, 'g_tanh_'+str(i)))
     output = tf.sigmoid(fully_connected(H, self.c_dim, 'g_final'))
+    print(output)
+
     #'''
 
     ###
@@ -199,7 +208,7 @@ class CPPN():
 
     return result
 
-  def generate(self, z=None, x_dim = 256, y_dim = 256, scale = 8.0):
+  def generate(self, z=None, x_dim = 256, y_dim = 256, scale = 1.0):
     """ Generate data by sampling from latent space.
 
     If z is not None, data for this point in latent space is  
@@ -219,12 +228,12 @@ class CPPN():
   def close(self):
     self.sess.close()
 
-# print('njdsak')
-# temp = CPPN()
-# testing = temp.generate()
-# print(testing.shape)
+print('njdsak')
+temp = CPPN()
+testing = temp.generate()
+print(testing.shape)
 
-# plt.imshow(np.squeeze(testing),cmap='gray')
-# plt.show()
+plt.imshow(np.squeeze(testing),cmap='gray')
+plt.show()
 
 # -- end code --
