@@ -159,15 +159,15 @@ class CNN_Trans():
 
         grad_middle = grad_part_1 * grad_part_2
 
-        grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,
-            filter_sizes = self.w.shape,out_backprop = grad_middle,
+        grad = tf.nn.conv2d_backprop_filter(input = grad_middle,
+            filter_sizes = self.w.shape,out_backprop = grad_part_3,
             strides=[1,stride,stride,1],padding=padding
         )
 
         grad_pass = tf.nn.conv2d(
             input=grad_middle,filter = self.w,strides=[1,stride,stride,1],padding=padding
         )
-
+        
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
         update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
@@ -235,15 +235,16 @@ print(test_label.shape)
 
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
+train_batch = test_batch
 
 # hyper parameter
 num_epoch = 100
-batch_size = 5
+batch_size = 2
 print_size = 10
 
-learning_rate = 0.00008
+learning_rate = 0.00001
 learnind_rate_decay = 0.0
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
 el1 = CNN(3,1,32)
@@ -275,14 +276,14 @@ final_output = final_cnn.feedforward(dlayer3)
 final_output_vec = tf.reshape(final_output,[batch_size,-1])
 final_x = tf.reshape(x,[batch_size,-1])
 
-reconstr_loss = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
-# reconstr_loss = tf.reduce_mean(tf.square(final_output-x))
+reconstr_loss = -tf.reduce_mean(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
+# reconstr_loss = tf.reduce_mean(tf.square(final_output-x)*0.5)
 cost = reconstr_loss
 
-log_loss_back = -(final_x/(final_output_vec+1e-10) + (1-final_x)/(1-final_output_vec+1e-10) )
-log_loss_back_reshape = tf.reshape(log_loss_back,[batch_size,28,28,1])
+log_loss_back = tf.reshape((final_output_vec - final_x)/(final_output_vec*(1-final_output_vec)),[batch_size,28,28,1])
+# log_loss_back = final_output - x
 
-final_grad,final_grad_up = final_cnn.backprop(log_loss_back_reshape)
+final_grad,final_grad_up = final_cnn.backprop(log_loss_back)
 dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2)
 dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2)
 
