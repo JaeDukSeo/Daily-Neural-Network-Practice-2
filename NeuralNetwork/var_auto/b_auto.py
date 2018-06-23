@@ -299,8 +299,9 @@ egrad2,egrad2_up = el2.backprop(egrad2_Input)
 egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
 egrad1,egrad1_up = el1.backprop(egrad1_Input)
 
-sys.exit()
-
+grad_update = final_grad_up + \
+              dgrad3_up + dgrad2_up + dgrad1_up + \
+              egrad3_up + egrad2_up + egrad1_up
 
 # sess
 with tf.Session() as sess:
@@ -320,7 +321,7 @@ with tf.Session() as sess:
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,auto_train],feed_dict={x:current_batch})
+            sess_result = sess.run([cost,grad_update],feed_dict={x:current_batch})
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
