@@ -159,12 +159,13 @@ class CNN_Trans():
 
         grad_middle = grad_part_1 * grad_part_2
 
-        grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,filter_sizes = self.w.shape,out_backprop = grad_middle,
+        grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,
+            filter_sizes = self.w.shape,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
         )
 
-        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
-            strides=[1,stride,stride,1],padding=padding
+        grad_pass = tf.nn.conv2d(
+            input=grad_middle,filter = self.w,strides=[1,stride,stride,1],padding=padding
         )
 
         update_w = []
@@ -201,17 +202,13 @@ class FNN():
         grad_pass = tf.matmul(tf.multiply(grad_part_1,grad_part_2),tf.transpose(self.w))
 
         update_w = []
-        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * grad   ))
-        v_t = self.v_prev *beta2 + (1-beta2) * grad ** 2 
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v_prev / (1-beta2)
+        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
 
-        def f1(): return v_t
-        def f2(): return self.v_hat_prev
-
-        v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
-        adam_middel = tf.multiply(learning_rate/(tf.sqrt(v_max) + adam_e),self.m)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )  ))
-        update_w.append(tf.assign( self.v_prev,v_t ))
-        update_w.append(tf.assign( self.v_hat_prev,v_max ))        
         return grad_pass,update_w   
 # ================= LAYER CLASSES =================
 
@@ -273,7 +270,6 @@ dlayer1 = dl1.feedforward(elayer3)
 dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,64])
 dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2)
 dlayer3 = dl3.feedforward(dlayer2,stride=2)
-
 final_output = final_cnn.feedforward(dlayer3)
 
 final_output_vec = tf.reshape(final_output,[batch_size,-1])
@@ -287,9 +283,9 @@ log_loss_back = -(final_x/(final_output_vec+1e-10) + (1-final_x)/(1-final_output
 log_loss_back_reshape = tf.reshape(log_loss_back,[batch_size,28,28,1])
 
 final_grad,final_grad_up = final_cnn.backprop(log_loss_back_reshape)
-
 dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2)
 dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2)
+
 dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
 dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
 
