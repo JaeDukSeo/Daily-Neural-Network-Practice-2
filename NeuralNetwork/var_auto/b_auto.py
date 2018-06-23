@@ -137,9 +137,10 @@ class CNN():
 
 class CNN_Trans():
     
-    def __init__(self,k,inc,out):
+    def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.act,self.d_act = act,d_act
 
     def getw(self): return self.w
 
@@ -149,12 +150,12 @@ class CNN_Trans():
         self.layer  = tf.nn.conv2d_transpose(
             input,self.w,output_shape=[batch_size,output_shape2,output_shape2,self.w.shape[2].value],
             strides=[1,stride,stride,1],padding=padding) 
-        self.layerA = tf_elu(self.layer)
+        self.layerA = self.act(self.layer)
         return self.layerA 
 
     def backprop(self,gradient,stride=1,padding='SAME'):
         grad_part_1 = gradient 
-        grad_part_2 = d_tf_elu(self.layer) 
+        grad_part_2 = self.d_act(self.layer) 
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
@@ -235,14 +236,13 @@ print(test_label.shape)
 
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
-train_batch = test_batch
-
+train_batch = train_batch[:10000,:,:,:]
 # hyper parameter
-num_epoch = 100
+num_epoch = 20
 batch_size = 50
 print_size = 2
 
-learning_rate = 0.00008
+learning_rate = 0.00005
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -253,9 +253,9 @@ el3 = FNN(7*7*512,3,tf_atan,d_tf_atan)
 
 dl1 = FNN(3,7*7*512,tf_atan,d_tf_atan)
 dl2 = CNN_Trans(3,256,512)
-dl3 = CNN_Trans(3,2,256)
+dl3 = CNN_Trans(3,1,256)
 
-final_cnn = CNN(3,2,1,tf_sigmoid,d_tf_sigmoid)
+final_cnn = CNN(4,1,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32,name="input")
@@ -351,9 +351,6 @@ with tf.Session() as sess:
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 
-    # save the model 
-    saver.save(sess, 'model_final')
-
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
 
@@ -366,6 +363,12 @@ with tf.Session() as sess:
     plt.savefig("viz/Case Train.png")
 
     # generate the 3D plot figure
-
-
+    test_latent = sess.run(elayer3,feed_dict={x:test_batch})
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(test_latent[:,0], test_latent[:,1], test_latent[:,2], c=np.argmax(test_label,1))
+    plt.colorbar()
+    plt.grid()
+    plt.show()
 # -- end code --
