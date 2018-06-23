@@ -110,7 +110,7 @@ class CNN():
         self.layerA = self.act(self.layer)
         return self.layerA 
 
-    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME'):
+    def backprop(self,gradient,stride=1,padding='SAME'):
         grad_part_1 = gradient 
         grad_part_2 = self.d_act(self.layer) 
         grad_part_3 = self.input
@@ -130,7 +130,7 @@ class CNN():
         update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1)
         v_hat = self.v_prev / (1-beta2)
-        adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
+        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
 
         return grad_pass,update_w 
@@ -152,7 +152,7 @@ class CNN_Trans():
         self.layerA = tf_elu(self.layer)
         return self.layerA 
 
-    def backprop(self,gradient,learning_rate_change,stride=1,padding='SAME'):
+    def backprop(self,gradient,stride=1,padding='SAME'):
         grad_part_1 = gradient 
         grad_part_2 = d_tf_elu(self.layer) 
         grad_part_3 = self.input
@@ -172,7 +172,7 @@ class CNN_Trans():
         update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1)
         v_hat = self.v_prev / (1-beta2)
-        adam_middel = learning_rate_change/(tf.sqrt(v_hat) + adam_e)
+        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
 
         return grad_pass,update_w 
@@ -208,7 +208,7 @@ class FNN():
         def f2(): return self.v_hat_prev
 
         v_max = tf.cond(tf.greater(tf.reduce_sum(v_t), tf.reduce_sum(self.v_hat_prev) ) , true_fn=f1, false_fn=f2)
-        adam_middel = tf.multiply(learning_rate_change/(tf.sqrt(v_max) + adam_e),self.m)
+        adam_middel = tf.multiply(learning_rate/(tf.sqrt(v_max) + adam_e),self.m)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middel  )  ))
         update_w.append(tf.assign( self.v_prev,v_t ))
         update_w.append(tf.assign( self.v_hat_prev,v_max ))        
@@ -249,15 +249,15 @@ learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-el1 = CNN(3,1,16)
-el2 = CNN(3,16,32)
-el3 = FNN(7*7*32,3,tf_tanh,d_tf_tanh)
+el1 = CNN(3,1,32)
+el2 = CNN(3,32,64)
+el3 = FNN(7*7*64,30,tf_tanh,d_tf_tanh)
 
-dl1 = FNN(3,7*7*32,tf_tanh,d_tf_tanh)
-dl2 = CNN_Trans(3,16,32)
-dl3 = CNN_Trans(3,1,16)
+dl1 = FNN(30,7*7*64,tf_tanh,d_tf_tanh)
+dl2 = CNN_Trans(3,32,64)
+dl3 = CNN_Trans(3,16,32)
 
-final_cnn = CNN(3,1,1,tf_sigmoid,d_tf_sigmoid)
+final_cnn = CNN(3,16,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32)
@@ -270,7 +270,7 @@ elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
 elayer3 = el3.feedforward(elayer3_flatten)
 
 dlayer1 = dl1.feedforward(elayer3)
-dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,32])
+dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,64])
 dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2)
 dlayer3 = dl3.feedforward(dlayer2,stride=2)
 
@@ -282,7 +282,25 @@ final_x = tf.reshape(x,[batch_size,-1])
 reconstr_loss = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
 # reconstr_loss = tf.reduce_mean(tf.square(final_output-x))
 cost = reconstr_loss
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
+log_loss_back = -(final_x/(final_output_vec+1e-10) + (1-final_x)/(1-final_output_vec+1e-10) )
+log_loss_back_reshape = tf.reshape(log_loss_back,[batch_size,28,28,1])
+
+final_grad,final_grad_up = final_cnn.backprop(log_loss_back_reshape)
+
+dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2)
+dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2)
+dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
+dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
+
+egrad3,egrad3_up = el3.backprop(dgrad1)
+egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,64]),[1,2,2,1])
+egrad2,egrad2_up = el2.backprop(egrad2_Input)
+egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
+egrad1,egrad1_up = el1.backprop(egrad1_Input)
+
+sys.exit()
+
 
 # sess
 with tf.Session() as sess:
@@ -322,7 +340,7 @@ with tf.Session() as sess:
             plt.imshow(np.squeeze(test_example),cmap='gray')
             plt.axis('off')
             plt.title('Original Image')
-            plt.savefig('train_change/'+str(iter)+"a_Original_Image.png")
+            plt.savefig('train_change/'+str(iter)+"a_Original_Image.png",bbox_inches='tight')
 
             sess_results[:,:,0] = (sess_results[:,:,0]-sess_results[:,:,0].min())/(sess_results[:,:,0].max()-sess_results[:,:,0].min())
 
@@ -330,7 +348,7 @@ with tf.Session() as sess:
             plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
             plt.axis('off')
             plt.title('Generated Mask')
-            plt.savefig('train_change/'+str(iter)+"c_Generated_Mask.png")
+            plt.savefig('train_change/'+str(iter)+"c_Generated_Mask.png",bbox_inches='tight')
             plt.close('all')
 
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
