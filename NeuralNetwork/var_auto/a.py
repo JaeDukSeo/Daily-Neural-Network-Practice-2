@@ -24,7 +24,7 @@ def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
 def tf_sigmoid(x): return tf.nn.sigmoid(x) 
 def d_tf_sigmoid(x): return tf_sigmoid(x) * (1.0-tf_sigmoid(x))
 
-def tf_atan(x): return tf.atan(X)
+def tf_atan(x): return tf.atan(x)
 def d_tf_atan(x): return 1.0/(1.0 + x**2)
 
 def tf_softmax(x): return tf.nn.softmax(x)
@@ -45,8 +45,8 @@ def coordinates(x_dim , y_dim , scale = 1.0):
 # class for the layers
 class FNN():
     
-    def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=1.0))
+    def __init__(self,input_dim,hidden_dim,act,d_act,stddev=1.0):
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=stddev))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -82,19 +82,21 @@ class FNN():
 
 # hyper
 generated_image_x,generated_image_y = 1080,1080
-generated_channel = 1
+generated_channel = 3
 hidden_net_size = 32
 
-# class
-z_layer = FNN(hidden_net_size,hidden_net_size,tf_tanh,d_tf_tanh)
-x_layer = FNN(1,hidden_net_size,tf_tanh,d_tf_tanh)
-y_layer = FNN(1,hidden_net_size,tf_tanh,d_tf_tanh)
-r_layer = FNN(1,hidden_net_size,tf_tanh,d_tf_tanh)
+number_of_image = 100
 
-cl1 = FNN(hidden_net_size,hidden_net_size,tf_tanh,d_tf_tanh)
-cl2 = FNN(hidden_net_size,hidden_net_size,tf_tanh,d_tf_tanh)
-cl3 = FNN(hidden_net_size,hidden_net_size,tf_tanh,d_tf_tanh)
-cl4 = FNN(hidden_net_size,hidden_net_size,tf_tanh,d_tf_tanh)
+# class
+z_layer = FNN(hidden_net_size,hidden_net_size,tf_atan,d_tf_tanh,stddev=1.0)
+x_layer = FNN(1,hidden_net_size,tf_atan,d_tf_tanh,stddev=0.1)
+y_layer = FNN(1,hidden_net_size,tf_tanh,d_tf_tanh,stddev=0.8)
+r_layer = FNN(1,hidden_net_size,tf_atan,d_tf_tanh,stddev=1.0)
+
+cl1 = FNN(hidden_net_size,hidden_net_size,tf_atan,d_tf_tanh)
+cl2 = FNN(hidden_net_size,hidden_net_size,tf_atan,d_tf_tanh)
+cl3 = FNN(hidden_net_size,hidden_net_size,tf_atan,d_tf_tanh)
+cl4 = FNN(hidden_net_size,hidden_net_size,tf_atan,d_tf_tanh)
 cl5 = FNN(hidden_net_size,generated_channel,tf_sigmoid,d_tf_sigmoid)
 
 # graph
@@ -124,11 +126,14 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
 
-    created_x,created_y,created_r = coordinates(generated_image_x,generated_image_y)
-    created_z = np.random.uniform(-1.0, 1.0, size=(created_x.shape[1],hidden_net_size )).astype(np.float32)
-    created_image = sess.run(generated_image,feed_dict={z:created_z,x:created_x,y:created_y,r:created_r})
-
-    plt.imshow(np.squeeze(created_image),cmap='gray')
-    plt.show()
+    for curren_image_number  in range(number_of_image):
+        created_x,created_y,created_r = coordinates(generated_image_x,generated_image_y)
+        # created_z = np.random.uniform(-1.0, 1.0, size=(created_x.shape[1],hidden_net_size )).astype(np.float32) * curren_image_number/number_of_image
+        created_z = np.ones((created_x.shape[1],hidden_net_size )) * curren_image_number/number_of_image
+        created_image = sess.run(generated_image,feed_dict={z:created_z,x:created_x,y:created_y,r:created_r})
+       
+        plt.axis('off')
+        plt.imshow(np.squeeze(created_image))
+        plt.savefig('viz/'+str(curren_image_number)+'.png',bbox_inches='tight')
 
 # -- end code ---
