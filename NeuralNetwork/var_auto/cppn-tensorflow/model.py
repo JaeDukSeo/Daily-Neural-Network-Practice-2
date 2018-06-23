@@ -29,15 +29,8 @@ def fully_connected(input_, output_size, scope=None, stddev=1.0, with_bias = Fal
     shape = input_.get_shape().as_list()
 
     with tf.variable_scope(scope or "FC"):
-        matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
-            tf.random_normal_initializer(stddev=stddev))
-
+        matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,tf.random_normal_initializer(stddev=stddev))
         result = tf.matmul(input_, matrix)
-
-        if with_bias:
-            bias = tf.get_variable("bias", [1, output_size],initializer=tf.random_normal_initializer(stddev=stddev))
-            result += bias*tf.ones([shape[0], 1], dtype=tf.float32)
-
         return result
 
 
@@ -71,9 +64,6 @@ class CPPN():
     self.n_points = n_points
 
     self.x_vec, self.y_vec, self.r_vec = self._coordinates(x_dim, y_dim, scale)
-    print(self.x_vec.shape)
-    print(self.y_vec.shape)
-    print(self.r_vec.shape)
 
     # latent vector
     self.z = tf.placeholder(tf.float32, [self.batch_size, self.z_dim])
@@ -106,7 +96,6 @@ class CPPN():
     n_points = x_dim * y_dim
     x_range = scale*(np.arange(x_dim)-(x_dim-1)/2.0)/(x_dim-1)/0.5
     y_range = scale*(np.arange(y_dim)-(y_dim-1)/2.0)/(y_dim-1)/0.5
-
     x_mat = np.matmul(np.ones((y_dim, 1)), x_range.reshape((1, x_dim)))
     y_mat = np.matmul(y_range.reshape((y_dim, 1)), np.ones((1, x_dim)))
     r_mat = np.sqrt(x_mat*x_mat + y_mat*y_mat)
@@ -126,6 +115,7 @@ class CPPN():
     # note that latent vector z is scaled to self.scale factor.
     z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * tf.ones([n_points, 1], dtype=tf.float32) * self.scale
     z_unroll = tf.reshape(z_scaled, [self.batch_size*n_points, self.z_dim])
+
     x_unroll = tf.reshape(self.x, [self.batch_size*n_points, 1])
     y_unroll = tf.reshape(self.y, [self.batch_size*n_points, 1])
     r_unroll = tf.reshape(self.r, [self.batch_size*n_points, 1])
@@ -135,17 +125,11 @@ class CPPN():
         fully_connected(y_unroll, net_size, 'g_0_y', with_bias = False) + \
         fully_connected(r_unroll, net_size, 'g_0_r', with_bias = False)
 
-    print(U)
-
     '''
     Below are a bunch of examples of different CPPN configurations.
     Feel free to comment out and experiment!
     '''
 
-    ###
-    ### Example: 3 layers of tanh() layers, with net_size = 32 activations/layer
-    ###
-    #'''
     H = tf.nn.tanh(U)
     print(H)
   
@@ -154,51 +138,6 @@ class CPPN():
     output = tf.sigmoid(fully_connected(H, self.c_dim, 'g_final'))
     print(output)
 
-    #'''
-
-    ###
-    ### Similar to example above, but instead the output is
-    ### a weird function rather than just the sigmoid
-    '''
-    H = tf.nn.tanh(U)
-    for i in range(3):
-      H = tf.nn.tanh(fully_connected(H, net_size, 'g_tanh_'+str(i)))
-    output = tf.sqrt(1.0-tf.abs(tf.tanh(fully_connected(H, self.c_dim, 'g_final'))))
-    '''
-
-    ###
-    ### Example: mixing softplus and tanh layers, with net_size = 32 activations/layer
-    ###
-    '''
-    H = tf.nn.tanh(U)
-    H = tf.nn.softplus(fully_connected(H, net_size, 'g_softplus_1'))
-    H = tf.nn.tanh(fully_connected(H, net_size, 'g_tanh_2'))
-    H = tf.nn.softplus(fully_connected(H, net_size, 'g_softplus_2'))
-    H = tf.nn.tanh(fully_connected(H, net_size, 'g_tanh_2'))
-    H = tf.nn.softplus(fully_connected(H, net_size, 'g_softplus_2'))
-    output = tf.sigmoid(fully_connected(H, self.c_dim, 'g_final'))
-    '''
-
-    ###
-    ### Example: mixing sinusoids, tanh and multiple softplus layers
-    ###
-    '''
-    H = tf.nn.tanh(U)
-    H = tf.nn.softplus(fully_connected(H, net_size, 'g_softplus_1'))
-    H = tf.nn.tanh(fully_connected(H, net_size, 'g_tanh_2'))
-    H = tf.nn.softplus(fully_connected(H, net_size, 'g_softplus_2'))
-    output = 0.5 * tf.sin(fully_connected(H, self.c_dim, 'g_final')) + 0.5
-    '''
-
-    ###
-    ### Example: residual network of 4 tanh() layers
-    ###
-    '''
-    H = tf.nn.tanh(U)
-    for i in range(3):
-      H = H+tf.nn.tanh(fully_connected(H, net_size, g_tanh_'+str(i)))
-    output = tf.sigmoid(fully_connected(H, self.c_dim, 'g_final'))
-    '''
 
     '''
     The final hidden later is pass thru a fully connected sigmoid later, so outputs -> (0, 1)
