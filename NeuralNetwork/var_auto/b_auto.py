@@ -235,27 +235,27 @@ print(test_label.shape)
 
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
-train_batch = test_batch
+train_batch = train_batch[:1500,:,:,:]
 
 # hyper parameter
 num_epoch = 100
 batch_size = 2
 print_size = 10
 
-learning_rate = 0.0001
+learning_rate = 0.0008
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
-el1 = CNN(3,1,2)
-el2 = CNN(3,2,2)
-el3 = FNN(7*7*2,3,tf_tanh,d_tf_tanh)
+el1 = CNN(3,1,20)
+el2 = CNN(3,20,30)
+el3 = FNN(7*7*30,3,tf_elu,d_tf_elu)
 
-dl1 = FNN(3,7*7*2,tf_tanh,d_tf_tanh)
-dl2 = CNN_Trans(3,2,2)
-dl3 = CNN_Trans(3,1,2)
+dl1 = FNN(3,7*7*30,tf_elu,d_tf_elu)
+dl2 = CNN_Trans(3,20,30)
+dl3 = CNN_Trans(3,10,20)
 
-final_cnn = CNN(1,1,1,tf_sigmoid,d_tf_sigmoid)
+final_cnn = CNN(5,10,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32)
@@ -268,7 +268,7 @@ elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
 elayer3 = el3.feedforward(elayer3_flatten)
 
 dlayer1 = dl1.feedforward(elayer3)
-dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,2])
+dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,30])
 dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2)
 dlayer3 = dl3.feedforward(dlayer2,stride=2)
 final_output = final_cnn.feedforward(dlayer3)
@@ -289,7 +289,7 @@ dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
 dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
 
 egrad3,egrad3_up = el3.backprop(dgrad1)
-egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,2]),[1,2,2,1])
+egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,30]),[1,2,2,1])
 egrad2,egrad2_up = el2.backprop(egrad2_Input)
 egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
 egrad1,egrad1_up = el1.backprop(egrad1_Input)
