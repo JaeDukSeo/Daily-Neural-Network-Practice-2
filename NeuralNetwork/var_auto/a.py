@@ -82,10 +82,10 @@ class FNN():
 
 # hyper
 generated_image_x,generated_image_y = 1080,1080
-generated_channel = 3
-hidden_net_size = 32
+generated_channel = 1
+hidden_net_size = 64
 
-number_of_image = 100
+number_of_image = 500
 
 # class
 z_layer = FNN(hidden_net_size,hidden_net_size,tf_atan,d_tf_tanh,stddev=1.0)

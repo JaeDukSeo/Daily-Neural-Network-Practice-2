@@ -18,7 +18,11 @@ ia.seed(6278)
 
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
+
+
 def tf_softmax(x): return tf.nn.softmax(x)
+
+
 def unpickle(file):
     import pickle
     with open(file, 'rb') as fo:
