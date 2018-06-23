@@ -10,7 +10,9 @@ from imgaug import augmenters as iaa
 import imgaug as ia
 from skimage.color import rgba2rgb
 from tensorflow.examples.tutorials.mnist import input_data
+import matplotlib
 
+matplotlib.use('GTKAgg')
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 np.random.seed(6278)
@@ -28,6 +30,9 @@ def d_tf_sigmoid(x): return tf_sigmoid(x) * (1.0-tf_sigmoid(x))
 
 def tf_atan(x): return tf.atan(x)
 def d_tf_atan(x): return 1.0/(1.0 + x**2)
+
+def tf_iden(x): return x
+def d_tf_iden(x): return 1.0
 
 def tf_softmax(x): return tf.nn.softmax(x)
 
@@ -98,7 +103,7 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -138,7 +143,7 @@ class CNN():
 class CNN_Trans():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.truncated_normal([k,k,inc,out],stddev=0.05))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -182,7 +187,7 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.truncated_normal([input_dim,hidden_dim], stddev=0.05))
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -216,11 +221,9 @@ class FNN():
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 train, test = tf.keras.datasets.mnist.load_data()
-
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-
 train_batch = np.zeros((55000,28,28,1))
 test_batch = np.zeros((10000,28,28,1))
 for x in range(len(x_data)):
@@ -236,63 +239,65 @@ print(test_label.shape)
 
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
-train_batch = train_batch[:10000,:,:,:]
-# hyper parameter
-num_epoch = 20
-batch_size = 50
+train_batch = train_batch[:10000]
+train_label = train_label[:10000]
+
+# hyper parameter 10000
+num_epoch = 21
+batch_size = 10
 print_size = 2
 
-learning_rate = 0.00005
+learning_rate = 0.00008
 learnind_rate_decay = 0.0
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
 el1 = CNN(3,1,256)
 el2 = CNN(3,256,512)
-el3 = FNN(7*7*512,3,tf_atan,d_tf_atan)
+el3 = FNN(7*7*512,3,tf_iden,d_tf_iden)
 
-dl1 = FNN(3,7*7*512,tf_atan,d_tf_atan)
+dl1 = FNN(3,7*7*512,tf_iden,d_tf_iden)
 dl2 = CNN_Trans(3,256,512)
-dl3 = CNN_Trans(3,1,256)
-
-final_cnn = CNN(4,1,1,tf_sigmoid,d_tf_sigmoid)
+dl3 = CNN_Trans(3,128,256)
+final_cnn = CNN(3,128,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32,name="input")
 
-elayer1 = el1.feedforward(x)
+# encoder
+elayer1 = el1.feedforward(x,padding='SAME')
 elayer2_input = tf.nn.avg_pool(elayer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-elayer2 = el2.feedforward(elayer2_input)
+elayer2 = el2.feedforward(elayer2_input,padding='SAME')
 elayer3_input = tf.nn.avg_pool(elayer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
 elayer3 = el3.feedforward(elayer3_flatten)
 
+# edcoder
 dlayer1 = dl1.feedforward(elayer3)
 dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,512])
-dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2)
-dlayer3 = dl3.feedforward(dlayer2,stride=2)
+dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2,padding='SAME')
+dlayer3 = dl3.feedforward(dlayer2,stride=2,padding='SAME')
 final_output = final_cnn.feedforward(dlayer3)
 
+# calculate the loss
 final_output_vec = tf.reshape(final_output,[batch_size,-1])
 final_x = tf.reshape(x,[batch_size,-1])
-
 reconstr_loss = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
 cost = reconstr_loss
 
+# manual back prop
 log_loss_back = tf.reshape((final_output_vec - final_x)/(final_output_vec*(1-final_output_vec)),[batch_size,28,28,1])
-
 final_grad,final_grad_up = final_cnn.backprop(log_loss_back)
-dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2)
-dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2)
-
+dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2,padding='SAME')
+dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2,padding='SAME')
 dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
 dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
 
 egrad3,egrad3_up = el3.backprop(dgrad1)
 egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,512]),[1,2,2,1])
-egrad2,egrad2_up = el2.backprop(egrad2_Input)
+egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
 egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
-egrad1,egrad1_up = el1.backprop(egrad1_Input)
+egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
 
 grad_update = final_grad_up + \
               dgrad3_up + dgrad2_up + dgrad1_up + \
@@ -313,7 +318,7 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        train_batch = shuffle(train_batch)
+        train_batch,train_label = shuffle(train_batch,train_label)
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
@@ -327,7 +332,7 @@ with tf.Session() as sess:
             print("----------")
 
         if iter % 2 == 0:
-            test_example =    train_batch[:batch_size,:,:,:]
+            test_example = train_batch[:batch_size,:,:,:]
             sess_results = sess.run([final_output],feed_dict={x:test_example})
 
             sess_results = sess_results[0][0,:,:,:]
@@ -338,8 +343,6 @@ with tf.Session() as sess:
             plt.axis('off')
             plt.title('Original Image')
             plt.savefig('train_change/'+str(iter)+"a_Original_Image.png",bbox_inches='tight')
-
-            sess_results[:,:,0] = (sess_results[:,:,0]-sess_results[:,:,0].min())/(sess_results[:,:,0].max()-sess_results[:,:,0].min())
 
             plt.figure()
             plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
@@ -361,14 +364,40 @@ with tf.Session() as sess:
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
     plt.savefig("viz/Case Train.png")
+    plt.close('all')
 
     # generate the 3D plot figure
-    test_latent = sess.run(elayer3,feed_dict={x:test_batch})
+    test_batch = train_batch[:1000]
+    test_label = train_label[:1000]
+
+    test_latent = sess.run(elayer3,feed_dict={x:test_batch[:batch_size,:,:,:]})
+    for iii in range(batch_size,len(test_batch),batch_size):
+        temp = sess.run(elayer3,feed_dict={x:test_batch[iii:batch_size+iii,:,:,:]})
+        test_latent = np.vstack((test_latent,temp))
+
     from mpl_toolkits.mplot3d import Axes3D
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(test_latent[:,0], test_latent[:,1], test_latent[:,2], c=np.argmax(test_label,1))
-    plt.colorbar()
-    plt.grid()
+
+    color_dict = {
+        0:'red',
+        1:'blue',
+        2:'green',
+        3:'yellow',
+        4:'purple',
+        5:'grey',
+        6:'black',
+        7:'violet',
+        8:'silver',
+        9:'cyan',
+    }
+
+    color_mapping = [color_dict[x] for x in np.argmax(test_label,1) ]
+    ax.scatter(test_latent[:,0], test_latent[:,1],test_latent[:,2],c=color_mapping,label=str(color_dict))
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    ax.legend()
+    ax.grid(True)
     plt.show()
 # -- end code --
