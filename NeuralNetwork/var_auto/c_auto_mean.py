@@ -247,15 +247,15 @@ learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
-el1 = CNN(3,1,2)
-el2 = CNN(3,2,2)
-el3 = FNN(7*7*2,3,tf_tanh,d_tf_tanh)
+el1 = CNN(3,1,5)
+el2 = CNN(3,5,10)
+el3 = FNN(7*7*10,3,tf_tanh,d_tf_tanh)
 
-dl1 = FNN(3,7*7*2,tf_tanh,d_tf_tanh)
-dl2 = CNN_Trans(3,2,2)
-dl3 = CNN_Trans(3,1,2)
+dl1 = FNN(3,7*7*10,tf_tanh,d_tf_tanh)
+dl2 = CNN_Trans(3,5,10)
+dl3 = CNN_Trans(3,3,5)
 
-final_cnn = CNN(1,1,1,tf_sigmoid,d_tf_sigmoid)
+final_cnn = CNN(3,3,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32)
@@ -268,7 +268,7 @@ elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
 elayer3 = el3.feedforward(elayer3_flatten)
 
 dlayer1 = dl1.feedforward(elayer3)
-dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,2])
+dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,10])
 dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2)
 dlayer3 = dl3.feedforward(dlayer2,stride=2)
 final_output = final_cnn.feedforward(dlayer3)
@@ -276,10 +276,10 @@ final_output = final_cnn.feedforward(dlayer3)
 final_output_vec = tf.reshape(final_output,[batch_size,-1])
 final_x = tf.reshape(x,[batch_size,-1])
 
-reconstr_loss = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
+reconstr_loss = tf.reduce_mean(tf.square(final_output-x)*0.5)
 cost = reconstr_loss
 
-log_loss_back = tf.reshape((final_output_vec - final_x)/(final_output_vec*(1-final_output_vec)),[batch_size,28,28,1])
+log_loss_back = final_output - x
 
 final_grad,final_grad_up = final_cnn.backprop(log_loss_back)
 dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2)
@@ -289,7 +289,7 @@ dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
 dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
 
 egrad3,egrad3_up = el3.backprop(dgrad1)
-egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,2]),[1,2,2,1])
+egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,10]),[1,2,2,1])
 egrad2,egrad2_up = el2.backprop(egrad2_Input)
 egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
 egrad1,egrad1_up = el1.backprop(egrad1_Input)
