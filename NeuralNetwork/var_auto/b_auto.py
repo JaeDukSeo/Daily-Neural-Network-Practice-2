@@ -180,8 +180,8 @@ class CNN_Trans():
 
 class FNN():
     
-    def __init__(self,input_dim,hidden_dim,act,d_act,stddev=1.0):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=stddev))
+    def __init__(self,input_dim,hidden_dim,act,d_act):
+        self.w = tf.Variable(tf.truncated_normal([input_dim,hidden_dim], stddev=0.05))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -235,30 +235,30 @@ print(test_label.shape)
 
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
-train_batch = train_batch[:1500,:,:,:]
+train_batch = test_batch
 
 # hyper parameter
 num_epoch = 100
-batch_size = 2
-print_size = 10
+batch_size = 50
+print_size = 2
 
-learning_rate = 0.0008
+learning_rate = 0.00008
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # define class here
-el1 = CNN(3,1,20)
-el2 = CNN(3,20,30)
-el3 = FNN(7*7*30,3,tf_elu,d_tf_elu)
+el1 = CNN(3,1,256)
+el2 = CNN(3,256,512)
+el3 = FNN(7*7*512,3,tf_atan,d_tf_atan)
 
-dl1 = FNN(3,7*7*30,tf_elu,d_tf_elu)
-dl2 = CNN_Trans(3,20,30)
-dl3 = CNN_Trans(3,10,20)
+dl1 = FNN(3,7*7*512,tf_atan,d_tf_atan)
+dl2 = CNN_Trans(3,256,512)
+dl3 = CNN_Trans(3,2,256)
 
-final_cnn = CNN(5,10,1,tf_sigmoid,d_tf_sigmoid)
+final_cnn = CNN(3,2,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
-x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32)
+x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32,name="input")
 
 elayer1 = el1.feedforward(x)
 elayer2_input = tf.nn.avg_pool(elayer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
@@ -268,7 +268,7 @@ elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
 elayer3 = el3.feedforward(elayer3_flatten)
 
 dlayer1 = dl1.feedforward(elayer3)
-dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,30])
+dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,512])
 dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2)
 dlayer3 = dl3.feedforward(dlayer2,stride=2)
 final_output = final_cnn.feedforward(dlayer3)
@@ -289,7 +289,7 @@ dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
 dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
 
 egrad3,egrad3_up = el3.backprop(dgrad1)
-egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,30]),[1,2,2,1])
+egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,512]),[1,2,2,1])
 egrad2,egrad2_up = el2.backprop(egrad2_Input)
 egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
 egrad1,egrad1_up = el1.backprop(egrad1_Input)
@@ -302,6 +302,7 @@ grad_update = final_grad_up + \
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
+    saver = tf.train.Saver()
 
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
@@ -350,6 +351,9 @@ with tf.Session() as sess:
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 
+    # save the model 
+    saver.save(sess, 'model_final')
+
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
 
@@ -360,6 +364,8 @@ with tf.Session() as sess:
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
     plt.savefig("viz/Case Train.png")
+
+    # generate the 3D plot figure
 
 
 # -- end code --
