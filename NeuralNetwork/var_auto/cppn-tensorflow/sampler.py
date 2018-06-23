@@ -33,8 +33,8 @@ import matplotlib.pyplot as plt
 import images2gif
 from images2gif import writeGif
 
-mgc = get_ipython().magic
-mgc(u'matplotlib inline')
+# mgc = get_ipython().magic
+# mgc(u'matplotlib inline')
 pylab.rcParams['figure.figsize'] = (10.0, 10.0)
 
 class Sampler():
@@ -104,7 +104,6 @@ class Sampler():
     for i in range(total_frames):
       z = z1 + delta_z*float(i)
       images.append(self.to_image(self.generate(z, x_dim, y_dim, scale)))
-      print "processing image ", i
     durations = [duration1]+[duration]*n_frame+[duration2]
     if reverse == True: # go backwards in time back to the first state
       revImages = list(images)
@@ -112,5 +111,18 @@ class Sampler():
       revImages = revImages[1:]
       images = images+revImages
       durations = durations + [duration]*n_frame + [duration1]
-    print "writing gif file..."
     writeGif(filename, images, duration = durations)
+
+
+ss = Sampler()
+sss = ss.generate()
+print(sss.shape)
+
+print(sss.max())
+print(sss.min())
+
+plt.imshow(np.squeeze(sss),cmap='gray')
+plt.show()
+
+
+# -- end code --

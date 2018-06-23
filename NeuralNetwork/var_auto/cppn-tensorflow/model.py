@@ -9,9 +9,37 @@ https://en.wikipedia.org/wiki/Compositional_pattern-producing_network
 
 import numpy as np
 import tensorflow as tf
-from ops import *
 
 import matplotlib.pyplot as plt
+
+def linear(input_, output_size, scope=None, stddev=1.0, bias_start=0.0, with_w=False):
+    shape = input_.get_shape().as_list()
+
+    with tf.variable_scope(scope or "Linear"):
+        matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
+                                 tf.random_normal_initializer(stddev=stddev))
+        bias = tf.get_variable("bias", [output_size],
+            initializer=tf.constant_initializer(bias_start))
+        if with_w:
+            return tf.matmul(input_, matrix) + bias, matrix, bias
+        else:
+            return tf.matmul(input_, matrix) + bias
+
+def fully_connected(input_, output_size, scope=None, stddev=1.0, with_bias = False):
+    shape = input_.get_shape().as_list()
+
+    with tf.variable_scope(scope or "FC"):
+        matrix = tf.get_variable("Matrix", [shape[1], output_size], tf.float32,
+            tf.random_normal_initializer(stddev=stddev))
+
+        result = tf.matmul(input_, matrix)
+
+        if with_bias:
+            bias = tf.get_variable("bias", [1, output_size],initializer=tf.random_normal_initializer(stddev=stddev))
+            result += bias*tf.ones([shape[0], 1], dtype=tf.float32)
+
+        return result
+
 
 class CPPN():
       
@@ -92,8 +120,7 @@ class CPPN():
     n_points = x_dim * y_dim
 
     # note that latent vector z is scaled to self.scale factor.
-    z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * \
-                    tf.ones([n_points, 1], dtype=tf.float32) * self.scale
+    z_scaled = tf.reshape(self.z, [self.batch_size, 1, self.z_dim]) * tf.ones([n_points, 1], dtype=tf.float32) * self.scale
     z_unroll = tf.reshape(z_scaled, [self.batch_size*n_points, self.z_dim])
     x_unroll = tf.reshape(self.x, [self.batch_size*n_points, 1])
     y_unroll = tf.reshape(self.y, [self.batch_size*n_points, 1])
@@ -175,7 +202,7 @@ class CPPN():
   def generate(self, z=None, x_dim = 256, y_dim = 256, scale = 8.0):
     """ Generate data by sampling from latent space.
 
-    If z is not None, data for this point in latent space is
+    If z is not None, data for this point in latent space is  
     generated. Otherwise, z is drawn from prior in latent
     space.
     """
@@ -192,12 +219,12 @@ class CPPN():
   def close(self):
     self.sess.close()
 
-print('njdsak')
-temp = CPPN()
-testing = temp.generate()
-print(testing.shape)
+# print('njdsak')
+# temp = CPPN()
+# testing = temp.generate()
+# print(testing.shape)
 
-plt.imshow(np.squeeze(testing),cmap='gray')
-plt.show()
+# plt.imshow(np.squeeze(testing),cmap='gray')
+# plt.show()
 
 # -- end code --
