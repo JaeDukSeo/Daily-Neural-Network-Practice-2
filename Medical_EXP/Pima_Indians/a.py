@@ -1,32 +1,39 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-
+import seaborn as sns
+sns.set(style="white")
 np.random.seed(67)
 
 # 0. Read the data
 df = pd.read_csv('diabetes.csv')
 
 # 1. Basic Description of the Data
+print('------ Describe -------\n')
 print(df.describe())
+print('------ Info -------\n')
 print(df.info())
+print('------ Data Type -------\n')
 print(df.dtypes)
 
-# 2. clustermap heat map
-import seaborn as sns
-sns.set(style="white")
-corr = df.corr()
-mask = np.zeros_like(corr, dtype=np.bool)
-mask[np.triu_indices_from(mask)] = True
-# Set up the matplotlib figure
-# f, ax = plt.subplots(figsize=(11, 9))
-# Generate a custom diverging colormap
-# cmap = sns.diverging_palette(220, 10, as_cmap=True)
-# Draw the heatmap with the mask and correct aspect ratio
-# sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3, center=0,square=True, linewidths=.5, cbar_kws={"shrink": .5})
-# plt.show()
+# 1. See the first 10 and last 10 
+print('------ First and Last 10 -------\n')
+print(df.head())
+print(df.tail())
 
-sns.heatmap(corr,mask=mask,square=True)
-plt.show()
+# 2. clustermap heat map
+# sns.heatmap(np.around(df.corr(),2),square=True,annot=True,linewidths=.2)
+# plt.show()
+# plt.close('all')
+
+# 3. see the dist of the data
+# df.hist(bins='auto',alpha=0.5)
+# plt.show()
+# plt.close('all')
+
+# 4. 
+import umap
+from sklearn.manifold import TSNE
+
 
 # -- end code --
