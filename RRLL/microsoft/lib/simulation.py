@@ -2,7 +2,6 @@ import numpy as np
 import sys
 import lib.plotting as plotting
 import matplotlib.pyplot as plt
-# from matplotlib import plt
 import matplotlib.gridspec as gridspec
 
 class Experiment(object):

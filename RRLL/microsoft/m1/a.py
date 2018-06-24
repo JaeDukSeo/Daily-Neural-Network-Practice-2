@@ -7,6 +7,7 @@ if "../" not in sys.path:
 from lib.envs.simple_rooms import SimpleRoomsEnv
 from lib.envs.cliff_walking import CliffWalkingEnv
 from lib.simulation import Experiment
+import matplotlib.pyplot as plt
 
 class Agent(object):
     
@@ -31,8 +32,7 @@ env = SimpleRoomsEnv()
 agent = RandomAgent(range(env.action_space.n))
 experiment = Experiment(env, agent)
 experiment.run_agent(max_number_of_episodes, interactive)
-print('--')
-
+plt.show()
 
 
 # -- end code --
