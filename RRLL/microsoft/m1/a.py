@@ -26,13 +26,12 @@ class RandomAgent(Agent):
     def act(self, obs):
         return np.random.randint(0, self.num_actions)
 
-interactive = True
+interactive = False
 max_number_of_episodes = 5
 env = SimpleRoomsEnv()
 agent = RandomAgent(range(env.action_space.n))
 experiment = Experiment(env, agent)
 experiment.run_agent(max_number_of_episodes, interactive)
-plt.show()
 
 
 # -- end code --
