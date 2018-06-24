@@ -7,7 +7,7 @@ from gym.envs.toy_text import discrete
 class CliffWalkingEnv(discrete.DiscreteEnv):
 
     metadata = {'render.modes': ['human', 'ansi', 'rgb_array']}
-    
+
     def _limit_coordinates(self, coord):
         coord[0] = min(coord[0], self.shape[0] - 1)
         coord[0] = max(coord[0], 0)
@@ -24,8 +24,8 @@ class CliffWalkingEnv(discrete.DiscreteEnv):
         return [(1.0, new_state, reward, is_done)]
 
     def __init__(self):
+        print('----')
         self.shape = (4, 12)
-
         nS = np.prod(self.shape)
         nA = 4
 

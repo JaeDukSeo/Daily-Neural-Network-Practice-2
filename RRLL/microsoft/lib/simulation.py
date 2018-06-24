@@ -1,22 +1,22 @@
 import numpy as np
 import sys
 import lib.plotting as plotting
-from matplotlib import pyplot as plt
-from matplotlib import pylab
+import matplotlib.pyplot as plt
+# from matplotlib import plt
 import matplotlib.gridspec as gridspec
 
 class Experiment(object):
+    
     def __init__(self, env, agent):
-        
         self.env = env
         self.agent = agent
         
         self.episode_length = np.array([0])
         self.episode_reward = np.array([0])
         
-        self.fig = pylab.figure(figsize=(10, 5))
+        self.fig = plt.figure(figsize=(10, 5))
         gs = gridspec.GridSpec(2, 2)
-        self.ax = pylab.subplot(gs[:, 0])
+        self.ax = plt.subplot(gs[:, 0])
         self.ax.xaxis.set_visible(False)
         self.ax.yaxis.set_visible(False)
         
@@ -34,14 +34,14 @@ class Experiment(object):
             self.ax.set_yticks(np.arange(-.5, 7, 1), minor=True);
             self.ax.grid(which='minor', color='w', linestyle='-', linewidth=1)
         
-        self.ax1 = pylab.subplot(gs[0, 1])
+        self.ax1 = plt.subplot(gs[0, 1])
         self.ax1.yaxis.set_label_position("right")
         self.ax1.set_ylabel('Length')
         
         self.ax1.set_xlim(0, max(10, len(self.episode_length)+1))
         self.ax1.set_ylim(0, 51)
         
-        self.ax2 = pylab.subplot(gs[1, 1])
+        self.ax2 = plt.subplot(gs[1, 1])
         self.ax2.set_xlabel('Episode')
         self.ax2.yaxis.set_label_position("right")
         self.ax2.set_ylabel('Reward')
@@ -157,7 +157,6 @@ class Experiment(object):
                 episode_rewards=self.episode_reward,
                 episode_running_variance=np.zeros(max_number_of_episodes))
             plotting.plot_episode_stats(stats, display_frequency)
-        
   
     def run_qlearning(self, max_number_of_episodes=100, interactive = False, display_frequency=1):
 

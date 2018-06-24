@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 from collections import namedtuple
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
+# import matplotlib.pylab as plt
 
 EpisodeStats = namedtuple("Stats",["episode_lengths", "episode_rewards", "episode_running_variance"])
 TimestepStats = namedtuple("Stats",["cumulative_rewards", "regrets"])
