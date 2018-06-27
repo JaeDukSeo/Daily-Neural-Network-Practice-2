@@ -61,7 +61,7 @@ seq = iaa.Sequential([
     iaa.Fliplr(1.0), # Horizonatl flips
 ], random_order=True) # apply augmenters in random ord
 
-# class
+# classss
 class FNN():
     def __init__(self,input_dim,hidden_dim):
         self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05))
