@@ -21,9 +21,9 @@ for i in range(1,201):
         reward = 1
     else:
         reward = 0
-    
-    expected[action] = expected[action] - (1/i)* (reward - expected[action]) 
+
     lever_count[action] = lever_count[action] + 1
+    expected[action] = expected[action] - (1/lever_count[action]) * (reward - expected[action]) 
 
         
 print('Count for number of times each lever have been pulled : ', lever_count)
