@@ -8,7 +8,7 @@ lever_count = np.zeros((5))
 expected =    np.zeros((5))
 random_explore = 0.33
 
-for i in range(1,201):
+for i in range(1,200001):
 
     # explore or greedy
     if random_explore > np.random.uniform():
@@ -23,12 +23,11 @@ for i in range(1,201):
         reward = 0
 
     lever_count[action] = lever_count[action] + 1
-    expected[action] = expected[action] - (1/lever_count[action]) * (reward - expected[action]) 
+    expected[action] = expected[action] + (1/lever_count[action]) * (reward - expected[action]) 
 
-        
 print('Count for number of times each lever have been pulled : ', lever_count)
 print('Double Check : ', lever_count.sum())
-print('Agents Guess : ', np.around(expected/lever_count,2))
+print('Agents Guess : ', np.around(expected,2))
 print('Ground Truth : ', ground_truth)
 
 # -- end code --
