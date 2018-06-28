@@ -26,7 +26,7 @@ e = 0.1
 num_episodes = 2000
 
 #create lists to contain total rewards and steps per episode
-jList = []
+jList = []  
 rList = []
 
 with tf.Session() as sess:

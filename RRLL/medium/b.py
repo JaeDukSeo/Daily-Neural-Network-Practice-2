@@ -7,6 +7,8 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 env = gym.make('FrozenLake-v0')
 
+np.random.seed(678)
+tf.set_random_seed(678)
 
 class FNN():
     def __init__(self,input_dim,hidden_dim):
@@ -17,13 +19,13 @@ class FNN():
     def feedforward(self,input=None):
         self.input = input
         self.layer = tf.matmul(input,self.w)
-        self.layerA = tf.nn.elu(self.layer)
+        self.layerA = tf.nn.tanh(self.layer)
         return self.layerA
 
 # hyper
 learning_rate = 0.1
 q_table_learning_rate = 0.99
-e = 0.1 
+e = 1
 num_iter = 1000
 max_episode = 1000
 
@@ -45,7 +47,7 @@ layer2 = l2.feedforward(layer1)
 next_action = tf.argmax(layer2,1)
 
 loss = tf.reduce_sum(tf.square(y - layer2))
-trainer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(loss)
+trainer = tf.train.GradientDescentOptimizer(learning_rate=learning_rate).minimize(loss)
 
 # sess
 with tf.Session() as sess: 
@@ -61,41 +63,47 @@ with tf.Session() as sess:
         for j in range(max_episode):
             
             #Choose an action by greedily (with e chance of random action) from the Q-network
-            action,allQ = sess.run([next_action,layer2],
-            feed_dict={x:np.identity(16)[state:state+1]})
+            action,allQ = sess.run([next_action,layer2],feed_dict={x:np.identity(16)[state:state+1]})
             action = action[0]
 
-            if np.random.rand(1) < e:
-                action = env.action_space.sample()
+            should_id = np.random.rand(1)
+            if should_id < e: 
+                action = np.random.randint(0,env.action_space.n)
 
+            # take the next step
             next_state,reward,done,_ = env.step(action)
+            # env.render()
+            # input()
 
-            Q1 = sess.run(layer2,
-            feed_dict={x:np.identity(16)[next_state:next_state+1]})
+            # give the network the next state
+            Q1 = sess.run(layer2,feed_dict={x:np.identity(16)[next_state:next_state+1]})
 
             #Obtain maxQ' and set our target value for chosen action.
+            # move up down left or right of the next state
             maxQ1 = np.max(Q1)
-            targetQ = allQ
-            targetQ[0,action] = reward + q_table_learning_rate*maxQ1
+            allQ[0,action] = reward + q_table_learning_rate*maxQ1
 
             #Train our network using target and predicted Q values
-            _ = sess.run(trainer,feed_dict={
-                x:np.identity(16)[state:state+1],y:targetQ})
+            sess.run(trainer,feed_dict={x:np.identity(16)[state:state+1],y:allQ})
 
-            rAll += reward
+            rAll  = rAll +  reward
             state = next_state
             if done == True:
                 #Reduce chance of random action as we train the model.
-                e = 1./((i/50) + 10)
+                e = e * 0.9
                 break
     
+        print("current Iter: ",i, ' current reward: ',reward)
+
         jList.append(j)
         rList.append(rAll)
 
+print(sum(rList))
+print(num_iter)
 print("Percent of succesful episodes: " + str(sum(rList)/num_iter) + "%")
-plt.plot(rList)
-plt.show()
-plt.plot(jList)
-plt.show()
+# plt.plot(rList)
+# plt.show()
+# plt.plot(jList)
+# plt.show()
 
 # --- end code ---

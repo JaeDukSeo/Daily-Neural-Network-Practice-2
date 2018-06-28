@@ -1,14 +1,26 @@
 #!/usr/bin/env python
-from __future__ import print_function
+# from __future__ import print_function
+print('6789')
 
 import argparse
-import skimage as skimage
-from skimage import transform, color, exposure
+print('6789')
+
+import skimage
+from skimage import transform
+from skimage import color, exposure
+print('6789')
+
 from skimage.transform import rotate
-from skimage.viewer import ImageViewer
+print('6789')
+# from skimage.viewer import ImageViewer
+# from skimage.viewer import ImageViewer
+print('6789')
+print('6789')
+
 import sys
 sys.path.append("game/")
 import wrapped_flappy_bird as game
+print('6789')
 import random
 import numpy as np
 from collections import deque
@@ -21,6 +33,8 @@ from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD , Adam
 import tensorflow as tf
+
+print("fvghujyhg")
 
 GAME = 'bird' # the name of the game being played for log files
 CONFIG = 'nothreshold'
@@ -187,12 +201,14 @@ def main():
     parser = argparse.ArgumentParser(description='Description of your program')
     parser.add_argument('-m','--mode', help='Train / Run', required=True)
     args = vars(parser.parse_args())
+    print(678)
     playGame(args)
 
 if __name__ == "__main__":
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
     sess = tf.Session(config=config)
+    print("678")
     from keras import backend as K
     K.set_session(sess)
     main()
