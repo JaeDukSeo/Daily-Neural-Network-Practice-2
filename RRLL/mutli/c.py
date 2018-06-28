@@ -41,6 +41,7 @@ print("Sum of lever must match with # episode : ",number_of_levers_count.sum(), 
 print('\n-------------------------')
 print("Reward Over Time Tracking : ", reward_count)
 print("Agent's weight : ", agents_prob)
+print("Agent's Probability Guess : ", reward_count/number_of_levers_count)
 print("Agents Guess Best Lever : ", np.argmax(agents_prob))
 
 print('\n-------------------------')
