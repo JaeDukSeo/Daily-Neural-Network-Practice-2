@@ -5,7 +5,7 @@ ground_truth_prob = np.random.rand(10)
 number_of_levers_count = np.zeros(10)
 agents_prob = np.zeros(10)
 
-num_episode = 100000
+num_episode = 4000
 e = 0.33
 
 for _ in range(num_episode):
