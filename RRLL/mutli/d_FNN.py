@@ -12,8 +12,8 @@ number_of_levers_count = np.zeros(10)
 agents_prob  = np.zeros(10)
 reward_count = np.zeros(10)
 
-num_episode = 10000
-e = 0.99
+num_episode = 20000
+e = 0.1
 learning_rate = 0.00000000001
 
 class FNN():
@@ -69,7 +69,6 @@ for _ in range(num_episode):
     grad1 = l1.back(grad2)
     agents_prob = agents_prob - learning_rate * grad1 
     reward_count[which_lever_to_pull2] = reward_count[which_lever_to_pull2] + reward
-    e = e * 0.9999
 
 print('\n-------------------------')
 print("Number of Levers Count Each: ", number_of_levers_count)
