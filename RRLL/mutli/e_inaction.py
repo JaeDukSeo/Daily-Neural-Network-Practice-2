@@ -3,11 +3,12 @@ np.set_printoptions(2)
 
 ground_truth_prob = np.random.rand(10)
 number_of_levers_count = np.zeros(10)
-agents_prob = np.zeros(10)
+agents_prob = np.ones(10) * 0.1
 reward_count = np.zeros(10)
 
-num_episode = 4000
+num_episode = 40000
 e = 0.33
+alpha = 0.2
 
 for _ in range(num_episode):
     
@@ -15,7 +16,7 @@ for _ in range(num_episode):
     if e > np.random.uniform():
         which_lever_to_pull = np.random.randint(0,10)
     else:
-        which_lever_to_pull = np.argmax(agents_prob)
+        which_lever_to_pull = np.random.choice(10, p=agents_prob)
 
     # now pull the lever 
     if ground_truth_prob[which_lever_to_pull] > np.random.uniform():
@@ -26,8 +27,31 @@ for _ in range(num_episode):
     # now update the lever count and expected value
     number_of_levers_count[which_lever_to_pull] += 1
     reward_count[which_lever_to_pull] = reward_count[which_lever_to_pull] + reward
-    agents_prob[which_lever_to_pull] = agents_prob[which_lever_to_pull] + (1/number_of_levers_count[which_lever_to_pull]) * \
-                                       (reward - agents_prob[which_lever_to_pull])
+    print(agents_prob)
+    print(reward)
+    if reward == 1:
+        mask1 = np.zeros(10)
+        mask2 = np.ones(10)
+        mask1[which_lever_to_pull] = 1
+        mask2[which_lever_to_pull] = 0
+
+        lever_won_vector = (agents_prob + alpha * (1- agents_prob)) * mask1
+        rest_of_levers   = ((1-alpha) * agents_prob) * mask2
+        agents_prob = lever_won_vector + rest_of_levers
+
+        print(which_lever_to_pull)
+        print('----------')
+        print(mask1)
+        print((agents_prob * mask1))
+        print(lever_won_vector)
+
+        print('----------')
+        print(mask2)
+        print((agents_prob * mask2))
+        print(rest_of_levers)
+
+    print(agents_prob)
+    input()
 
 print('\n-------------------------')
 print("Number of Levers Count Each: ", number_of_levers_count)
