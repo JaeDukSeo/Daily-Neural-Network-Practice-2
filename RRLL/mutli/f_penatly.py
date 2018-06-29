@@ -9,6 +9,7 @@ reward_count = np.zeros(10)
 num_episode = 40000
 e = 0.33
 alpha = 0.2
+beta = 0.8 
 
 for _ in range(num_episode):
     
@@ -27,14 +28,19 @@ for _ in range(num_episode):
     # now update the lever count and expected value
     number_of_levers_count[which_lever_to_pull] += 1
     reward_count[which_lever_to_pull] = reward_count[which_lever_to_pull] + reward
+    mask1 = np.zeros(10)
+    mask2 = np.ones(10)
+    mask1[which_lever_to_pull] = 1
+    mask2[which_lever_to_pull] = 0
     if reward == 1:
-        mask1 = np.zeros(10)
-        mask2 = np.ones(10)
-        mask1[which_lever_to_pull] = 1
-        mask2[which_lever_to_pull] = 0
         lever_won_vector = (agents_prob + alpha * (1- agents_prob)) * mask1
         rest_of_levers   = ((1-alpha) * agents_prob) * mask2
         agents_prob = lever_won_vector + rest_of_levers
+    else:
+        rest_of_levers = ( beta / (len(ground_truth_prob)-1)  + (1-beta) *agents_prob ) * mask2
+        lever_lose_vector = ( (1-beta)*agents_prob )* mask1
+        agents_prob = lever_lose_vector + rest_of_levers
+
 
 print('\n-------------------------')
 print("Number of Levers Count Each: ", number_of_levers_count)
