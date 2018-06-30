@@ -105,8 +105,8 @@ print(label_merge.shape)
 
 # hyper 
 num_epoch = 2
-testing_days = 5
-window_size = 5
+testing_days = 15
+window_size = 4
 learning_rate = 0.00001
 
 # leave the last 50 data for test set
@@ -157,14 +157,14 @@ with tf.Session() as sess:
 
         # For number of epoch train the network using the sliding window
         for iter in range(num_epoch):
-            for current_window_inex in range(len(train_batch)-3):
+            for current_window_inex in range(len(train_batch)-window_size):
                 current_window_data  = np.expand_dims(train_batch[current_window_inex:current_window_inex+window_size,:],1)
                 current_window_label = train_label[current_window_inex:current_window_inex+window_size,0]
                 sess_results = sess.run([cost,weight_updates,auto_train],feed_dict={x:current_window_data,y:current_window_label})
                 print('Current Test Day: ',current_test_index, " Current Iter: ",iter," Current Cost: ", sess_results[0],end='\r')
 
         # get the last three day value and make the prediction
-        current_prediction =np.expand_dims(train_batch[-3:,:],1)
+        current_prediction =np.expand_dims(train_batch[-window_size:,:],1)
         sess_reuslts = sess.run([final_output,weight_updates],feed_dict={x:current_prediction})
         sess_reuslts = sess_reuslts[0]
         # append the predicted value, we only want the last one
@@ -181,8 +181,13 @@ with tf.Session() as sess:
         train_label = np.vstack((train_label[1:],test_label[:1]))
         # print(train_label.shape)
 
-    plt.plot(predicted_values)
-    plt.plot(test_label[:,0])
+    predicted_values = np.asarray(predicted_values)
+    predicted_values = (predicted_values-predicted_values.min())/(predicted_values.max()-predicted_values.min())
+    gt_values = test_label[:,0]
+    gt_values = (gt_values-gt_values.min()) / (gt_values.max()-gt_values.min())
+
+    plt.plot(predicted_values,color='red')
+    plt.plot(gt_values,color='blue')
     plt.show()
 
     
