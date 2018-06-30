@@ -7,6 +7,21 @@ import pandas as pd
 tf.set_random_seed(678)
 np.random.seed(567)
 
+
+def tf_sigmoid(x): return tf.sigmoid(x)
+def tf_tanh(x): return tf.nn.tanh(x)
+
+class Time_LSTM():
+    
+    def __init__(self,timestamp,inc,outc):
+        self.w = 
+
+    def feed(self,input,time):
+        pass
+    
+
+
+
 # data code from: https://github.com/dashee87/cryptory
 # my_cryptory = Cryptory(from_date = "2017-01-01")
 # btc_google = my_cryptory.get_google_trends(kw_list=['bitcoin']).merge(
@@ -22,24 +37,18 @@ np.random.seed(567)
 
 # data from csv
 df = pd.read_csv('temp.csv')
-print(df.describe())
-print(df.info())
-print(df.head())
-print(df.tail())
+
+# seperate the data
+bitcoin_prices = df.bitcoin.values
+search         = df.close.values
+dates          = df.date.values
 
 
-df.plot()
-plt.show()
 
-# fig, ax1 = plt.subplots(1, 1, figsize=(9, 3))
-# ax1.set_xticks([datetime.date(j,i,1) for i in range(1,13,2) for j in range(2017,2019)])
-# ax1.set_xticklabels([datetime.date(j,i,1).strftime('%b %d %Y') 
-#                      for i in range(1,13,2) for j in range(2017,2019)])
-# ax1.plot(btc_google['date'].astype(datetime.datetime),
-#              btc_google['close'], label='bitcoin', color='#FF9900')
-# ax1.plot(btc_google['date'].astype(datetime.datetime),
-#              btc_google['bitcoin'], label="bitcoin (google search)", color='#4885ed')
-# ax1.legend(bbox_to_anchor=(0.1, 1), loc=2, borderaxespad=0., ncol=2, prop={'size': 14})
-# plt.show()
+
+print(bitcoin_prices.shape)
+print(search.shape)
+print(dates.shape)
+
 
 # -- end code --
