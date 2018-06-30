@@ -28,6 +28,9 @@ print(df.head())
 print(df.tail())
 
 
+df.plot()
+plt.show()
+
 # fig, ax1 = plt.subplots(1, 1, figsize=(9, 3))
 # ax1.set_xticks([datetime.date(j,i,1) for i in range(1,13,2) for j in range(2017,2019)])
 # ax1.set_xticklabels([datetime.date(j,i,1).strftime('%b %d %Y') 
