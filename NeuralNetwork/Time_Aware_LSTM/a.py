@@ -88,19 +88,15 @@ bitcoin_label  = df.bitcoin_shift.values
 bitcoin        = df.bitcoin.values
 search         = df.close.values
 
-print(bitcoin_label[:5])
-print(bitcoin[-5:])
-print(search[-5:])
-
 # for label data drop the first value and for test data drop the last value
 bitcoin_label = bitcoin_label[1:]
 bitcoin  = bitcoin[:-1]
 search  = search[:-1]
 
+# merge the bitcoin and search data
+temp_merge = np.vstack((bitcoin,search)).T
 
-print(bitcoin_label[:5])
-print(bitcoin[-5:])
-print(search[-5:])
+print(temp_merge.shape)
 
 sys.exit()
 
