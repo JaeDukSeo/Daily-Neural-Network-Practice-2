@@ -72,9 +72,8 @@ class Time_LSTM():
 
 # # need to scale columns (min-max scaling)
 # btc_google[['bitcoin','close']] = (
-#         btc_google[['bitcoin', 'close']]-btc_google[['bitcoin', 'close']].min())/(
-#         btc_google[['bitcoin', 'close']].max()-btc_google[['bitcoin', 'close']].min()
-#     )
+#         (btc_google[['bitcoin', 'close']]-btc_google[['bitcoin', 'close']].min()))/
+#         (btc_google[['bitcoin', 'close']].max()-btc_google[['bitcoin', 'close']].min())
 # btc_google = btc_google.iloc[::-1]
 # btc_google.to_csv('temp.csv')
 
@@ -105,11 +104,10 @@ print(data_merge.shape)
 print(label_merge.shape)
 
 # hyper 
-num_epoch = 5
-testing_days = 50
-
-window_size = 3
-learning_rate = 0.0001
+num_epoch = 2
+testing_days = 5
+window_size = 5
+learning_rate = 0.00001
 
 # leave the last 50 data for test set
 train_batch = data_merge[:-testing_days,:]
@@ -182,6 +180,10 @@ with tf.Session() as sess:
         # remove the first train label and append the first data from the label
         train_label = np.vstack((train_label[1:],test_label[:1]))
         # print(train_label.shape)
+
+    plt.plot(predicted_values)
+    plt.plot(test_label[:,0])
+    plt.show()
 
     
 
