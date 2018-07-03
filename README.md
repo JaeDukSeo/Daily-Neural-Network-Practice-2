@@ -83,22 +83,6 @@ PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPU
 The project config should look something like this:
 More details about [configuring project](docs/en/configuring_project.md).
 
-## Migrations
-
-Run to apply latest migrations:
-
-```bash
-cd /path/to/php-censor
-./bin/console php-censor-migrations:migrate
-```
-
-Run to create new migration:
-
-```bash
-cd /path/to/php-censor
-./bin/console php-censor-migrations:create NewMigrationName
-```
-
 ## Tests
 
 ```bash
