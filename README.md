@@ -89,11 +89,3 @@ For Phar plugin tests set 'phar.readonly' setting to Off (0) in `php.ini` config
 For database B8Framework tests create empty 'b8_test' database on 'localhost' with user/password: `root/<empty>` 
 for MySQL and with user/password: `postgres/<empty>` for PostgreSQL (You can change default test user, password and 
 database name in `phpunit.xml` config constants). If connection failed tests will be skipped.
-
-## Documentation
-
-[Full PHP Censor documentation](docs/en/README.md).
-
-## License
-
-PHP Censor is open source software licensed under the [BSD-2-Clause license](LICENSE).
