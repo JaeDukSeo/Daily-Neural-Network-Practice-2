@@ -83,13 +83,6 @@ PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPU
 The project config should look something like this:
 More details about [configuring project](docs/en/configuring_project.md).
 
-## Tests
-
-```bash
-cd /path/to/php-censor
-
-./vendor/bin/phpunit --configuration ./phpunit.xml --coverage-html ./tests/runtime/coverage -vvv --colors=always
-```
 
 For Phar plugin tests set 'phar.readonly' setting to Off (0) in `php.ini` config. Otherwise tests will be skipped.  
 
