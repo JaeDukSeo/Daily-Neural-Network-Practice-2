@@ -19,8 +19,6 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 
 [![Dashboard](docs/screenshots/dashboard.png)](docs/screenshots/dashboard.png)
 
-More [screenshots](docs/en/screenshots.md).
-
 * [Updating](#updating)
 * [Configuring project](#configuring-project)
 * [Migrations](#migrations)
