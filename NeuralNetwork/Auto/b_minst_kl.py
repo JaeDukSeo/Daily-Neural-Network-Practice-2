@@ -165,7 +165,7 @@ class CNN_Trans():
 class FNN():
     def __init__(self,input_dim,hidden_dim):
         self.w = tf.Variable(tf.truncated_normal([input_dim,hidden_dim],stddev=0.05))
-        # self.w = tf.Variable(xavier_init(input_dim,hidden_dim))
+        # self.w = tf.Variable(xavier_init(input_dim,hidden_dim)) here
 
     def feedforward(self,input=None):
         self.input = input
