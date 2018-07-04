@@ -30,8 +30,8 @@ More [screenshots](docs/en/screenshots.md).
 
 ## System requirements
 
-* Python 3 
-* Tensorflow
+* Python 3 or 2
+* Tensorflow or numpy
 
 ## Features
 
@@ -59,7 +59,6 @@ CleanBuild, CopyBuild, Deployer, Env, Git, Grunt, Gulp, PackageBuild, Phar, Phin
 * If you don't have python installed please install it. 
 
 * [Add a virtual host to your web server](docs/en/virtual_host.md), pointing to the `public` directory within your new
-PHP Censor directory. You'll need to set up rewrite rules to point all non-existent requests to PHP Censor;
 
 * [Set up the PHP Censor Worker](docs/en/workers/worker.md) (Need configured Queue) or 
 [a cron-job](docs/en/workers/cron.md) to run PHP Censor builds;
@@ -84,40 +83,7 @@ PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPU
 The project config should look something like this:
 More details about [configuring project](docs/en/configuring_project.md).
 
-## Migrations
-
-Run to apply latest migrations:
-
-```bash
-cd /path/to/php-censor
-./bin/console php-censor-migrations:migrate
-```
-
-Run to create new migration:
-
-```bash
-cd /path/to/php-censor
-./bin/console php-censor-migrations:create NewMigrationName
-```
-
-## Tests
-
-```bash
-cd /path/to/php-censor
-
-./vendor/bin/phpunit --configuration ./phpunit.xml --coverage-html ./tests/runtime/coverage -vvv --colors=always
-```
 
 For Phar plugin tests set 'phar.readonly' setting to Off (0) in `php.ini` config. Otherwise tests will be skipped.  
 
-For database B8Framework tests create empty 'b8_test' database on 'localhost' with user/password: `root/<empty>` 
-for MySQL and with user/password: `postgres/<empty>` for PostgreSQL (You can change default test user, password and 
 database name in `phpunit.xml` config constants). If connection failed tests will be skipped.
-
-## Documentation
-
-[Full PHP Censor documentation](docs/en/README.md).
-
-## License
-
-PHP Censor is open source software licensed under the [BSD-2-Clause license](LICENSE).
