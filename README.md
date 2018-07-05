@@ -30,6 +30,7 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 
 * Python 3 or 2
 * Tensorflow or numpy
+* scikit learn
 
 ## Features
 
