@@ -24,3 +24,4 @@
 */train_change/*.png
 */viz/*.png
 *.pkl
+*.h5
