@@ -23,4 +23,4 @@
 */gif/*.png
 */train_change/*.png
 */viz/*.png
-*/*.pkl
+*.pkl
