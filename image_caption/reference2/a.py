@@ -37,7 +37,7 @@ def extract_features(directory):
 	return features
 
 # extract features from all images
-directory = '../../Flicker8k_Dataset/'
+directory = '../../Dataset/Flicker8k_Dataset/'
 features = extract_features(directory)
 print('Extracted Features: %d' % len(features))
 # save to file
