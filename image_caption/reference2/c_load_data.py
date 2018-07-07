@@ -128,7 +128,7 @@ def define_model(vocab_size, max_length):
 	model.compile(loss='categorical_crossentropy', optimizer='adam')
 	# summarize model
 	print(model.summary())
-	plot_model(model, to_file='model.png', show_shapes=True)
+	# plot_model(model, to_file='model.png', show_shapes=True)
 	return model
 
 # train dataset
