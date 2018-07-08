@@ -85,4 +85,4 @@ More details about [configuring project](docs/en/configuring_project.md).
 
 For Phar plugin tests set 'phar.readonly' setting to Off (0) in `php.ini` config. Otherwise tests will be skipped.  
 
-database name in `phpunit.xml` config constants). If connection failed tests will be skipped.
+database name in `phpunit.xml` config constants). If connection failed tests will be skipped. and more
