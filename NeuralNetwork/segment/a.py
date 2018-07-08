@@ -247,15 +247,15 @@ train_labels[:,:,:,1]  = (train_labels[:,:,:,1] - train_labels[:,:,:,1].min(axis
 train_labels[:,:,:,2]  = (train_labels[:,:,:,2] - train_labels[:,:,:,2].min(axis=0)) / (train_labels[:,:,:,2].max(axis=0) - train_labels[:,:,:,2].min(axis=0)+1e-10)
 
 # split the data 
-# train_batch = train_images[:950]
-# train_label = train_labels[:950]
-# test_batch = train_images[950:]
-# test_label = train_labels[950:]
+train_batch = train_images[:950]
+train_label = train_labels[:950]
+test_batch = train_images[950:]
+test_label = train_labels[950:]
 
-train_batch = train_images[:50]
-train_label = train_labels[:50]
-test_batch = train_images[50:60]
-test_label = train_labels[50:60]
+# train_batch = train_images[:50]
+# train_label = train_labels[:50]
+# test_batch = train_images[50:60]
+# test_label = train_labels[50:60]
 
 # print out the data shape
 print(train_batch.shape)
@@ -273,65 +273,59 @@ learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-el1 = CNN(3,1,256)
+el1 = CNN(3,3,256)
 el2 = CNN(3,256,512)
-el3 = FNN(7*7*512,3,tf_iden,d_tf_iden)
+el3 = CNN(3,512,512)
 
-dl1 = FNN(3,7*7*512,tf_iden,d_tf_iden)
+dl1 = CNN_Trans(3,512,512)
 dl2 = CNN_Trans(3,256,512)
 dl3 = CNN_Trans(3,128,256)
-final_cnn = CNN(3,128,1,tf_sigmoid,d_tf_sigmoid)
+final_cnn = CNN(3,128,3,tf_sigmoid,d_tf_sigmoid)
 
 # graph
-x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32,name="input")
+x = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32,name="input")
+y = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32,name="output")
 
 # encoder
 elayer1 = el1.feedforward(x,padding='SAME')
 elayer2_input = tf.nn.avg_pool(elayer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input,padding='SAME')
 elayer3_input = tf.nn.avg_pool(elayer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
-elayer3 = el3.feedforward(elayer3_flatten)
+elayer3 = el3.feedforward(elayer3_input)
 
 # edcoder
-dlayer1 = dl1.feedforward(elayer3)
-dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,512])
-dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2,padding='SAME')
+dlayer1 = dl1.feedforward(elayer3,stride=1,padding='SAME')
+dlayer2 = dl2.feedforward(dlayer1,stride=2,padding='SAME')
 dlayer3 = dl3.feedforward(dlayer2,stride=2,padding='SAME')
 final_output = final_cnn.feedforward(dlayer3)
 
 # calculate the loss
-final_output_vec = tf.reshape(final_output,[batch_size,-1])
-final_x = tf.reshape(x,[batch_size,-1])
-reconstr_loss = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
-cost = reconstr_loss
+cost = tf.reduce_mean(tf.square(final_output-y))
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # manual back prop
-log_loss_back = tf.reshape((final_output_vec - final_x)/(final_output_vec*(1-final_output_vec)),[batch_size,28,28,1])
-final_grad,final_grad_up = final_cnn.backprop(log_loss_back)
-dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2,padding='SAME')
-dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2,padding='SAME')
-dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
-dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
+# log_loss_back = tf.reshape((final_output_vec - final_x)/(final_output_vec*(1-final_output_vec)),[batch_size,28,28,1])
+# final_grad,final_grad_up = final_cnn.backprop(log_loss_back)
+# dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2,padding='SAME')
+# dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2,padding='SAME')
+# dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
+# dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
 
-egrad3,egrad3_up = el3.backprop(dgrad1)
-egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,512]),[1,2,2,1])
-egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
-egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
-egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
+# egrad3,egrad3_up = el3.backprop(dgrad1)
+# egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,512]),[1,2,2,1])
+# egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
+# egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
+# egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
 
-grad_update = final_grad_up + \
-              dgrad3_up + dgrad2_up + dgrad1_up + \
-              egrad3_up + egrad2_up + egrad1_up
-
-
+# grad_update = final_grad_up + \
+#               dgrad3_up + dgrad2_up + dgrad1_up + \
+#               egrad3_up + egrad2_up + egrad1_up
 
 
 # sess
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-    saver = tf.train.Saver()
 
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
@@ -346,7 +340,8 @@ with tf.Session() as sess:
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,grad_update],feed_dict={x:current_batch})
+            current_batch_labek = train_label[batch_size_index:batch_size_index+batch_size]
+            sess_result = sess.run([cost,auto_train],feed_dict={x:current_batch,y:current_batch_labek})
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
@@ -390,15 +385,15 @@ with tf.Session() as sess:
     plt.savefig("viz/Case Train.png")
     plt.close('all')
 
+
+    sys.exit()
     # generate the 3D plot figure
     test_batch = train_batch[:1000]
     test_label = train_label[:1000]
-
     test_latent = sess.run(elayer3,feed_dict={x:test_batch[:batch_size,:,:,:]})
     for iii in range(batch_size,len(test_batch),batch_size):
         temp = sess.run(elayer3,feed_dict={x:test_batch[iii:batch_size+iii,:,:,:]})
         test_latent = np.vstack((test_latent,temp))
-
     from mpl_toolkits.mplot3d import Axes3D
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -424,4 +419,7 @@ with tf.Session() as sess:
     ax.legend()
     ax.grid(True)
     plt.show()
+
+
+    
 # -- end code --
