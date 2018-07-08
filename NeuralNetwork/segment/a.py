@@ -231,7 +231,6 @@ for dirName, subdirList, fileList in sorted(os.walk(data_location)):
         if ".png" in filename.lower() :
             train_data_gt.append(os.path.join(dirName,filename))
 
-
 train_images = np.zeros(shape=(1000,128,128,3))
 train_labels = np.zeros(shape=(1000,128,128,3))
 
@@ -248,33 +247,21 @@ train_labels[:,:,:,1]  = (train_labels[:,:,:,1] - train_labels[:,:,:,1].min(axis
 train_labels[:,:,:,2]  = (train_labels[:,:,:,2] - train_labels[:,:,:,2].min(axis=0)) / (train_labels[:,:,:,2].max(axis=0) - train_labels[:,:,:,2].min(axis=0)+1e-10)
 
 # split the data 
-train_batch = train_images[:950]
-train_label = train_labels[:950]
-test_batch = train_images[950:]
-test_label = train_labels[950:]
+# train_batch = train_images[:950]
+# train_label = train_labels[:950]
+# test_batch = train_images[950:]
+# test_label = train_labels[950:]
+
+train_batch = train_images[:50]
+train_label = train_labels[:50]
+test_batch = train_images[50:60]
+test_label = train_labels[50:60]
 
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
-
-for xx in range(10):
-    plt.imshow(np.squeeze(train_batch[xx]))
-    plt.show()
-    plt.imshow(np.squeeze(train_label[xx]))
-    plt.show()
-    plt.imshow(np.squeeze(test_batch[xx]))
-    plt.show()
-    plt.imshow(np.squeeze(test_label[xx]))
-    plt.show()
-
-sys.exit()
-
-train_batch = train_batch/255.0
-test_batch = test_batch/255.0
-train_batch = train_batch[:10000]
-train_label = train_label[:10000]
 
 # hyper parameter 10000
 num_epoch = 21
@@ -336,6 +323,9 @@ egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
 grad_update = final_grad_up + \
               dgrad3_up + dgrad2_up + dgrad1_up + \
               egrad3_up + egrad2_up + egrad1_up
+
+
+
 
 # sess
 with tf.Session() as sess:
