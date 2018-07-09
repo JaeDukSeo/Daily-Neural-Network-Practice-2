@@ -9,6 +9,7 @@ from skimage.transform import resize
 from imgaug import augmenters as iaa
 import imgaug as ia
 from skimage.color import rgba2rgb
+from skimage.color import rgb2gray
 import matplotlib
 
 plt.style.use('seaborn-white')
@@ -231,20 +232,22 @@ for dirName, subdirList, fileList in sorted(os.walk(data_location)):
         if ".png" in filename.lower() :
             train_data_gt.append(os.path.join(dirName,filename))
 
-train_images = np.zeros(shape=(1000,128,128,3))
-train_labels = np.zeros(shape=(1000,128,128,3))
+image_resize_px = 64
+train_images = np.zeros(shape=(1000,image_resize_px,image_resize_px,3))
+train_labels = np.zeros(shape=(1000,image_resize_px,image_resize_px,1))
 
 for file_index in range(len(train_images)):
-    train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(128,128))
-    train_labels[file_index,:,:]   = imresize(imread(train_data_gt[file_index],mode='RGB'),(128,128))
+    train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(image_resize_px,image_resize_px))
+    train_labels[file_index,:,:]   = np.expand_dims(
+        imresize(rgb2gray(imread(train_data_gt[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3)
     
 train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0)+1e-10)
 train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0)+1e-10)
 train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0)+1e-10)
 
 train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+1e-10)
-train_labels[:,:,:,1]  = (train_labels[:,:,:,1] - train_labels[:,:,:,1].min(axis=0)) / (train_labels[:,:,:,1].max(axis=0) - train_labels[:,:,:,1].min(axis=0)+1e-10)
-train_labels[:,:,:,2]  = (train_labels[:,:,:,2] - train_labels[:,:,:,2].min(axis=0)) / (train_labels[:,:,:,2].max(axis=0) - train_labels[:,:,:,2].min(axis=0)+1e-10)
+# train_labels[:,:,:,1]  = (train_labels[:,:,:,1] - train_labels[:,:,:,1].min(axis=0)) / (train_labels[:,:,:,1].max(axis=0) - train_labels[:,:,:,1].min(axis=0)+1e-10)
+# train_labels[:,:,:,2]  = (train_labels[:,:,:,2] - train_labels[:,:,:,2].min(axis=0)) / (train_labels[:,:,:,2].max(axis=0) - train_labels[:,:,:,2].min(axis=0)+1e-10)
 
 # split the data 
 train_batch = train_images[:950]
@@ -262,6 +265,18 @@ print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
+
+for xx in range(10):
+    plt.imshow(train_batch[xx])
+    plt.show()
+    plt.imshow(np.squeeze(train_label[xx]),cmap='gray')
+    plt.show()
+    plt.imshow(test_batch[xx])
+    plt.show()
+    plt.imshow(np.squeeze(test_label[xx]),cmap='gray')
+    plt.show()
+
+sys.exit()
 
 # hyper parameter 10000
 num_epoch = 201
