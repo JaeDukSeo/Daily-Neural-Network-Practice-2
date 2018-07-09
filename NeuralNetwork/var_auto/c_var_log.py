@@ -270,6 +270,7 @@ elayer2_input = tf.nn.avg_pool(elayer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding
 elayer2 = el2.feedforward(elayer2_input,padding='SAME')
 elayer3_input = tf.nn.avg_pool(elayer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
+
 elayer3_mean = el_mean.feedforward(elayer3_flatten)
 elayer3_std  = el_std.feedforward(elayer3_flatten)
 
