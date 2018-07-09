@@ -264,7 +264,7 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter 10000
-num_epoch = 21
+num_epoch = 201
 batch_size = 10
 print_size = 2
 
@@ -275,9 +275,9 @@ beta1,beta2,adam_e = 0.9,0.999,1e-8
 # define class here
 el1 = CNN(3,3,256)
 el2 = CNN(3,256,512)
-el3 = CNN(3,512,512)
+el3 = CNN(3,512,1024)
 
-dl1 = CNN_Trans(3,512,512)
+dl1 = CNN_Trans(3,512,1024)
 dl2 = CNN_Trans(3,256,512)
 dl3 = CNN_Trans(3,128,256)
 final_cnn = CNN(3,128,3,tf_sigmoid,d_tf_sigmoid)
@@ -291,13 +291,13 @@ elayer1 = el1.feedforward(x,padding='SAME')
 elayer2_input = tf.nn.avg_pool(elayer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input,padding='SAME')
 elayer3_input = tf.nn.avg_pool(elayer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-elayer3 = el3.feedforward(elayer3_input)
+elayer3 = el3.feedforward(elayer3_input,padding='SAME')
 
 # edcoder
 dlayer1 = dl1.feedforward(elayer3,stride=1,padding='SAME')
 dlayer2 = dl2.feedforward(dlayer1,stride=2,padding='SAME')
 dlayer3 = dl3.feedforward(dlayer2,stride=2,padding='SAME')
-final_output = final_cnn.feedforward(dlayer3)
+final_output = final_cnn.feedforward(dlayer3,padding='SAME')
 
 # calculate the loss
 cost = tf.reduce_mean(tf.square(final_output-y))
