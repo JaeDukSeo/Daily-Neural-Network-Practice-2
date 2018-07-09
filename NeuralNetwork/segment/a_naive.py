@@ -266,18 +266,6 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-for xx in range(10):
-    plt.imshow(train_batch[xx])
-    plt.show()
-    plt.imshow(np.squeeze(train_label[xx]),cmap='gray')
-    plt.show()
-    plt.imshow(test_batch[xx])
-    plt.show()
-    plt.imshow(np.squeeze(test_label[xx]),cmap='gray')
-    plt.show()
-
-sys.exit()
-
 # hyper parameter 10000
 num_epoch = 201
 batch_size = 10
@@ -295,11 +283,11 @@ el3 = CNN(3,512,1024)
 dl1 = CNN_Trans(3,512,1024)
 dl2 = CNN_Trans(3,256,512)
 dl3 = CNN_Trans(3,128,256)
-final_cnn = CNN(3,128,3,tf_sigmoid,d_tf_sigmoid)
+final_cnn = CNN(3,128,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
-x = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32,name="input")
-y = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32,name="output")
+x = tf.placeholder(shape=[None,64,64,3],dtype=tf.float32,name="input")
+y = tf.placeholder(shape=[None,64,64,1],dtype=tf.float32,name="output")
 
 # encoder
 elayer1 = el1.feedforward(x,padding='SAME')
@@ -315,26 +303,24 @@ dlayer3 = dl3.feedforward(dlayer2,stride=2,padding='SAME')
 final_output = final_cnn.feedforward(dlayer3,padding='SAME')
 
 # calculate the loss
-cost = tf.reduce_mean(tf.square(final_output-y))
+cost = tf.reduce_mean(tf.square(final_output-y)) * 0.5
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # manual back prop
-# log_loss_back = tf.reshape((final_output_vec - final_x)/(final_output_vec*(1-final_output_vec)),[batch_size,28,28,1])
-# final_grad,final_grad_up = final_cnn.backprop(log_loss_back)
-# dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2,padding='SAME')
-# dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2,padding='SAME')
-# dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
-# dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
+final_grad,final_grad_up = final_cnn.backprop(final_output-y,padding='SAME')
+dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2,padding='SAME')
+dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2,padding='SAME')
+dgrad1,dgrad1_up = dl1.backprop(dgrad2,stride=1,padding='SAME')
 
-# egrad3,egrad3_up = el3.backprop(dgrad1)
-# egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,512]),[1,2,2,1])
-# egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
-# egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
-# egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
+egrad3,egrad3_up = el3.backprop(dgrad1)
+egrad2_Input = tf_repeat(egrad3,[1,2,2,1])
+egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
+egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
+egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
 
-# grad_update = final_grad_up + \
-#               dgrad3_up + dgrad2_up + dgrad1_up + \
-#               egrad3_up + egrad2_up + egrad1_up
+grad_update = final_grad_up + \
+              dgrad3_up + dgrad2_up + dgrad1_up + \
+              egrad3_up + egrad2_up + egrad1_up
 
 
 # sess
@@ -400,41 +386,4 @@ with tf.Session() as sess:
     plt.savefig("viz/Case Train.png")
     plt.close('all')
 
-
-    sys.exit()
-    # generate the 3D plot figure
-    test_batch = train_batch[:1000]
-    test_label = train_label[:1000]
-    test_latent = sess.run(elayer3,feed_dict={x:test_batch[:batch_size,:,:,:]})
-    for iii in range(batch_size,len(test_batch),batch_size):
-        temp = sess.run(elayer3,feed_dict={x:test_batch[iii:batch_size+iii,:,:,:]})
-        test_latent = np.vstack((test_latent,temp))
-    from mpl_toolkits.mplot3d import Axes3D
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    color_dict = {
-        0:'red',
-        1:'blue',
-        2:'green',
-        3:'yellow',
-        4:'purple',
-        5:'grey',
-        6:'black',
-        7:'violet',
-        8:'silver',
-        9:'cyan',
-    }
-
-    color_mapping = [color_dict[x] for x in np.argmax(test_label,1) ]
-    ax.scatter(test_latent[:,0], test_latent[:,1],test_latent[:,2],c=color_mapping,label=str(color_dict))
-    ax.set_xlabel('X Label')
-    ax.set_ylabel('Y Label')
-    ax.set_zlabel('Z Label')
-    ax.legend()
-    ax.grid(True)
-    plt.show()
-
-
-    
 # -- end code --
