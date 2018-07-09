@@ -267,11 +267,11 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter 10000
-num_epoch = 8
+num_epoch = 4
 batch_size = 10
 print_size = 2
 
-learning_rate = 0.00008
+learning_rate = 0.00003
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
@@ -346,6 +346,7 @@ with tf.Session() as sess:
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
+        # For every print iteration save changes
         if iter % print_size==0:
             print("\n--------------")
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size)),end='\n')
@@ -441,6 +442,52 @@ with tf.Session() as sess:
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 
+    # Since all of the trainig is done create final test
+    for batch_size_index in range(0,len(test_batch),batch_size):
+        current_batch = test_batch[batch_size_index:batch_size_index+batch_size]
+        current_batch_labek = test_label[batch_size_index:batch_size_index+batch_size]
+        sess_result = sess.run(final_output,feed_dict={x:current_batch,y:current_batch_labek})
+
+        for sess_index in range(len(sess_result)):
+            sess_results = sess_result[sess_index]
+            test_example = test_batch[sess_index,:,:,:]
+            test_example_gt = test_label[sess_index,:,:,:]
+
+            plt.figure()
+            plt.imshow(np.squeeze(test_example))
+            plt.axis('off')
+            plt.title('Original Image')
+            plt.savefig('viz/'+str(sess_index)+"a_Original_Image.png",bbox_inches='tight')
+            plt.close('all')
+
+            plt.figure()
+            plt.imshow(np.squeeze(test_example_gt),cmap='gray')
+            plt.axis('off')
+            plt.title('Original Image Mask')
+            plt.savefig('viz/'+str(sess_index)+"b_Original_Image_mask.png",bbox_inches='tight')
+            plt.close('all')
+
+            plt.figure()
+            plt.imshow(test_example_gt*test_example)
+            plt.axis('off')
+            plt.title('Original Image Mask')
+            plt.savefig('viz/'+str(sess_index)+"c_Original_Image_overlay.png",bbox_inches='tight')
+            plt.close('all')
+  
+            plt.figure()
+            plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
+            plt.axis('off')
+            plt.title('Generated Mask')
+            plt.savefig('viz/'+str(sess_index)+"d_Generated_Mask.png",bbox_inches='tight')
+            plt.close('all')
+
+            plt.figure()
+            plt.imshow(sess_results.astype(np.float32)*test_example)
+            plt.axis('off')
+            plt.title('Generated Mask')
+            plt.savefig('viz/'+str(sess_index)+"e_Generated_Mask_overlay.png",bbox_inches='tight')
+            plt.close('all')
+
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
 
@@ -449,8 +496,8 @@ with tf.Session() as sess:
     plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
-    plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("viz/Case Train.png")
+    plt.title("Train Average Accuracy/Cost Over Time")
+    plt.savefig("viz/z_Case Train.png")
     plt.close('all')
 
 # -- end code --
