@@ -267,7 +267,7 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter 10000
-num_epoch = 201
+num_epoch = 8
 batch_size = 10
 print_size = 2
 
@@ -322,7 +322,6 @@ grad_update = final_grad_up + \
               dgrad3_up + dgrad2_up + dgrad1_up + \
               egrad3_up + egrad2_up + egrad1_up
 
-
 # sess
 with tf.Session() as sess:
 
@@ -338,6 +337,7 @@ with tf.Session() as sess:
     for iter in range(num_epoch):
 
         train_batch,train_label = shuffle(train_batch,train_label)
+        test_batch,test_label = shuffle(test_batch,test_label)
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
@@ -351,26 +351,93 @@ with tf.Session() as sess:
             print('Train Current cost: ', train_cota/(len(train_batch)/(batch_size)),end='\n')
             print("----------")
 
-        if iter % 2 == 0:
+            # Get one example from training batch
             test_example = train_batch[:batch_size,:,:,:]
+            test_example_gt = train_label[:batch_size,:,:,:]
             sess_results = sess.run([final_output],feed_dict={x:test_example})
-
             sess_results = sess_results[0][0,:,:,:]
             test_example = test_example[0,:,:,:]
+            test_example_gt = test_example_gt[0,:,:,:]
 
             plt.figure()
-            plt.imshow(np.squeeze(test_example),cmap='gray')
+            plt.imshow(np.squeeze(test_example))
             plt.axis('off')
             plt.title('Original Image')
-            plt.savefig('train_change/'+str(iter)+"a_Original_Image.png",bbox_inches='tight')
+            plt.savefig('train_change_train/'+str(iter)+"a_Original_Image.png",bbox_inches='tight')
+            plt.close('all')
 
+            plt.figure()
+            plt.imshow(np.squeeze(test_example_gt),cmap='gray')
+            plt.axis('off')
+            plt.title('Original Image Mask')
+            plt.savefig('train_change_train/'+str(iter)+"b_Original_Image_mask.png",bbox_inches='tight')
+            plt.close('all')
+
+            plt.figure()
+            plt.imshow(test_example_gt*test_example)
+            plt.axis('off')
+            plt.title('Original Image Mask')
+            plt.savefig('train_change_train/'+str(iter)+"c_Original_Image_overlay.png",bbox_inches='tight')
+            plt.close('all')
+  
             plt.figure()
             plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
             plt.axis('off')
             plt.title('Generated Mask')
-            plt.savefig('train_change/'+str(iter)+"c_Generated_Mask.png",bbox_inches='tight')
+            plt.savefig('train_change_train/'+str(iter)+"d_Generated_Mask.png",bbox_inches='tight')
             plt.close('all')
 
+            plt.figure()
+            plt.imshow(sess_results.astype(np.float32)*test_example)
+            plt.axis('off')
+            plt.title('Generated Mask')
+            plt.savefig('train_change_train/'+str(iter)+"e_Generated_Mask_overlay.png",bbox_inches='tight')
+            plt.close('all')
+
+            # Get one Example from test batch
+            test_example = test_batch[:batch_size,:,:,:]
+            test_example_gt = test_label[:batch_size,:,:,:]
+            sess_results = sess.run([final_output],feed_dict={x:test_example})
+            sess_results = sess_results[0][0,:,:,:]
+            test_example = test_example[0,:,:,:]
+            test_example_gt = test_example_gt[0,:,:,:]
+
+            plt.figure()
+            plt.imshow(np.squeeze(test_example))
+            plt.axis('off')
+            plt.title('Original Image')
+            plt.savefig('train_change_test/'+str(iter)+"a_Original_Image.png",bbox_inches='tight')
+            plt.close('all')
+
+            plt.figure()
+            plt.imshow(np.squeeze(test_example_gt),cmap='gray')
+            plt.axis('off')
+            plt.title('Original Image Mask')
+            plt.savefig('train_change_test/'+str(iter)+"b_Original_Image_mask.png",bbox_inches='tight')
+            plt.close('all')
+
+            plt.figure()
+            plt.imshow(test_example_gt*test_example)
+            plt.axis('off')
+            plt.title('Original Image Mask')
+            plt.savefig('train_change_test/'+str(iter)+"c_Original_Image_overlay.png",bbox_inches='tight')
+            plt.close('all')
+  
+            plt.figure()
+            plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
+            plt.axis('off')
+            plt.title('Generated Mask')
+            plt.savefig('train_change_test/'+str(iter)+"d_Generated_Mask.png",bbox_inches='tight')
+            plt.close('all')
+
+            plt.figure()
+            plt.imshow(sess_results.astype(np.float32)*test_example)
+            plt.axis('off')
+            plt.title('Generated Mask')
+            plt.savefig('train_change_test/'+str(iter)+"e_Generated_Mask_overlay.png",bbox_inches='tight')
+            plt.close('all')
+
+        # sort the training error
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 
