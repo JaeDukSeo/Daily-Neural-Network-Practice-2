@@ -267,11 +267,11 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter 10000
-num_epoch = 4
+num_epoch = 101
 batch_size = 10
 print_size = 2
 
-learning_rate = 0.00003
+learning_rate = 0.000003
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
@@ -304,7 +304,7 @@ final_output = final_cnn.feedforward(dlayer3,padding='SAME')
 
 # calculate the loss
 cost = tf.reduce_mean(tf.square(final_output-y)) * 0.5
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # manual back prop
 final_grad,final_grad_up = final_cnn.backprop(final_output-y,padding='SAME')
@@ -342,7 +342,7 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_labek = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,auto_train],feed_dict={x:current_batch,y:current_batch_labek})
+            sess_result = sess.run([cost,grad_update],feed_dict={x:current_batch,y:current_batch_labek})
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
@@ -457,35 +457,35 @@ with tf.Session() as sess:
             plt.imshow(np.squeeze(test_example))
             plt.axis('off')
             plt.title('Original Image')
-            plt.savefig('viz/'+str(sess_index)+"a_Original_Image.png",bbox_inches='tight')
+            plt.savefig('viz/'+str(batch_size_index)+str(sess_index)+"a_Original_Image.png",bbox_inches='tight')
             plt.close('all')
 
             plt.figure()
             plt.imshow(np.squeeze(test_example_gt),cmap='gray')
             plt.axis('off')
             plt.title('Original Image Mask')
-            plt.savefig('viz/'+str(sess_index)+"b_Original_Image_mask.png",bbox_inches='tight')
+            plt.savefig('viz/'+str(batch_size_index)+str(sess_index)+"b_Original_Image_mask.png",bbox_inches='tight')
             plt.close('all')
 
             plt.figure()
             plt.imshow(test_example_gt*test_example)
             plt.axis('off')
             plt.title('Original Image Mask')
-            plt.savefig('viz/'+str(sess_index)+"c_Original_Image_overlay.png",bbox_inches='tight')
+            plt.savefig('viz/'+str(batch_size_index)+str(sess_index)+"c_Original_Image_overlay.png",bbox_inches='tight')
             plt.close('all')
   
             plt.figure()
             plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
             plt.axis('off')
             plt.title('Generated Mask')
-            plt.savefig('viz/'+str(sess_index)+"d_Generated_Mask.png",bbox_inches='tight')
+            plt.savefig('viz/'+str(batch_size_index)+str(sess_index)+"d_Generated_Mask.png",bbox_inches='tight')
             plt.close('all')
 
             plt.figure()
             plt.imshow(sess_results.astype(np.float32)*test_example)
             plt.axis('off')
             plt.title('Generated Mask')
-            plt.savefig('viz/'+str(sess_index)+"e_Generated_Mask_overlay.png",bbox_inches='tight')
+            plt.savefig('viz/'+str(batch_size_index)+str(sess_index)+"e_Generated_Mask_overlay.png",bbox_inches='tight')
             plt.close('all')
 
     # Normalize the cost of the training
