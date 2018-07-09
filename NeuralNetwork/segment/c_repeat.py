@@ -266,12 +266,12 @@ print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-# hyper parameter 10000
+# hyper parameter 
 num_epoch = 101
 batch_size = 10
 print_size = 2
 
-learning_rate = 0.000003
+learning_rate = 0.0000003
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
@@ -280,9 +280,9 @@ el1 = CNN(3,3,256)
 el2 = CNN(3,256,512)
 el3 = CNN(3,512,1024)
 
-dl1 = CNN_Trans(3,512,1024)
-dl2 = CNN_Trans(3,256,512)
-dl3 = CNN_Trans(3,128,256)
+dl1 = CNN(3,1024,512)
+dl2 = CNN(3,512,256)
+dl3 = CNN(3,256,128)
 final_cnn = CNN(3,128,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
@@ -297,30 +297,30 @@ elayer3_input = tf.nn.avg_pool(elayer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding
 elayer3 = el3.feedforward(elayer3_input,padding='SAME')
 
 # edcoder
-dlayer1 = dl1.feedforward(elayer3,stride=1,padding='SAME')
-dlayer2 = dl2.feedforward(dlayer1,stride=2,padding='SAME')
-dlayer3 = dl3.feedforward(dlayer2,stride=2,padding='SAME')
+dlayer1 = dl1.feedforward(elayer3,padding='SAME')
+dlayer2 = dl2.feedforward(tf_repeat(dlayer1,[1,2,2,1]),padding='SAME')
+dlayer3 = dl3.feedforward(tf_repeat(dlayer2,[1,2,2,1]),padding='SAME')
 final_output = final_cnn.feedforward(dlayer3,padding='SAME')
 
 # calculate the loss
 cost = tf.reduce_mean(tf.square(final_output-y)) * 0.5
-# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # manual back prop
-final_grad,final_grad_up = final_cnn.backprop(final_output-y,padding='SAME')
-dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2,padding='SAME')
-dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2,padding='SAME')
-dgrad1,dgrad1_up = dl1.backprop(dgrad2,stride=1,padding='SAME')
+# final_grad,final_grad_up = final_cnn.backprop(final_output-y,padding='SAME')
+# dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=1,padding='SAME')
+# dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=1,padding='SAME')
+# dgrad1,dgrad1_up = dl1.backprop(dgrad2,stride=1,padding='SAME')
 
-egrad3,egrad3_up = el3.backprop(dgrad1)
-egrad2_Input = tf_repeat(egrad3,[1,2,2,1])
-egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
-egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
-egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
+# egrad3,egrad3_up = el3.backprop(dgrad1)
+# egrad2_Input = tf_repeat(egrad3,[1,2,2,1])
+# egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
+# egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
+# egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
 
-grad_update = final_grad_up + \
-              dgrad3_up + dgrad2_up + dgrad1_up + \
-              egrad3_up + egrad2_up + egrad1_up
+# grad_update = final_grad_up + \
+#               dgrad3_up + dgrad2_up + dgrad1_up + \
+#               egrad3_up + egrad2_up + egrad1_up
 
 # sess
 with tf.Session() as sess:
@@ -342,7 +342,7 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_labek = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,grad_update],feed_dict={x:current_batch,y:current_batch_labek})
+            sess_result = sess.run([cost,auto_train],feed_dict={x:current_batch,y:current_batch_labek})
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
