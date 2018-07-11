@@ -248,10 +248,10 @@ train_label = train_label[:10000]
 
 # hyper parameter 
 num_epoch = 21
-batch_size = 10
+batch_size = 20
 print_size = 2
 
-learning_rate = 0.0001
+learning_rate = 0.0003
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
@@ -286,7 +286,7 @@ elayer3_flatten_changed = tf.matmul(elayer3_flatten,e_vector)
 elayer3 = el3.feedforward(elayer3_flatten_changed)
 
 # decoder
-dlayer1 = dl1.feedforward(d_layer_input)
+dlayer1 = dl1.feedforward(elayer3)
 dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,512])
 dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2,padding='SAME')
 dlayer3 = dl3.feedforward(dlayer2,stride=2,padding='SAME')
@@ -396,37 +396,5 @@ with tf.Session() as sess:
     ax.grid(True)
     plt.show()
     plt.close('all')
-    
-    # next show the transformed after co varience
-    test_latent = sess.run(d_layer_input,feed_dict={x:test_batch[:batch_size,:,:,:]})
-    for iii in range(batch_size,len(test_batch),batch_size):
-        temp = sess.run(d_layer_input,feed_dict={x:test_batch[iii:batch_size+iii,:,:,:]})
-        test_latent = np.vstack((test_latent,temp))
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    color_dict = {
-        0:'red',
-        1:'blue',
-        2:'green',
-        3:'yellow',
-        4:'purple',
-        5:'grey',
-        6:'black',
-        7:'violet',
-        8:'silver',
-        9:'cyan',
-    }
-
-    color_mapping = [color_dict[x] for x in np.argmax(test_label,1) ]
-    ax.scatter(test_latent[:,0], test_latent[:,1],test_latent[:,2],c=color_mapping,label=str(color_dict))
-    ax.set_xlabel('X Label')
-    ax.set_ylabel('Y Label')
-    ax.set_zlabel('Z Label')
-    ax.legend()
-    ax.grid(True)
-    plt.show()
-
 
 # -- end code --

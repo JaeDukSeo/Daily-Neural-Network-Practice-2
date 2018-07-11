@@ -282,8 +282,9 @@ elayer3 = el3.feedforward(elayer3_flatten)
 mean_data = tf.reduce_mean(elayer3,0)
 center_matrix = elayer3 - mean_data
 covarience_matrix = tf.matmul(tf.transpose(center_matrix),center_matrix) / batch_size   
-e_value,e_vector = tf.linalg.eigh(covarience_matrix)
-d_layer_input = tf.matmul(tf.matmul(elayer3,e_vector),network_effect)
+covarience_matrix2 = tf.matmul(covarience_matrix,network_effect)
+e_value,e_vector = tf.linalg.eigh(covarience_matrix2)
+d_layer_input = tf.matmul(elayer3,e_vector)
 
 # decoder
 dlayer1 = dl1.feedforward(d_layer_input)
