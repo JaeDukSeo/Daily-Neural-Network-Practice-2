@@ -256,14 +256,14 @@ learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-el1 = CNN(3,1,32)
-el2 = CNN(3,32,32)
-el3 = FNN(7*7*32,3,tf_iden,d_tf_iden)
+el1 = CNN(3,1,512)
+el2 = CNN(3,512,512)
+el3 = FNN(7*7*512,3,tf_iden,d_tf_iden)
 
-dl1 = FNN(3,7*7*32,tf_iden,d_tf_iden)
-dl2 = CNN_Trans(3,32,32)
-dl3 = CNN_Trans(3,16,32)
-final_cnn = CNN(3,16,1,tf_sigmoid,d_tf_sigmoid)
+dl1 = FNN(3,7*7*512,tf_iden,d_tf_iden)
+dl2 = CNN_Trans(3,512,512)
+dl3 = CNN_Trans(3,256,512)
+final_cnn = CNN(3,256,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32,name="input")
@@ -274,20 +274,11 @@ elayer2_input = tf.nn.avg_pool(elayer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding
 elayer2 = el2.feedforward(elayer2_input,padding='SAME')
 elayer3_input = tf.nn.avg_pool(elayer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
-
-# co varience matrix and eign values
-mean_data = tf.reduce_mean(elayer3_flatten,0)
-center_matrix = elayer3_flatten - mean_data
-covarience_matrix = tf.matmul(tf.transpose(center_matrix),center_matrix) / batch_size   
-e_value,e_vector = tf.linalg.eigh(covarience_matrix)
-elayer3_flatten_changed = tf.matmul(elayer3_flatten,e_vector)
-
-# finish the feed forward
-elayer3 = el3.feedforward(elayer3_flatten_changed)
+elayer3 = el3.feedforward(elayer3_flatten)
 
 # decoder
 dlayer1 = dl1.feedforward(elayer3)
-dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,32])
+dlayer2_reshape = tf.reshape(dlayer1,[batch_size,7,7,512])
 dlayer2 = dl2.feedforward(dlayer2_reshape,stride=2,padding='SAME')
 dlayer3 = dl3.feedforward(dlayer2,stride=2,padding='SAME')
 final_output = final_cnn.feedforward(dlayer3)
@@ -396,5 +387,6 @@ with tf.Session() as sess:
     ax.grid(True)
     plt.show()
     plt.close('all')
+    
 
 # -- end code --
