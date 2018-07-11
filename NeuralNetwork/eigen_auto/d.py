@@ -25,8 +25,8 @@ ia.seed(6278)
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
 
-def tf_tanh(x): return 2 * tf.nn.tanh(x)
-def d_tf_tanh(x): return 2 * (1 - tf_tanh(x) ** 2)
+def tf_tanh(x): return tf.nn.tanh(x)
+def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
 
 def tf_sigmoid(x): return tf.nn.sigmoid(x) 
 def d_tf_sigmoid(x): return tf_sigmoid(x) * (1.0-tf_sigmoid(x))
@@ -246,24 +246,24 @@ test_batch = test_batch/255.0
 train_batch = train_batch[:10000]
 train_label = train_label[:10000]
 
-# hyper parameter 10000
+# hyper parameter 
 num_epoch = 21
 batch_size = 10
 print_size = 2
 
-learning_rate = 0.00008
+learning_rate = 0.0001
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-el1 = CNN(3,1,256)
-el2 = CNN(3,256,512)
+el1 = CNN(3,1,512)
+el2 = CNN(3,512,512)
 el3 = FNN(7*7*512,3,tf_tanh,d_tf_tanh)
 
 dl1 = FNN(3,7*7*512,tf_tanh,d_tf_tanh)
-dl2 = CNN_Trans(3,256,512)
-dl3 = CNN_Trans(3,128,256)
-final_cnn = CNN(3,128,1,tf_sigmoid,d_tf_sigmoid)
+dl2 = CNN_Trans(3,512,512)
+dl3 = CNN_Trans(3,256,512)
+final_cnn = CNN(3,256,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32,name="input")
@@ -279,7 +279,7 @@ elayer3 = el3.feedforward(elayer3_flatten)
 # co varience matrix and eign values
 mean_data = tf.reduce_mean(elayer3,0)
 center_matrix = elayer3 - mean_data
-covarience_matrix = tf.matmul(tf.transpose(center_matrix),center_matrix)
+covarience_matrix = tf.matmul(tf.transpose(center_matrix),center_matrix) / batch_size   
 e_value,e_vector = tf.linalg.eigh(covarience_matrix)
 d_layer_input = tf.matmul(elayer3,e_vector)
 
@@ -293,10 +293,9 @@ final_output = final_cnn.feedforward(dlayer3)
 # calculate the loss
 final_output_vec = tf.reshape(final_output,[batch_size,-1])
 final_x = tf.reshape(x,[batch_size,-1])
-cost = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-
-sys.exit()
+cost1 = tf.reduce_mean(tf.square(final_output-x))
+cost2 = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost1 + cost2)
 
 # sess
 with tf.Session() as sess:
@@ -317,9 +316,9 @@ with tf.Session() as sess:
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,grad_update],feed_dict={x:current_batch})
-            print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
-            train_cota = train_cota + sess_result[0]
+            sess_result = sess.run([cost1,cost2,auto_train],feed_dict={x:current_batch})
+            print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0]+sess_result[1],end='\r')
+            train_cota = train_cota + sess_result[0] + sess_result[1]
 
         if iter % print_size==0:
             print("\n--------------")
@@ -343,7 +342,7 @@ with tf.Session() as sess:
             plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
             plt.axis('off')
             plt.title('Generated Mask')
-            plt.savefig('train_change/'+str(iter)+"c_Generated_Mask.png",bbox_inches='tight')
+            plt.savefig('train_change/'+str(iter)+"b_Reconstructed_Image.png",bbox_inches='tight')
             plt.close('all')
 
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
@@ -361,7 +360,7 @@ with tf.Session() as sess:
     plt.savefig("viz/Case Train.png")
     plt.close('all')
 
-    # generate the 3D plot figure
+    # after all of the training generate the 3D plot figure
     test_batch = train_batch[:1000]
     test_label = train_label[:1000]
 
@@ -395,4 +394,38 @@ with tf.Session() as sess:
     ax.legend()
     ax.grid(True)
     plt.show()
+    plt.close('all')
+    
+    # next show the transformed after co varience
+    test_latent = sess.run(d_layer_input,feed_dict={x:test_batch[:batch_size,:,:,:]})
+    for iii in range(batch_size,len(test_batch),batch_size):
+        temp = sess.run(d_layer_input,feed_dict={x:test_batch[iii:batch_size+iii,:,:,:]})
+        test_latent = np.vstack((test_latent,temp))
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    color_dict = {
+        0:'red',
+        1:'blue',
+        2:'green',
+        3:'yellow',
+        4:'purple',
+        5:'grey',
+        6:'black',
+        7:'violet',
+        8:'silver',
+        9:'cyan',
+    }
+
+    color_mapping = [color_dict[x] for x in np.argmax(test_label,1) ]
+    ax.scatter(test_latent[:,0], test_latent[:,1],test_latent[:,2],c=color_mapping,label=str(color_dict))
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    ax.legend()
+    ax.grid(True)
+    plt.show()
+
+
 # -- end code --

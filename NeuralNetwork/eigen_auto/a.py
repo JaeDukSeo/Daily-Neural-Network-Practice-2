@@ -248,7 +248,7 @@ train_label = train_label[:10000]
 
 # hyper parameter 
 num_epoch = 21
-batch_size = 10
+batch_size = 20
 print_size = 2
 
 learning_rate = 0.0001
@@ -312,7 +312,7 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        train_batch,train_label = shuffle(train_batch,train_label)
+        # train_batch,train_label = shuffle(train_batch,train_label)
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
