@@ -257,12 +257,12 @@ beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
 el1 = CNN(3,1,512)
-el2 = FNN(14*14*512,50,tf_tanh,d_tf_tanh)
-el3 = FNN(50,50,tf_tanh,d_tf_tanh)
-el4 = FNN(50,3,tf_tanh,d_tf_tanh)
+el2 = FNN(14*14*512,30,tf_tanh,d_tf_tanh)
+el3 = FNN(30,25,tf_tanh,d_tf_tanh)
+el4 = FNN(25,3,tf_tanh,d_tf_tanh)
 
-dl0 = FNN(3,50,tf_tanh ,d_tf_tanh)
-dl1 = FNN(50,7*7*512,tf_tanh,d_tf_tanh)
+dl0 = FNN(3,150,tf_tanh ,d_tf_tanh)
+dl1 = FNN(150,7*7*512,tf_tanh,d_tf_tanh)
 dl2 = CNN_Trans(3,512,512)
 dl3 = CNN_Trans(3,256,512)
 final_cnn = CNN(3,256,1,tf_sigmoid,d_tf_sigmoid)
@@ -374,7 +374,7 @@ with tf.Session() as sess:
     test_batch = train_batch[:1000]
     test_label = train_label[:1000]
 
-    test_latent = sess.run(elayer3,feed_dict={x:test_batch[:batch_size,:,:,:]})
+    test_latent = sess.run(elayer4,feed_dict={x:test_batch[:batch_size,:,:,:]})
     for iii in range(batch_size,len(test_batch),batch_size):
         temp = sess.run(elayer4,feed_dict={x:test_batch[iii:batch_size+iii,:,:,:]})
         test_latent = np.vstack((test_latent,temp))
