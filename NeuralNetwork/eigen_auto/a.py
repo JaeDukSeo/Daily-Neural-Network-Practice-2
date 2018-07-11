@@ -247,23 +247,23 @@ train_batch = train_batch[:10000]
 train_label = train_label[:10000]
 
 # hyper parameter 
-num_epoch = 51
+num_epoch = 21
 batch_size = 10
 print_size = 2
 
-learning_rate = 0.00008
+learning_rate = 0.0001
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-el1 = CNN(3,1,256)
-el2 = CNN(3,256,512)
+el1 = CNN(3,1,512)
+el2 = CNN(3,512,512)
 el3 = FNN(7*7*512,3,tf_iden,d_tf_iden)
 
 dl1 = FNN(3,7*7*512,tf_iden,d_tf_iden)
-dl2 = CNN_Trans(3,256,512)
-dl3 = CNN_Trans(3,128,256)
-final_cnn = CNN(3,128,1,tf_sigmoid,d_tf_sigmoid)
+dl2 = CNN_Trans(3,512,512)
+dl3 = CNN_Trans(3,256,512)
+final_cnn = CNN(3,256,1,tf_sigmoid,d_tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32,name="input")
