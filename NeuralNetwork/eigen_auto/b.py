@@ -248,10 +248,10 @@ train_label = train_label[:10000]
 
 # hyper parameter 
 num_epoch = 21
-batch_size = 10
+batch_size = 20
 print_size = 2
 
-learning_rate = 0.0001
+learning_rate = 0.0003
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
@@ -314,8 +314,6 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        train_batch,train_label = shuffle(train_batch,train_label)
-
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             sess_result = sess.run([cost1,cost2,auto_train],feed_dict={x:current_batch})
@@ -331,8 +329,9 @@ with tf.Session() as sess:
             test_example = train_batch[:batch_size,:,:,:]
             sess_results = sess.run([final_output],feed_dict={x:test_example})
 
-            sess_results = sess_results[0][0,:,:,:]
-            test_example = test_example[0,:,:,:]
+            random_choosen = np.random.randint(0,batch_size)
+            sess_results = sess_results[0][random_choosen,:,:,:]
+            test_example = test_example[random_choosen,:,:,:]
 
             plt.figure()
             plt.imshow(np.squeeze(test_example),cmap='gray')
