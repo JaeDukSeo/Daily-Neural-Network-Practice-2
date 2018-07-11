@@ -241,6 +241,7 @@ train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 train_batch = train_batch[:10000]
 train_label = train_label[:10000]
+sys.exit()
 
 # hyper parameter 10000
 num_epoch = 21
@@ -282,26 +283,8 @@ final_output = final_cnn.feedforward(dlayer3)
 # calculate the loss
 final_output_vec = tf.reshape(final_output,[batch_size,-1])
 final_x = tf.reshape(x,[batch_size,-1])
-reconstr_loss = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
-cost = reconstr_loss
-
-# manual back prop
-log_loss_back = tf.reshape((final_output_vec - final_x)/(final_output_vec*(1-final_output_vec)),[batch_size,28,28,1])
-final_grad,final_grad_up = final_cnn.backprop(log_loss_back)
-dgrad3,dgrad3_up = dl3.backprop(final_grad,stride=2,padding='SAME')
-dgrad2,dgrad2_up = dl2.backprop(dgrad3,stride=2,padding='SAME')
-dgrad1_Input = tf.reshape(dgrad2,[batch_size,-1])
-dgrad1,dgrad1_up = dl1.backprop(dgrad1_Input)
-
-egrad3,egrad3_up = el3.backprop(dgrad1)
-egrad2_Input = tf_repeat(tf.reshape(egrad3,[batch_size,7,7,512]),[1,2,2,1])
-egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
-egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
-egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
-
-grad_update = final_grad_up + \
-              dgrad3_up + dgrad2_up + dgrad1_up + \
-              egrad3_up + egrad2_up + egrad1_up
+cost = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # sess
 with tf.Session() as sess:
