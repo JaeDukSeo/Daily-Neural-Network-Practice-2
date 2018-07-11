@@ -248,21 +248,19 @@ train_label = train_label[:10000]
 
 # hyper parameter 
 num_epoch = 21
-batch_size = 20
+batch_size = 10
 print_size = 2
 
-learning_rate = 0.0003
+learning_rate = 0.0001
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
 el1 = CNN(3,1,512)
 el2 = CNN(3,512,512)
-el3 = FNN(7*7*512,3,tf_tanh,d_tf_iden)
+el3 = FNN(7*7*512,3,tf_tanh,d_tf_tanh)
 
-network_effect = tf.random_uniform([3,3],0,1)
-
-dl1 = FNN(3,7*7*512,tf_tanh,d_tf_iden)
+dl1 = FNN(3,7*7*512,tf_tanh,d_tf_tanh)
 dl2 = CNN_Trans(3,512,512)
 dl3 = CNN_Trans(3,256,512)
 final_cnn = CNN(3,256,1,tf_sigmoid,d_tf_sigmoid)
@@ -282,8 +280,7 @@ elayer3 = el3.feedforward(elayer3_flatten)
 mean_data = tf.reduce_mean(elayer3,0)
 center_matrix = elayer3 - mean_data
 covarience_matrix = tf.matmul(tf.transpose(center_matrix),center_matrix) / batch_size   
-covarience_matrix2 = tf.matmul(covarience_matrix,network_effect)
-e_value,e_vector = tf.linalg.eigh(covarience_matrix2)
+e_value,e_vector = tf.linalg.eigh(covarience_matrix)
 d_layer_input = tf.matmul(elayer3,e_vector)
 
 # decoder
@@ -314,6 +311,7 @@ with tf.Session() as sess:
 
     # start the training
     for iter in range(num_epoch):
+
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]

@@ -1,0 +1,44 @@
+Current Iter :  0  current batch:  9980  Current cost:  3388.8691
+--------------
+Train Current cost:  4274.688518112585
+----------
+Current Iter :  2  current batch:  9980  Current cost:  3187.1775
+--------------
+Train Current cost:  3945.89298315914
+----------
+Current Iter :  4  current batch:  9980  Current cost:  3184.5168
+--------------
+Train Current cost:  3907.6357226123587
+----------
+Current Iter :  6  current batch:  9980  Current cost:  3084.6987
+--------------
+Train Current cost:  3882.76695596727
+----------
+Current Iter :  8  current batch:  9980  Current cost:  3044.2827
+--------------
+Train Current cost:  3853.5229677711354
+----------
+Current Iter :  10  current batch:  9980  Current cost:  3017.0696
+--------------
+Train Current cost:  3823.1305466314257
+----------
+Current Iter :  12  current batch:  9980  Current cost:  2996.8696
+--------------
+Train Current cost:  3828.8687930217534
+----------
+Current Iter :  14  current batch:  9980  Current cost:  2980.1255
+--------------
+Train Current cost:  3793.014158997804
+----------
+Current Iter :  16  current batch:  9980  Current cost:  2943.2827
+--------------
+Train Current cost:  3780.268428121902
+----------
+Current Iter :  18  current batch:  9980  Current cost:  2923.9058
+--------------
+Train Current cost:  3777.2274188135116
+----------
+Current Iter :  20  current batch:  9980  Current cost:  2946.7014
+--------------
+Train Current cost:  3763.542950397402
+----------
