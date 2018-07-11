@@ -321,7 +321,7 @@ with tf.Session() as sess:
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             sess_result = sess.run([cost1,cost2,auto_train],feed_dict={x:current_batch})
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0]+sess_result[1],end='\r')
-            train_cota = train_cota + sess_result[0]
+            train_cota = train_cota + sess_result[0] + sess_result[1]
 
         if iter % print_size==0:
             print("\n--------------")

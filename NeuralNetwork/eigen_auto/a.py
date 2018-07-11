@@ -293,8 +293,9 @@ final_output = final_cnn.feedforward(dlayer3)
 # calculate the loss
 final_output_vec = tf.reshape(final_output,[batch_size,-1])
 final_x = tf.reshape(x,[batch_size,-1])
-cost = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+cost1 = tf.reduce_mean(tf.square(final_output-x))
+cost2 = -tf.reduce_sum(final_x * tf.log(1e-10 + final_output_vec)+ (1-final_x) * tf.log(1e-10 + 1 - final_output_vec))
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost1 + cost2)
 
 # sess
 with tf.Session() as sess:
@@ -315,9 +316,9 @@ with tf.Session() as sess:
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,auto_train],feed_dict={x:current_batch})
-            print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
-            train_cota = train_cota + sess_result[0]
+            sess_result = sess.run([cost1,cost2,auto_train],feed_dict={x:current_batch})
+            print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0]+sess_result[1],end='\r')
+            train_cota = train_cota + sess_result[0] + sess_result[1]
 
         if iter % print_size==0:
             print("\n--------------")
@@ -401,7 +402,6 @@ with tf.Session() as sess:
         temp = sess.run(d_layer_input,feed_dict={x:test_batch[iii:batch_size+iii,:,:,:]})
         test_latent = np.vstack((test_latent,temp))
 
-    from mpl_toolkits.mplot3d import Axes3D
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
