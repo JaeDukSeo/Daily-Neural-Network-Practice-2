@@ -251,18 +251,18 @@ num_epoch = 21
 batch_size = 20
 print_size = 2
 
-learning_rate = 0.00003
+learning_rate = 0.0003
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
 el1 = CNN(3,1,512)
 el2 = CNN(3,512,512)
-el3 = FNN(7*7*512,50,tf_tanh,d_tf_iden)
-el4 = FNN(50,3,tf_iden,d_tf_iden)
+el3 = FNN(7*7*512,30,tf_tanh,d_tf_iden)
+el4 = FNN(30,3,tf_iden,d_tf_iden)
 
-dl0 = FNN(3,50,tf_iden ,d_tf_iden)
-dl1 = FNN(50,7*7*512,tf_tanh,d_tf_iden)
+dl0 = FNN(3,30,tf_iden ,d_tf_iden)
+dl1 = FNN(30,7*7*512,tf_tanh,d_tf_iden)
 dl2 = CNN_Trans(3,512,512)
 dl3 = CNN_Trans(3,256,512)
 final_cnn = CNN(3,256,1,tf_sigmoid,d_tf_sigmoid)
