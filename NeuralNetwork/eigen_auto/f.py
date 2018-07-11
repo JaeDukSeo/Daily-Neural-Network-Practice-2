@@ -257,12 +257,12 @@ beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
 el1 = CNN(3,1,512)
-el2 = FNN(14*14*512,30,tf_tanh,d_tf_tanh)
-el3 = FNN(30,25,tf_tanh,d_tf_tanh)
-el4 = FNN(25,3,tf_tanh,d_tf_tanh)
+el2 = FNN(14*14*512,100,tf_tanh,d_tf_tanh)
+el3 = FNN(100,100,tf_tanh,d_tf_tanh)
+el4 = FNN(100,3,tf_iden,d_tf_tanh)
 
-dl0 = FNN(3,150,tf_tanh ,d_tf_tanh)
-dl1 = FNN(150,7*7*512,tf_tanh,d_tf_tanh)
+dl0 = FNN(3,100,tf_iden ,d_tf_tanh)
+dl1 = FNN(100,7*7*512,tf_tanh,d_tf_tanh)
 dl2 = CNN_Trans(3,512,512)
 dl3 = CNN_Trans(3,256,512)
 final_cnn = CNN(3,256,1,tf_sigmoid,d_tf_sigmoid)
