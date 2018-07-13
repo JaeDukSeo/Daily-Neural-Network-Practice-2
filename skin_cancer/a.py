@@ -9,11 +9,9 @@ from skimage.transform import resize
 from imgaug import augmenters as iaa
 import imgaug as ia
 from skimage.color import rgba2rgb
+from sklearn.preprocessing import scale
+from sklearn.preprocessing import normalize
 import matplotlib
-
-old_v = tf.logging.get_verbosity()
-tf.logging.set_verbosity(tf.logging.ERROR)
-from tensorflow.examples.tutorials.mnist import input_data
 
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -223,7 +221,7 @@ class FNN():
 # ================= LAYER CLASSES =================
 
 # data 
-data_location =  "../Dataset/VOC2011/SegmentationClass/"
+data_location = "../Dataset/skin_cancer/ISIC-2017_Training_Part1_GroundTruth/"
 train_data_gt = []  # create an empty list
 only_file_name = []
 for dirName, subdirList, fileList in sorted(os.walk(data_location)):
@@ -232,68 +230,51 @@ for dirName, subdirList, fileList in sorted(os.walk(data_location)):
             train_data_gt.append(os.path.join(dirName,filename))
             only_file_name.append(filename[:-4])
 
-data_location = "../Dataset/VOC2011/JPEGImages/"
+data_location =  "../Dataset/skin_cancer/ISIC-2017_Training_Data/"
 train_data = []  # create an empty list
 for dirName, subdirList, fileList in sorted(os.walk(data_location)):
     for filename in fileList:
-        if ".jpg" in filename.lower() and filename.lower()[:-4] in  only_file_name:
+        if ".jpg" in filename.lower():
             train_data.append(os.path.join(dirName,filename))
 
-train_images = np.zeros(shape=(1000,128,128,3))
-train_labels = np.zeros(shape=(1000,128,128,3))
-
+# Declare the variable to store images and read the images
+train_images = np.zeros(shape=(200,128,128,3))
+train_labels = np.zeros(shape=(200,128,128,3))
 for file_index in range(len(train_images)):
     train_images[file_index,:,:]   = imresize(imread(train_data[file_index],mode='RGB'),(128,128))
     train_labels[file_index,:,:]   = imresize(imread(train_data_gt[file_index],mode='RGB'),(128,128))
-    # train_labels[file_index,:,:]   = np.expand_dims(imresize(imread(train_data_gt[file_index],mode='F',flatten=True),(128,128)),axis=3)
-    
-train_images[:,:,:,0]  = (train_images[:,:,:,0] - train_images[:,:,:,0].min(axis=0)) / (train_images[:,:,:,0].max(axis=0) - train_images[:,:,:,0].min(axis=0)+1e-10)
-train_images[:,:,:,1]  = (train_images[:,:,:,1] - train_images[:,:,:,1].min(axis=0)) / (train_images[:,:,:,1].max(axis=0) - train_images[:,:,:,1].min(axis=0)+1e-10)
-train_images[:,:,:,2]  = (train_images[:,:,:,2] - train_images[:,:,:,2].min(axis=0)) / (train_images[:,:,:,2].max(axis=0) - train_images[:,:,:,2].min(axis=0)+1e-10)
 
-train_labels[:,:,:,0]  = (train_labels[:,:,:,0] - train_labels[:,:,:,0].min(axis=0)) / (train_labels[:,:,:,0].max(axis=0) - train_labels[:,:,:,0].min(axis=0)+1e-10)
-train_labels[:,:,:,1]  = (train_labels[:,:,:,1] - train_labels[:,:,:,1].min(axis=0)) / (train_labels[:,:,:,1].max(axis=0) - train_labels[:,:,:,1].min(axis=0)+1e-10)
-train_labels[:,:,:,2]  = (train_labels[:,:,:,2] - train_labels[:,:,:,2].min(axis=0)) / (train_labels[:,:,:,2].max(axis=0) - train_labels[:,:,:,2].min(axis=0)+1e-10)
+# Normalize the images
+train_images_min = train_images.min(axis=(1,2), keepdims=True)
+train_images_max = train_images.max(axis=(1,2), keepdims=True)
+train_images = (train_images - train_images_min)/(train_images_max-train_images_min)
+train_labels_min = train_labels.min(axis=(1,2), keepdims=True)
+train_labels_max = train_labels.max(axis=(1,2), keepdims=True)
+train_labels = (train_labels - train_labels_min)/(train_labels_max-train_labels_min)
 
-test_image = train_images[900:,:,:,:]
-test_label = train_labels[900:,:,:,:]
-train_image = train_images[:900,:,:,:]
-train_label = train_labels[:900,:,:,:]
+# split into train and test batch
+split_number = 50
+train_batch = train_images[:-split_number]
+train_label = train_labels[:-split_number]
+test_batch  = train_images[-split_number:]
+test_label  = train_labels[-split_number:]
 
-# print out the data shape
-print(train_batch.shape)
-print(train_label.shape)
-print(test_batch.shape)
-print(test_label.shape)
-
-sys.exit()
-
-
-# data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-train, test = tf.keras.datasets.mnist.load_data()
-x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-train_batch = np.zeros((55000,28,28,1))
-test_batch = np.zeros((10000,28,28,1))
-for x in range(len(x_data)):
-    train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
-for x in range(len(y_data)):
-    test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
+for xx in range(10):
+    plt.imshow(train_batch[xx])
+    plt.show()
+    plt.imshow(train_label[xx])
+    plt.show()
+    plt.imshow(test_batch[xx])
+    plt.show()
+    plt.imshow(test_label[xx])
+    plt.show()
 
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
-
 sys.exit()
-
-train_batch = train_batch/255.0
-test_batch = test_batch/255.0
-train_batch = train_batch[:10000]
-train_label = train_label[:10000]
 
 # hyper parameter 
 num_epoch = 21
