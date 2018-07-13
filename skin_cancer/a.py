@@ -259,16 +259,6 @@ train_label = train_labels[:-split_number]
 test_batch  = train_images[-split_number:]
 test_label  = train_labels[-split_number:]
 
-for xx in range(10):
-    plt.imshow(train_batch[xx])
-    plt.show()
-    plt.imshow(train_label[xx])
-    plt.show()
-    plt.imshow(test_batch[xx])
-    plt.show()
-    plt.imshow(test_label[xx])
-    plt.show()
-
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
@@ -286,17 +276,18 @@ learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-el1 = CNN(3,1,512)
+el1 = CNN(3,3,512)
 el2 = CNN(3,512,512)
 el3 = FNN(7*7*512,3,tf_iden,d_tf_iden)
 
 dl1 = FNN(3,7*7*512,tf_iden,d_tf_iden)
 dl2 = CNN_Trans(3,512,512)
 dl3 = CNN_Trans(3,256,512)
-final_cnn = CNN(3,256,1,tf_sigmoid,d_tf_sigmoid)
+final_cnn = CNN(3,256,3,tf_sigmoid,d_tf_sigmoid)
 
 # graph
-x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32,name="input")
+x = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32,name="input")
+y = tf.placeholder(shape=[None,128,128,3],dtype=tf.float32,name="input")
 
 # encoder
 elayer1 = el1.feedforward(x,padding='SAME')
