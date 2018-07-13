@@ -12,16 +12,16 @@ print('The prob Matrix: ',prob)
 
 print('---------')
 print('The prob matrix after time')
-print('After 10 Days : \n',prob ** 10)
-print('After 100 Days : \n',prob ** 100)
-print('After 1000 Days : \n',prob ** 1000)
+print('After 2 Days : \n',prob ** 2)
+print('After 30 Days : \n',prob ** 30)
+print('After 365 Days : \n',prob ** 365)
 
 print('---------')
 print('---- Staring at Population 50 in Newyork, and 10 in California ----')
 population = np.array([50,10])
-print('After 10 Days : \n',(prob ** 10).dot(population))
-print('After 100 Days : \n',(prob ** 100).dot(population))
-print('After 1000 Days : \n',(prob ** 1000).dot(population))
+print('After 2 Days : \n',(prob ** 2).dot(population))
+print('After 30 Days : \n',(prob ** 30).dot(population))
+print('After 365 Days : \n',(prob ** 365).dot(population))
 
 sys.exit()
 
