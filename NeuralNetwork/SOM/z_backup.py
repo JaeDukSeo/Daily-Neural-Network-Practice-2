@@ -54,15 +54,15 @@ if __name__ == "__main__":
             allow_soft_placement=True,
             log_device_placement=False))
 
-        num_inputs = 1024
-        dims = 10
+        num_inputs = 15
+        dims = 3
         clusters = 3
         # Makes toy clusters with pretty clear separation, see the sklearn site for more info
         blob_data = make_blobs(num_inputs, dims, clusters)
         # Scale the blob data for easier training. Also index 0 because the output is a (data, label) tuple.
         scaler = StandardScaler()
         input_data = scaler.fit_transform(blob_data[0])
-        batch_size = 128
+        batch_size = 3
 
         colors = np.array([[0., 0., 0.],
             [0., 0., 1.],
@@ -79,12 +79,9 @@ if __name__ == "__main__":
             [.33, .33, .33],
             [.5, .5, .5],
             [.66, .66, .66]])
-        print(colors.shape)
-        sys.exit()
-
 
         # Build the TensorFlow dataset pipeline per the standard tutorial.
-        dataset = tf.data.Dataset.from_tensor_slices(input_data.astype(np.float32))
+        dataset = tf.data.Dataset.from_tensor_slices(colors.astype(np.float32))
         dataset = dataset.repeat()
         dataset = dataset.batch(batch_size)
         iterator = dataset.make_one_shot_iterator()
