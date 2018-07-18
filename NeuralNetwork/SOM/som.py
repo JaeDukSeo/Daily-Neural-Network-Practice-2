@@ -193,6 +193,7 @@ class SOM(object):
             for j in range(n):
                 yield np.array([i, j])
  
+    # start the training
     def train(self, input_vects):
         """
         Trains the SOM.
@@ -216,6 +217,7 @@ class SOM(object):
             centroid_grid[loc[0]].append(self._weightages[i])
         self._centroid_grid = centroid_grid
  
+        # Store the grid
         self._trained = True
  
     def get_centroids(self):

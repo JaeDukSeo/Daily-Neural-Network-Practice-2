@@ -27,7 +27,7 @@ color_names = ['black', 'blue', 'darkblue', 'skyblue',
      'darkgrey', 'mediumgrey', 'lightgrey']
  
 #Train a 20x30 SOM with 400 iterations
-som = SOM(10, 10, 3, 400)
+som = SOM(20, 20, 3, 400)
 
 som.train(colors)
  
