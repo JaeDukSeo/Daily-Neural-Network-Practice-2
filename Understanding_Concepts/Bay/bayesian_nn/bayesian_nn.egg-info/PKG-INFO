@@ -1,0 +1,19 @@
+Metadata-Version: 1.1
+Name: bayesian-nn
+Version: 0.1.1
+Summary: A Bayesian neural network library
+Home-page: https://github.com/lxuechen/bayesian_nn
+Author: Xuechen Li
+Author-email: lxuechen@cs.toronto.edu
+License: MIT
+Description: UNKNOWN
+Keywords: machine learning bayesian neural network tensorflow
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: Education
+Classifier: Intended Audience :: Science/Research
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3.5

@@ -1,0 +1,9 @@
+README.md
+setup.cfg
+setup.py
+bayesian_nn/__init__.py
+bayesian_nn.egg-info/PKG-INFO
+bayesian_nn.egg-info/SOURCES.txt
+bayesian_nn.egg-info/dependency_links.txt
+bayesian_nn.egg-info/entry_points.txt
+bayesian_nn.egg-info/top_level.txt
