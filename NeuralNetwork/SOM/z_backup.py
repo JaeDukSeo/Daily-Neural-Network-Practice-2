@@ -79,7 +79,7 @@ if __name__ == "__main__":
             [.33, .33, .33],
             [.5, .5, .5],
             [.66, .66, .66]])
-
+ 
         # Build the TensorFlow dataset pipeline per the standard tutorial.
         dataset = tf.data.Dataset.from_tensor_slices(colors.astype(np.float32))
         dataset = dataset.repeat()
@@ -88,11 +88,11 @@ if __name__ == "__main__":
         next_element = iterator.get_next()
 
         # This is more neurons than you need but it makes the visualization look nicer
-        m = 20
-        n = 20
+        m = 50
+        n = 50
 
         # Build the SOM object and place all of its ops on the graph
-        som = SelfOrganizingMap(m=m, n=n, dim=dims, max_epochs=20, gpus=1, session=session, graph=graph,
+        som = SelfOrganizingMap(m=m, n=n, dim=dims, max_epochs=100, gpus=1, session=session, graph=graph,
                                 input_tensor=next_element, batch_size=batch_size, initial_learning_rate=0.1)
 
         init_op = tf.global_variables_initializer()
@@ -104,7 +104,11 @@ if __name__ == "__main__":
 
         weights = som.output_weights
 
-        umatrix = get_umatrix(weights, m, n)
-        fig = plt.figure()
-        plt.imshow(umatrix, origin='lower')
-        plt.show(block=True)
+        print(weights.shape)
+        plt.imshow(np.reshape(weights,[50,50,3]))
+        plt.show()
+
+        # umatrix = get_umatrix(weights, m, n)
+        # fig = plt.figure()
+        # plt.imshow(umatrix, origin='lower')
+        # plt.show(block=True)

@@ -1,9 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import random as ran
+import tensorflow as tf
+from som import SOM
+
+np.random.seed(786)
+tf.set_random_seed(678)
 
 ## Applying SOM into Mnist data
-
 from tensorflow.examples.tutorials.mnist import input_data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 
@@ -14,7 +18,8 @@ def train_size(num):
 
 x_train, y_train = train_size(100)
 x_test, y_test = train_size(110)
-x_test = x_test[100:110,:]; y_test = y_test[100:110,:]
+x_test = x_test[100:110,:] 
+y_test = y_test[100:110,:]
 
 def display_digit(num):
     label = y_train[num].argmax(axis=0)
@@ -23,11 +28,7 @@ def display_digit(num):
     plt.imshow(image, cmap=plt.get_cmap('gray_r'))
     plt.show()
 
-display_digit(ran.randint(0, x_train.shape[0]))
-
 # Import som class and train into 30 * 30 sized of SOM lattice
-from som import SOM
-
 som = SOM(30, 30, x_train.shape[1], 200)
 som.train(x_train)
 
