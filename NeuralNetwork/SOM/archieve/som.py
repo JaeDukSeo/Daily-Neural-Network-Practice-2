@@ -132,8 +132,6 @@ class SOM(object):
             print('---------------------') 
 
 
-
-
             neighbourhood_func = tf.exp(tf.negative(tf.div(tf.cast( bmu_distance_squares, tf.float32), tf.pow(_sigma_op, 2))))
             print('---- neighbourhood_func -----')
             print(tf.cast( bmu_distance_squares, tf.float32))

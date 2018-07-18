@@ -33,8 +33,7 @@ class Dense:
 
         with tf.variable_scope(name):
             # the biases are trained with point estimation
-            self.biases = tf.get_variable(
-                'biases', [self.ou_dims], initializer=xavi())
+            self.biases = tf.get_variable('biases', [self.ou_dims], initializer=xavi())
 
         if 'prior' in kwargs and 'posterior' in kwargs:
             self.prior = kwargs['prior']

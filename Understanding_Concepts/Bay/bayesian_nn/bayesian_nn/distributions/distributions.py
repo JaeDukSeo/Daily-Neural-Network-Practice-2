@@ -55,10 +55,8 @@ class FactorizedGaussian(AbstractDistribution):
         if self.is_prior:
             raise Exception('Prior distribution should not be sampled from')
 
-        self.mean = tf.Variable(tf.random_normal(
-            shape=self.size, mean=0., stddev=0.1))
-        self.log_std = tf.Variable(tf.random_normal(
-            shape=self.size, mean=-3., stddev=0.1))
+        self.mean = tf.Variable(tf.random_normal(shape=self.size, mean=0., stddev=0.1))
+        self.log_std = tf.Variable(tf.random_normal(shape=self.size, mean=-3., stddev=0.1))
 
         eps = Normal(0., 1.).sample(self.size)
         self.sample = tf.multiply(tf.exp(self.log_std), eps) + self.mean

@@ -37,11 +37,9 @@ def main(iteration=1000, print_every=10):
     sy_y = tf.placeholder(tf.float32, shape=[None, 1])
 
     fc_1 = Dense('fc_1', 1, 100,
-                 posterior=FactorizedGaussian(1, 100),
-                 prior=FactorizedGaussian(1, 100, is_prior=True))
+                 posterior=FactorizedGaussian(1, 100),prior=FactorizedGaussian(1, 100, is_prior=True))
     fc_2 = Dense('fc_2', 100, 1,
-                 posterior=FactorizedGaussian(100, 1),
-                 prior=FactorizedGaussian(100, 1, is_prior=True))
+                 posterior=FactorizedGaussian(100, 1),prior=FactorizedGaussian(100, 1, is_prior=True))
 
     # two layer bayesian neural net
     h, kl_1 = fc_1(sy_x)
@@ -49,11 +47,10 @@ def main(iteration=1000, print_every=10):
 
     elbo = -tf.reduce_sum((p - sy_y)**2 - kl_1 - kl_2)
     train_op = tf.train.AdamOptimizer(1e-3).minimize(-elbo)
-    init_op = tf.global_variables_initializer()
 
     with tf.Session() as sess:
 
-        sess.run(init_op)
+        sess.run(tf.global_variables_initializer())
 
         for i in range(iteration):
             sess.run(train_op, feed_dict={sy_x: xs, sy_y: ys})
