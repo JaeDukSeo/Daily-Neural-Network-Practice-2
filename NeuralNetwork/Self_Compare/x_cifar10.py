@@ -127,18 +127,30 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
+train_batch = train_batch[:100,:,:,:]
+train_label = train_label[:100,:]
+test_batch = test_batch[:50,:,:,:]
+test_label = test_label[:50,:]
+
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-sys.exit()
+train_batch[:,:,0] = (train_batch[:,:,0]-train_batch[:,:,0].min())/(train_batch[:,:,0].max()-train_batch[:,:,0].min())
+train_batch[:,:,1] = (train_batch[:,:,1]-train_batch[:,:,1].min())/(train_batch[:,:,1].max()-train_batch[:,:,1].min())
+train_batch[:,:,2] = (train_batch[:,:,2]-train_batch[:,:,2].min())/(train_batch[:,:,2].max()-train_batch[:,:,2].min())
+test_batch[:,:,0] = (test_batch[:,:,0]-test_batch[:,:,0].min())/(test_batch[:,:,0].max()-test_batch[:,:,0].min())
+test_batch[:,:,1] = (test_batch[:,:,1]-test_batch[:,:,1].min())/(test_batch[:,:,1].max()-test_batch[:,:,1].min())
+test_batch[:,:,2] = (test_batch[:,:,2]-test_batch[:,:,2].min())/(test_batch[:,:,2].max()-test_batch[:,:,2].min())
 
+train_batch = np.reshape(train_batch,[100,-1])
+test_batch = np.reshape(test_batch,[100,-1])
 
 # hyper parameter
 map_width_height  = 30
-map_dim = 784
+map_dim = 32 * 32 * 3
 num_epoch = 100
 batch_size = 100
 
