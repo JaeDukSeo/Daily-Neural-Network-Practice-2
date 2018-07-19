@@ -47,7 +47,8 @@ plt.subplot(121)
 plt.scatter(x1,y1)
 # Just adding text
 for i, m in enumerate(mapped):
-    plt.text( m[0], m[1],index[i], ha='center', va='center', bbox=dict(facecolor='white', alpha=0.5, lw=0))
+    plt.text( m[0], m[1],index[i], ha='center', va='center', 
+    bbox=dict(facecolor='white', alpha=0.5, lw=0))
 plt.title('Train MNIST 100')
 
 # Testing

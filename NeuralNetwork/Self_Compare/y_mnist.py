@@ -27,7 +27,7 @@ ia.seed(6278)
 # SOM as layer
 class SOM_Layer(): 
 
-    def __init__(self,m,n,dim,learning_rate_som = 0.5,radius_factor = 1.3):
+    def __init__(self,m,n,dim,learning_rate_som = 0.04,radius_factor = 0.7):
         
         self.m = m
         self.n = n
@@ -77,7 +77,7 @@ class SOM_Layer():
 
         self.neighbourhood_func = tf.exp(tf.divide(tf.negative(tf.cast(
                 self.bmu_distance_squares, "float32")), tf.multiply(
-                tf.square(tf.multiply(radius, 0.08)), 2)))
+                tf.square(tf.multiply(radius, 0.3)), 2)))
 
         self.learning_rate_op = tf.multiply(self.neighbourhood_func, alpha)
         
@@ -100,6 +100,10 @@ x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels
 
 train_batch = x_data/255.0
 test_batch = y_data/255.0
+train_batch = train_batch[:100,:]
+train_label = train_label[:100,:]
+test_batch = test_batch[:50,:]
+test_label = test_label[:50,:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -108,16 +112,16 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter
-map_width_height  = 100
+map_width_height  = 50
 map_dim = 784
-num_epoch = 100
-batch_size = 10
+num_epoch = 200
+batch_size = 50
 
 # class
 SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim)
 
 # create the graph
-x = tf.placeholder(shape=[batch_size,map_dim],dtype=tf.float32)
+x = tf.placeholder(shape=[None,map_dim],dtype=tf.float32)
 current_iter = tf.placeholder(shape=[],dtype=tf.float32)
 
 # graph
@@ -132,26 +136,45 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
         for current_train_index in range(0,len(test_batch),batch_size):
-            currren_train = test_batch[current_train_index:current_train_index+batch_size]
+            currren_train = train_batch[current_train_index:current_train_index+batch_size]
             sess_results = sess.run(map_update,feed_dict={x:currren_train,current_iter:iter})
             print('Current Iter: ',iter,' Current Train Index: ',current_train_index,' Current SUM of updated Values: ',sess_results.sum(),end='\r' )
         print('\n-----------------------')
 
-    # get the trained map and normalize
-    trained_map = sess.run(SOM_layer.getmap()).reshape(dim,dim,3)
-    trained_map[:,:,0] = (trained_map[:,:,0]-trained_map[:,:,0].min())/(trained_map[:,:,0].max()-trained_map[:,:,0].min())
-    trained_map[:,:,1] = (trained_map[:,:,1]-trained_map[:,:,1].min())/(trained_map[:,:,1].max()-trained_map[:,:,1].min())
-    trained_map[:,:,2] = (trained_map[:,:,2]-trained_map[:,:,2].min())/(trained_map[:,:,2].max()-trained_map[:,:,2].min())
-
     # after training is done get the cloest vector
-    # locations = sess.run(SOM_layer.getlocation(),feed_dict={x:colors})
-    plt.imshow(trained_map.astype(float))
-    # for i, m in enumerate(locations):
-    #     plt.text(m[1], m[0], color_names[i], ha='center', va='center',bbox=dict(facecolor='white', alpha=0.5,lw=0)) 
-    plt.axis('off')
-    plt.title('Color SOM')
+    locations = sess.run(SOM_layer.getlocation(),feed_dict={x:train_batch})
+    x1 = locations[:,0]; y1 = locations[:,1]
+    index = [ np.where(r==1)[0][0] for r in train_label ]
+    index = list(map(str, index))
+
+    ## Plots: 1) Train 2) Test+Train ###
+    plt.figure(1, figsize=(12,6))
+    plt.subplot(121)
+    plt.scatter(x1,y1)
+    # Just adding text
+    for i, m in enumerate(locations):
+        plt.text( m[0], m[1],index[i], ha='center', va='center', 
+        bbox=dict(facecolor='white', alpha=0.5, lw=0))
+    plt.title('Train MNIST 100')
+
+    locations2 = sess.run(SOM_layer.getlocation(),feed_dict={x:test_batch})
+    x2 = locations2[:,0]; y2 = locations2[:,1]
+    index2 = [ np.where(r==1)[0][0] for r in test_label ]
+    index2 = list(map(str, index2))
+
+    plt.subplot(122)
+    # Plot 2: Training + Testing
+    plt.scatter(x1,y1)
+    # Just adding text
+    for i, m in enumerate(locations):
+        plt.text( m[0], m[1],index[i], ha='center', va='center', bbox=dict(facecolor='white', alpha=0.5, lw=0))
+
+    plt.scatter(x2,y2)
+    # Just adding text
+    for i, m in enumerate(locations2):
+        plt.text( m[0], m[1],index2[i], ha='center', va='center', bbox=dict(facecolor='red', alpha=0.5, lw=0))
+    plt.title('Test MNIST 10 + Train MNIST 100')
     plt.show()
-    plt.close('all')
 
 
 # -- end code --
