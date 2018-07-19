@@ -34,7 +34,7 @@ class SOM_Layer():
         self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0,maxval=1,seed=2))
         self.location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
         self.alpha = 0.004
-        self.sigma = max(m,n)*1.1
+        self.sigma = max(m,n)*1.3
 
     def _neuron_locations(self, m, n):
         """
