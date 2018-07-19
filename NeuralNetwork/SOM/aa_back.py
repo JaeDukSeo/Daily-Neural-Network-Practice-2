@@ -33,8 +33,8 @@ class SOM_Layer():
         # self.map = tf.Variable(tf.random_normal(shape=[m*n,dim]))
         self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0,maxval=1,seed=2))
         self.location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
-        self.alpha = 0.004
-        self.sigma = max(m,n)*1.3
+        self.alpha = 0.04
+        self.sigma = max(m,n)*1.1
 
     def _neuron_locations(self, m, n):
         """
@@ -61,18 +61,33 @@ class SOM_Layer():
         _alpha_op = tf.multiply(self.alpha, learning_rate_op)
         _sigma_op = tf.multiply(self.sigma, learning_rate_op)
 
+        radius = tf.subtract(self.sigma,
+                                tf.multiply(iter,
+                                            tf.divide(tf.cast(tf.subtract(self.alpha, 1),tf.float32),
+                                                    tf.cast(tf.subtract(num_epoch, 1),tf.float32))))
+
+        alpha = tf.subtract(self.alpha,
+                            tf.multiply(iter,
+                                            tf.divide(tf.cast(tf.subtract(self.alpha, 1),tf.float32),
+                                                      tf.cast(tf.subtract(num_epoch, 1),tf.float32))))
+
         self.bmu_distance_squares = tf.reduce_sum(
                 tf.pow(tf.subtract(
                     tf.expand_dims(self.location_vects, axis=0),
                     tf.expand_dims(self.bmu_locs, axis=1)), 2), 
             2)
 
-        self.neighbourhood_func = tf.exp(
-            tf.negative(tf.div(tf.cast(
-                self.bmu_distance_squares, tf.float32),
-                tf.pow(_sigma_op, 2))))
+        # self.neighbourhood_func = tf.exp(
+        #     tf.negative(tf.div(tf.cast(
+        #         self.bmu_distance_squares, tf.float32),
+        #         tf.pow(_sigma_op, 2))))
 
-        self.learning_rate_op = tf.multiply(self.neighbourhood_func, _alpha_op)
+        self.neighbourhood_func = tf.exp(tf.divide(tf.negative(tf.cast(
+                self.bmu_distance_squares, "float32")), tf.multiply(
+                tf.square(tf.multiply(radius, 0.08)), 2)))
+
+        # self.learning_rate_op = tf.multiply(self.neighbourhood_func, _alpha_op)
+        self.learning_rate_op = tf.multiply(self.neighbourhood_func, alpha)
         
         self.numerator = tf.reduce_sum(
             tf.multiply(tf.expand_dims(self.learning_rate_op, axis=-1),
