@@ -1,6 +1,9 @@
 import tensorflow as tf
 import numpy as np
 import sys
+
+np.random.seed(678)
+tf.set_random_seed(678)
  
 class SOM(object):
     """
@@ -48,22 +51,34 @@ class SOM(object):
         ##INITIALIZE GRAPH create the graph (m,20) (n,30)
         self._n_iterations = abs(int(n_iterations))
         self._graph = tf.Graph()
-        with self._graph.as_default():
+        with self._graph.as_default() :
+
+             ##INITIALIZE SESSION
+            config = tf.ConfigProto(device_count = {'GPU': 0})
+            self._sess = tf.Session(config=config)
  
+            ##INITIALIZE VARIABLES
+            # init_op = tf.global_variables_initializer()
+            # self._sess.run(init_op)
+
             ##VARIABLES AND CONSTANT OPS FOR DATA STORAGE
             # Randomly initialized weightage vectors for all neurons,
             # stored together as a matrix Variable of size [m*n, dim] - This is the square - 20*30 = 600, dim = 3
             self._weightage_vects = tf.Variable(tf.random_normal([m*n, dim]))
             print(self._weightage_vects.shape)
+
             # Matrix of size [m*n, 2] for SOM grid locations of neurons
             self._location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
             print(self._location_vects.shape)
 
             ##PLACEHOLDERS FOR TRAINING INPUTS
             # We need to assign them as attributes to self, since they will be fed in during training The training vector
-            self._vect_input = tf.placeholder("float", [dim])
+            # self._vect_input = tf.placeholder("float", [dim])
+            self._vect_input = tf.constant([0.3,0.1,1.0])
+
             #Iteration number
-            self._iter_input = tf.placeholder("float")
+            # self._iter_input = tf.placeholder("float")
+            self._iter_input = tf.constant(1)
  
             ##CONSTRUCT TRAINING OP PIECE BY PIECE
             #Only the final, 'root' training op needs to be assigned as
@@ -87,9 +102,8 @@ class SOM(object):
             print(bmu_index)
             print(bmu_index.shape)
             print('---------------------')
- 
+
             #This will extract the location of the BMU based on the BMU's index
-            # slice_input = tf.pad( tf.reshape(bmu_index, [1]), np.array([[0, 1]])  )
             slice_input = tf.pad( tf.reshape(bmu_index, [1]), tf.constant([[0, 1]])  )
             print('--- Slice input ------')
             print(tf.reshape(bmu_index, [1]) )
@@ -109,7 +123,8 @@ class SOM(object):
             print('---------------------') 
 
             # To compute the alpha and sigma values based on iteration number
-            learning_rate_op = tf.subtract(1.0, tf.div(self._iter_input,self._n_iterations))
+            # learning_rate_op = tf.subtract(tf.constant(1.0), tf.div(self._iter_input,self._n_iterations))
+            learning_rate_op = tf.constant(1.0)
             _alpha_op = tf.multiply(alpha, learning_rate_op)
             _sigma_op = tf.multiply(sigma, learning_rate_op)
  
@@ -131,13 +146,11 @@ class SOM(object):
             print(bmu_distance_squares.shape)
             print('---------------------') 
 
-
             neighbourhood_func = tf.exp(tf.negative(tf.div(tf.cast( bmu_distance_squares, tf.float32), tf.pow(_sigma_op, 2))))
             print('---- neighbourhood_func -----')
             print(tf.cast( bmu_distance_squares, tf.float32))
             print(tf.cast( bmu_distance_squares, tf.float32).shape)
             print('---------------------') 
-
 
             learning_rate_op = tf.multiply(_alpha_op, neighbourhood_func)
             print('---- learning_rate_op -----')
@@ -155,7 +168,6 @@ class SOM(object):
             print(learning_rate_multiplier)
             print(learning_rate_multiplier.shape)
             print('---------------------') 
-
 
             weightage_delta = tf.multiply(learning_rate_multiplier,tf.subtract(tf.stack([self._vect_input for i in range(m*n)]),self._weightage_vects))      
 
@@ -175,13 +187,23 @@ class SOM(object):
             new_weightages_op = tf.add(self._weightage_vects,weightage_delta)
             self._training_op = tf.assign(self._weightage_vects,new_weightages_op)                                       
     
-            ##INITIALIZE SESSION
-            config = tf.ConfigProto(device_count = {'GPU': 0})
-            self._sess = tf.Session(config=config)
- 
-            ##INITIALIZE VARIABLES
-            init_op = tf.global_variables_initializer()
-            self._sess.run(init_op)
+            self._sess.run(tf.global_variables_initializer())
+            # print(self._weightage_vects.eval(session=self._sess))
+            print(self._location_vects.eval(session=self._sess))
+            print(bmu_index.eval(session=self._sess))
+            print(slice_input.eval(session=self._sess))
+            print(bmu_loc.eval(session=self._sess))
+            print(bmu_distance_squares.eval(session=self._sess).reshape([5,5]))
+            print(neighbourhood_func.eval(session=self._sess).reshape([5,5]))
+            print(learning_rate_op.eval(session=self._sess).reshape([5,5]))
+            print(learning_rate_multiplier.eval(session=self._sess))
+            print(weightage_delta.eval(session=self._sess))
+            print(self._weightage_vects.eval(session=self._sess))
+            print(new_weightages_op.eval(session=self._sess))
+
+            sys.exit()
+
+            self._training_op = tf.assign(self._weightage_vects,new_weightages_op)                                       
  
     # location of the neuron
     def _neuron_locations(self, m, n):

@@ -10,7 +10,6 @@ from imgaug import augmenters as iaa
 import imgaug as ia
 from skimage.color import rgba2rgb
 
-import tensorflow as tf
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
@@ -221,15 +220,48 @@ class FNN():
 
 class SOM_Layer(): 
 
-    def __init__(self):
-        pass
+    def __init__(self,m,n,dim):
+        
+        self.map = tf.Variable(tf.random_normal(shape=[m*n,dim]))
+        self.location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
+        self.alpha = 0.3
+        self.sigma = max(m, n) / 2.0
 
-    def getw(self): pass
+    def _neuron_locations(self, m, n):
+        """
+        Yields one by one the 2-D locations of the individual neurons in the SOM.
+        """
+        # Nested iterations over both dimensions to generate all 2-D locations in the map
+        for i in range(m):
+            for j in range(n):
+                yield np.array([i, j])
+
+    def getw(self): return self.map
 
     def feedforward(self,input):
+    
+        self.input = input
+        self.bmu_index = tf.argmin(
+            tf.sqrt(
+                tf.reduce_sum(
+                    tf.pow(
+                        tf.subtract(self.map, tf.stack([input for i in range(m*n)])), # [25,3]
+                        2),
+                    axis=1)
+                ),
+            axis=0)
+        self.slice_input = tf.pad( tf.reshape(self.bmu_index, [1]), tf.constant([[0, 1]])  )
+        self.bmu_loc = tf.reshape(
+                tf.slice(self.map, self.slice_input,
+                    tf.constant(np.array([1, 2]).astype(np.int64))
+                ),[2])
         pass
 
-    def backprop(self,grad):
+    def backprop(self,grad,iter):
+        # To compute the alpha and sigma values based on iteration number
+        learning_rate_op = tf.subtract(1.0, tf.div(self._iter_input,self._n_iterations))
+        _alpha_op = tf.multiply(alpha, learning_rate_op)
+        _sigma_op = tf.multiply(sigma, learning_rate_op)
         pass
 
 # ================= LAYER CLASSES =================
