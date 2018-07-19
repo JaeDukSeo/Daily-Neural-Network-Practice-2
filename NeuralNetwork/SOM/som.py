@@ -201,6 +201,8 @@ class SOM(object):
             print(self._weightage_vects.eval(session=self._sess))
             print(new_weightages_op.eval(session=self._sess))
 
+            print(tf.pow(_sigma_op, 2).eval(session=self._sess))
+
             sys.exit()
 
             self._training_op = tf.assign(self._weightage_vects,new_weightages_op)                                       

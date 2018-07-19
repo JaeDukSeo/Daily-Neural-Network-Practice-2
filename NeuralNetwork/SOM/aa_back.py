@@ -30,9 +30,10 @@ class SOM_Layer():
         self.m = m
         self.n = n
         self.dim = dim
-        self.map = tf.Variable(tf.random_normal(shape=[m*n,dim]))
+        # self.map = tf.Variable(tf.random_normal(shape=[m*n,dim]))
+        self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0,maxval=1,seed=2))
         self.location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
-        self.alpha = 0.3
+        self.alpha = 0.03
         self.sigma = max(m, n) / 2.0
 
     def _neuron_locations(self, m, n):
@@ -49,42 +50,39 @@ class SOM_Layer():
     def feedforward(self,input):
     
         self.input = input
-        self.bmu_index = tf.argmin(
-            tf.sqrt(
-                tf.reduce_sum(
-                    tf.pow(
-                        tf.subtract(self.map, tf.stack([input for i in range(self.m*self.n)])), # [25,3]
-                        2),
-                    axis=1)
-                ),
-            axis=0)
-
-        self.slice_input = tf.pad( tf.reshape(self.bmu_index, [1]), tf.constant([[0, 1]])  )
-        self.bmu_loc = tf.reshape(
-                tf.slice(self.location_vects, self.slice_input,
-                    tf.constant(np.array([1, 2]).astype(np.int64))
-                ),[2])
+        self.squared_distance = tf.reduce_sum(tf.pow(tf.subtract(tf.expand_dims(self.map, axis=0),tf.expand_dims(self.input, axis=1)), 2), 2)
+        self.bmu_indices = tf.argmin(self.squared_distance, axis=1)
+        self.bmu_locs = tf.reshape(tf.gather(self.location_vects, self.bmu_indices), [-1, 2])
 
     def backprop(self,iter,num_epoch):
-      # To compute the alpha and sigma values based on iteration number
-      learning_rate_op = tf.subtract(1.0, tf.div(iter,num_epoch))
-      _alpha_op = tf.multiply(self.alpha, learning_rate_op)
-      _sigma_op = tf.multiply(self.sigma, learning_rate_op)
+        
+        # With each epoch, the initial sigma value decreases linearly
+        radius = tf.subtract(self.sigma,tf.multiply(iter,
+                                             tf.divide(tf.cast(tf.subtract(self.sigma, 1),tf.float32),
+                                                       tf.cast(tf.subtract(num_epoch, 1),tf.float32))))
 
-      self.bmu_distance_squares = tf.reduce_sum(tf.pow(
-            tf.subtract(self.location_vects, tf.stack([self.bmu_loc for i in range(self.m*self.n)])), 
-            2), 
-      1)
-      self.neighbourhood_func = tf.exp(tf.negative(tf.div(tf.cast( self.bmu_distance_squares, tf.float32), tf.pow(_sigma_op, 2))))
+        alpha = tf.subtract(self.alpha,
+                                tf.multiply(iter,
+                                            tf.divide(tf.cast(tf.subtract(self.alpha, 1),tf.float32),
+                                                      tf.cast(tf.subtract(num_epoch, 1),tf.float32))))
 
-      self.learning_rate_op = tf.multiply(_alpha_op, self.neighbourhood_func)
-      learning_rate_multiplier = tf.stack([tf.tile(tf.slice(
-            self.learning_rate_op, np.array([i]), np.array([1])), [self.dim]) for i in range(self.m*self.n)] )
+        bmu_distance_squares = tf.reduce_sum(
+                tf.pow(tf.subtract(
+                    tf.expand_dims(self.location_vects, axis=0),
+                    tf.expand_dims(self.bmu_locs, axis=1)), 2), 
+            2)
 
-      weightage_delta = tf.multiply(learning_rate_multiplier,tf.subtract(tf.stack([self.input for i in range(self.m*self.n)]),self.map))   
-      new_weightages_op = tf.add(self.map,weightage_delta)   
-      update = tf.assign(self.map,new_weightages_op)  
-      return update
+        neighbourhood_func = tf.exp(tf.divide(tf.negative(tf.cast(
+                bmu_distance_squares, "float32")), tf.multiply(
+                tf.square(tf.multiply(radius, 0.3)), 2)))
+
+        learning_rate_op = tf.multiply(neighbourhood_func, alpha)
+        numerator = tf.reduce_sum(tf.multiply(tf.expand_dims(learning_rate_op, axis=-1),tf.expand_dims(self.input, axis=1)), axis=0)
+        denominator = tf.expand_dims(tf.reduce_sum(learning_rate_op,axis=0) + float(1e-12), axis=-1)
+        new_weights = tf.divide(numerator, denominator)
+        update = tf.assign(self.map,new_weights)  
+
+        return update
 
 #Training inputs for RGBcolors
 colors = np.array([[0., 0., 0.],
@@ -108,10 +106,10 @@ color_names = ['black', 'blue', 'darkblue', 'skyblue',
      'cyan', 'violet', 'yellow', 'white',
      'darkgrey', 'mediumgrey', 'lightgrey']
 
-SOM_layer = SOM_Layer(20,20,3)
+SOM_layer = SOM_Layer(5,5,3)
 
 num_epoch = 500
-batch_size = 3
+batch_size = 1
 
 x = tf.placeholder(shape=[batch_size,3],dtype=tf.float32)
 current_iter = tf.placeholder(shape=[],dtype=tf.float32)
@@ -127,12 +125,11 @@ with tf.Session() as sess:
       for iter in range(num_epoch):
             for current_train_index in range(0,len(colors),batch_size):
                   currren_train = colors[current_train_index:current_train_index+batch_size]
-                  print(currren_train.shape)
-                  sys.exit()
                   sess.run(map_update,feed_dict={x:currren_train,current_iter:iter})
 
       som_map = sess.run(SOM_layer.getw())
-      plt.imshow(som_map.reshape(20,20,3))
+      print(som_map)
+      plt.imshow(som_map.reshape(5,5,3))
       plt.title('Color SOM')
       plt.show()
 

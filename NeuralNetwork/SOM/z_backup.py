@@ -6,6 +6,27 @@ from sklearn.datasets import make_blobs
 from sklearn.preprocessing import StandardScaler
 import logging
 from scipy.spatial import distance_matrix
+import tensorflow as tf
+import numpy as np
+import sys, os,cv2
+from sklearn.utils import shuffle
+from scipy.misc import imread,imresize
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import OneHotEncoder
+from skimage.transform import resize
+from imgaug import augmenters as iaa
+import imgaug as ia
+from skimage.color import rgba2rgb
+
+old_v = tf.logging.get_verbosity()
+tf.logging.set_verbosity(tf.logging.ERROR)
+from tensorflow.examples.tutorials.mnist import input_data
+
+plt.style.use('seaborn-white')
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+np.random.seed(6278)
+tf.set_random_seed(6728)
+ia.seed(6278)
 
 '''
 An example usage of the TensorFlow SOM. Loads a data set, trains a SOM, and displays the u-matrix.
@@ -54,7 +75,7 @@ if __name__ == "__main__":
             allow_soft_placement=True,
             log_device_placement=False))
 
-        num_inputs = 15
+        num_inputs = 1
         dims = 3
         clusters = 3
         # Makes toy clusters with pretty clear separation, see the sklearn site for more info
@@ -88,12 +109,12 @@ if __name__ == "__main__":
         next_element = iterator.get_next()
 
         # This is more neurons than you need but it makes the visualization look nicer
-        m = 50
-        n = 50
+        m = 20
+        n = 20
 
         # Build the SOM object and place all of its ops on the graph
         som = SelfOrganizingMap(m=m, n=n, dim=dims, max_epochs=100, gpus=1, session=session, graph=graph,
-                                input_tensor=next_element, batch_size=batch_size, initial_learning_rate=0.1)
+                                input_tensor=next_element, batch_size=batch_size, initial_learning_rate=0.3)
 
         init_op = tf.global_variables_initializer()
         session.run([init_op])
@@ -103,12 +124,6 @@ if __name__ == "__main__":
         som.train(num_inputs=num_inputs)
 
         weights = som.output_weights
-
         print(weights.shape)
-        plt.imshow(np.reshape(weights,[50,50,3]))
+        plt.imshow(np.reshape(weights,[m,n,3]))
         plt.show()
-
-        # umatrix = get_umatrix(weights, m, n)
-        # fig = plt.figure()
-        # plt.imshow(umatrix, origin='lower')
-        # plt.show(block=True)

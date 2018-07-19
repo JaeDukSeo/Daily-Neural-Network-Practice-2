@@ -193,6 +193,7 @@ class SelfOrganizingMap:
 
         # Oh also any time we call expand_dims it's almost always so we can make TF broadcast stuff properly
         with tf.name_scope('BMU_Indices'):
+
             # Distance between weights and the input vector
             # Note we are reducing along 2nd axis so we end up with a tensor of [batch_size, num_neurons]
             # corresponding to the distance between a particular input and each neuron in the map
@@ -200,7 +201,7 @@ class SelfOrganizingMap:
             # if we're just doing a strict comparison
             squared_distance = tf.reduce_sum(
                 tf.pow(tf.subtract(tf.expand_dims(self._weights, axis=0),
-                                   tf.expand_dims(self._input, axis=1)), 2), 2)
+                                   tf.expand_dims(self._input,   axis=1)), 2), 2)
 
             # Get the index of the minimum distance for each input item, shape will be [batch_size],
             bmu_indices = tf.argmin(squared_distance, axis=1)
@@ -319,37 +320,18 @@ class SelfOrganizingMap:
             batches_per_epoch = num_inputs // self._batch_size // self._gpus
         else:
             batches_per_epoch = num_inputs // self._batch_size
+
         total_batches = batches_per_epoch * self._max_epochs
         # Get how many batches constitute roughly 10 percent of the total for recording summaries
         summary_mod = int(0.1 * total_batches)
         global_step = step_offset
 
-        logging.info("Training self-organizing Map")
         for epoch in range(self._max_epochs):
-            logging.info("Epoch: {}/{}".format(epoch, self._max_epochs))
             for batch in range(batches_per_epoch):
                 current_batch = batch + (batches_per_epoch * epoch)
                 global_step = current_batch + step_offset
                 percent_complete = current_batch / total_batches
-                logging.debug("\tBatch {}/{} - {:.2%} complete".format(batch, batches_per_epoch, percent_complete))
-                # Only do summaries when a SummaryWriter has been provided
-                if writer:
-                    if current_batch > 0 and current_batch % summary_mod == 0:
-                        run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-                        run_metadata = tf.RunMetadata()
-                        summary, _, _, = self._sess.run([self._merged, self._training_op,
-                                                         self._activity_op],
-                                                        feed_dict={self._epoch: epoch},
-                                                        options=run_options,
-                                                        run_metadata=run_metadata)
-                        writer.add_run_metadata(run_metadata, "step_{}".format(global_step))
-                        writer.add_summary(summary, global_step)
-                    else:
-                        summary, _ = self._sess.run([self._merged, self._training_op],
-                                                    feed_dict={self._epoch: epoch})
-                        writer.add_summary(summary, global_step)
-                else:
-                    self._sess.run(self._training_op, feed_dict={self._epoch: epoch})
+                self._sess.run(self._training_op, feed_dict={self._epoch: epoch})
 
         self._trained = True
         return global_step
