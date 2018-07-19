@@ -298,13 +298,14 @@ class SOM_Layer():
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 train, test = tf.keras.datasets.mnist.load_data()
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-
-train_batch = x_data/255.0
-test_batch = y_data/255.0
-train_batch = train_batch[:100,:]
-train_label = train_label[:100,:]
-test_batch = test_batch[:100,:]
-test_label = test_label[:100,:]
+x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+train_batch = np.zeros((55000,28,28,1))
+test_batch = np.zeros((10000,28,28,1))
+for x in range(len(x_data)):
+    train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
+for x in range(len(y_data)):
+    test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
 # print out the data shape
 print(train_batch.shape)
@@ -320,35 +321,41 @@ test_batch = test_batch[:100]
 test_label = test_label[:100]
 
 # hyper parameter 10000
-num_epoch = 200
+num_epoch = 100
 batch_size = 100
 print_size = 2
 
-map_width_height  = 50
+map_width_height  = 20
+# map_dim = 7*7*10
 map_dim = 3
 
-learning_rate = 0.0001
+learning_rate = 0.00008
 learnind_rate_decay = 0.0
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-el1 = FNN(784,64,act=tf_atan,d_act=d_tf_atan)
-el2 = FNN(64,3,act=tf_atan,d_act=d_tf_atan)
+el1 = CNN(3,1,3)
+el2 = CNN(3,3,3)
 SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim,num_epoch = num_epoch,
 learning_rate_som=0.9,radius_factor=1.1,gaussian_std = 0.08 )
 
 # graph
-x = tf.placeholder(shape=[batch_size,784],dtype=tf.float32,name="input")
+x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32,name="input")
 current_iter = tf.placeholder(shape=[],dtype=tf.float32)
 
 # encoder
-elayer1 = el1.feedforward(x)
-elayer2 = el2.feedforward(elayer1)
-SOM_layer.feedforward(elayer2)
+elayer1 = el1.feedforward(x,padding='SAME')
+elayer2_input = tf.nn.avg_pool(elayer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+elayer2 = el2.feedforward(elayer2_input,padding='SAME')
+elayer3_input = tf.nn.avg_pool(elayer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
+SOM_layer.feedforward(elayer3_flatten)
 
 SOM_Update,SOM_grad = SOM_layer.backprop(current_iter,num_epoch)
-egrad2,egrad2_up = el2.backprop(SOM_grad)
-egrad1,egrad1_up = el1.backprop(egrad2)
+egrad2_Input = tf_repeat(tf.reshape(SOM_grad,[batch_size,7,7,10]),[1,2,2,1])
+egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
+egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
+egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
 
 grad_update = SOM_Update + egrad2_up + egrad1_up
 
@@ -369,12 +376,8 @@ with tf.Session() as sess:
         print('\n-----------------------')
 
 
-    # get the trained map and normalize
-    trained_map = sess.run(SOM_layer.getmap()).reshape(map_width_height,map_width_height,3)
-    trained_map[:,:,0] = (trained_map[:,:,0]-trained_map[:,:,0].min())/(trained_map[:,:,0].max()-trained_map[:,:,0].min())
-    trained_map[:,:,1] = (trained_map[:,:,1]-trained_map[:,:,1].min())/(trained_map[:,:,1].max()-trained_map[:,:,1].min())
-    trained_map[:,:,2] = (trained_map[:,:,2]-trained_map[:,:,2].min())/(trained_map[:,:,2].max()-trained_map[:,:,2].min())
-    plt.imshow(trained_map)
+    mappp = sess.run(SOM_layer.getmap())
+    plt.imshow(mappp)
     plt.show()
 
     # after training is done get the cloest vector
@@ -386,7 +389,6 @@ with tf.Session() as sess:
     ## Plots: 1) Train 2) Test+Train ###
     plt.figure(1, figsize=(12,6))
     plt.subplot(121)
-    plt.imshow(trained_map)
     plt.scatter(x1,y1)
     # Just adding text
     for i, m in enumerate(locations):
@@ -401,7 +403,6 @@ with tf.Session() as sess:
 
     plt.subplot(122)
     # Plot 2: Training + Testing
-    plt.imshow(trained_map)
     plt.scatter(x1,y1)
     # Just adding text
     for i, m in enumerate(locations):

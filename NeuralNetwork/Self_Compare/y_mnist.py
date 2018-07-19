@@ -105,8 +105,8 @@ train_batch = x_data/255.0
 test_batch = y_data/255.0
 train_batch = train_batch[:100,:]
 train_label = train_label[:100,:]
-test_batch = test_batch[:50,:]
-test_label = test_label[:50,:]
+test_batch = test_batch[:100,:]
+test_label = test_label[:100,:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -115,7 +115,7 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter
-map_width_height  = 30
+map_width_height  = 20
 map_dim = 784
 num_epoch = 100
 batch_size = 100
