@@ -39,8 +39,7 @@ class SOM_Layer():
         self.n = n
         self.dim = dim
         self.gaussian_std = gaussian_std
-        self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0.0,maxval=1.0,seed=2))
-
+        self.map = tf.Variable(tf.random_normal(shape=[m*n,dim],stddev=0.05))
         self.location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
         self.alpha = learning_rate_som
         self.sigma = max(m,n)*1.1
@@ -133,26 +132,28 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
-train_batch = train_batch[:100,:,:,:]
-train_label = train_label[:100,:]
-test_batch = test_batch[:50,:,:,:]
-test_label = test_label[:50,:]
+# hyper parameter 10000
+num_epoch = 100
+batch_size = 100
+
+learning_rate = 0.000000001
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # print out the data shape
+train_batch = train_batch[:500,:,:,:]
+train_label = train_label[:500,:]
+test_batch = test_batch[:batch_size,:,:,:]
+test_label = test_label[:batch_size,:]
+
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-train_batch[:,:,0] = (train_batch[:,:,0]-train_batch[:,:,0].min())/(train_batch[:,:,0].max()-train_batch[:,:,0].min())
-train_batch[:,:,1] = (train_batch[:,:,1]-train_batch[:,:,1].min())/(train_batch[:,:,1].max()-train_batch[:,:,1].min())
-train_batch[:,:,2] = (train_batch[:,:,2]-train_batch[:,:,2].min())/(train_batch[:,:,2].max()-train_batch[:,:,2].min())
-test_batch[:,:,0] = (test_batch[:,:,0]-test_batch[:,:,0].min())/(test_batch[:,:,0].max()-test_batch[:,:,0].min())
-test_batch[:,:,1] = (test_batch[:,:,1]-test_batch[:,:,1].min())/(test_batch[:,:,1].max()-test_batch[:,:,1].min())
-test_batch[:,:,2] = (test_batch[:,:,2]-test_batch[:,:,2].min())/(test_batch[:,:,2].max()-test_batch[:,:,2].min())
-
-train_batch = np.reshape(train_batch,[100,-1])
-test_batch = np.reshape(test_batch,[50,-1])
+train_batch = train_batch/255.0
+test_batch = test_batch/255.0
+train_batch = np.reshape(train_batch,[500,-1])
+test_batch = np.reshape(test_batch,[batch_size,-1])
 
 # hyper parameter
 map_width_height  = 30
@@ -161,8 +162,7 @@ num_epoch = 100
 batch_size = 100
 
 # class
-SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim,
-learning_rate_som=0.8,radius_factor=1.1,gaussian_std = 0.08)
+SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim,learning_rate_som=0.8,radius_factor=0.4,gaussian_std = 0.03)
 
 # create the graph
 x = tf.placeholder(shape=[None,map_dim],dtype=tf.float32)
@@ -186,7 +186,7 @@ with tf.Session() as sess:
         print('\n-----------------------')
 
     # after training is done get the cloest vector
-    locations = sess.run(SOM_layer.getlocation(),feed_dict={x:train_batch})
+    locations = sess.run(SOM_layer.getlocation(),feed_dict={x:train_batch[:batch_size]})
     x1 = locations[:,0]; y1 = locations[:,1]
     index = [ np.where(r==1)[0][0] for r in train_label ]
     index = list(map(str, index))
@@ -202,6 +202,7 @@ with tf.Session() as sess:
     plt.title('Train CIFAR 100')
 
     locations2 = sess.run(SOM_layer.getlocation(),feed_dict={x:test_batch})
+    locations2 = locations2[:50]
     x2 = locations2[:,0]; y2 = locations2[:,1]
     index2 = [ np.where(r==1)[0][0] for r in test_label ]
     index2 = list(map(str, index2))

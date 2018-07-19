@@ -248,6 +248,7 @@ class SOM_Layer():
                 yield np.array([i, j])
 
     def getmap(self): return self.map
+    
     def getlocation(self): return self.bmu_locs
 
     def feedforward(self,input):
@@ -328,40 +329,36 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
-train_batch = train_batch[:500,:,:,:]
-train_label = train_label[:500,:]
-test_batch = test_batch[:100,:,:,:]
-test_label = test_label[:100,:]
+# hyper parameter 10000
+num_epoch = 100
+batch_size = 100
+
+map_width_height  = 30
+map_dim = 256
+
+learning_rate = 0.00000001
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # print out the data shape
+train_batch = train_batch[:500,:,:,:]
+train_label = train_label[:500,:]
+test_batch = test_batch[:batch_size,:,:,:]
+test_label = test_label[:batch_size,:]
+
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-train_batch[:,:,0] = (train_batch[:,:,0]-train_batch[:,:,0].min())/(train_batch[:,:,0].max()-train_batch[:,:,0].min())
-train_batch[:,:,1] = (train_batch[:,:,1]-train_batch[:,:,1].min())/(train_batch[:,:,1].max()-train_batch[:,:,1].min())
-train_batch[:,:,2] = (train_batch[:,:,2]-train_batch[:,:,2].min())/(train_batch[:,:,2].max()-train_batch[:,:,2].min())
-
-test_batch[:,:,0] = (test_batch[:,:,0]-test_batch[:,:,0].min())/(test_batch[:,:,0].max()-test_batch[:,:,0].min())
-test_batch[:,:,1] = (test_batch[:,:,1]-test_batch[:,:,1].min())/(test_batch[:,:,1].max()-test_batch[:,:,1].min())
-test_batch[:,:,2] = (test_batch[:,:,2]-test_batch[:,:,2].min())/(test_batch[:,:,2].max()-test_batch[:,:,2].min())
-
-# hyper parameter 10000
-num_epoch = 30 
-batch_size = 100
-
-map_width_height  = 30
-map_dim = 1024
-
-learning_rate = 0.000000001
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+train_batch = train_batch/255.0
+test_batch = test_batch/255.0
 
 # define class here
-el1 = CNN(3,3,16)
-el2 = CNN(3,16,32)
-el3 = FNN(8*8*32,1024,act=tf_atan,d_act=d_tf_atan)
-SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim,num_epoch = num_epoch,learning_rate_som=0.8,radius_factor=0.5,gaussian_std = 0.3)
+el1 = CNN(3,3,32)
+el2 = CNN(3,32,64)
+el3 = FNN(8*8*64,2048,act=tf_atan,d_act=d_tf_atan)
+el4 = FNN(2048,256,act=tf_atan,d_act=d_tf_atan)
+SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim,num_epoch = num_epoch,learning_rate_som=0.8,radius_factor=2.8,gaussian_std = 0.03)
 
 # graph
 x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32,name="input")
@@ -372,14 +369,16 @@ elayer1 = el1.feedforward(x,padding='SAME',stride=2)
 elayer2 = el2.feedforward(elayer1,padding='SAME',stride=2)
 elayer3_flatten = tf.reshape(elayer2,[batch_size,-1])
 elayer3 = el3.feedforward(elayer3_flatten)  
-SOM_layer.feedforward(elayer3)
+elayer4 = el4.feedforward(elayer3)  
+SOM_layer.feedforward(elayer4)
 
 SOM_Update,SOM_grad = SOM_layer.backprop(current_iter,num_epoch)
-egrad3,egrad3_up = el3.backprop(SOM_grad)
-egrad2_Input = tf.reshape(egrad3,[batch_size,8,8,32])
+egrad4,egrad4_up = el4.backprop(SOM_grad)
+egrad3,egrad3_up = el3.backprop(egrad4)
+egrad2_Input = tf.reshape(egrad3,[batch_size,8,8,64])
 egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME',stride=2)
 egrad1,egrad1_up = el1.backprop(egrad2,padding='SAME',stride=2)
-grad_update = SOM_Update + egrad3_up + egrad2_up + egrad1_up
+grad_update = SOM_Update +egrad4_up +egrad3_up + egrad2_up + egrad1_up
 
 # sess
 with tf.Session() as sess:
@@ -389,8 +388,7 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        # train_batch,train_label = shuffle(train_batch,train_label)
-
+        train_batch,train_label = shuffle(train_batch,train_label)
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             sess_results = sess.run(grad_update,feed_dict={x:current_batch,current_iter:iter})
