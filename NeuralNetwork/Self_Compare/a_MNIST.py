@@ -188,7 +188,7 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05))
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -227,11 +227,7 @@ class SOM_Layer():
         self.dim = dim
         self.gaussian_std = gaussian_std
         self.num_epoch = num_epoch
-        # self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0.00,maxval=0.05,seed=2))
-        # self.map = tf.Variable(tf.random_normal(shape=[m*n,dim],stddev=0.05,seed=2))
-        # self.map = tf.Variable(tf.truncated_normal(shape=[m*n,dim],stddev=0.05,seed=2))
-        self.map = tf.Variable(tf.random_poisson(0.005,shape=[m*n,dim],seed=2))
-        # self.map = tf.Variable(tf.random_gamma(shape=[m*n,dim],alpha=0.005,seed=2))
+        self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0.0,maxval=1.0,seed=2))
 
         self.location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
         self.alpha = learning_rate_som
@@ -291,7 +287,7 @@ class SOM_Layer():
         self.new_weights = tf.div(self.numerator, self.denominator)
         self.update = [tf.assign(self.map, self.new_weights)]
 
-        return self.update,tf.reduce_sum(self.grad_pass,1)
+        return self.update,tf.reduce_mean(self.grad_pass,1)
 
 # ================= LAYER CLASSES =================
 
@@ -300,8 +296,8 @@ mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 train, test = tf.keras.datasets.mnist.load_data()
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
-train_batch = x_data/255.0
-test_batch = y_data/255.0
+train_batch = x_data/1.0
+test_batch = y_data/1.0
 train_batch = train_batch[:100,:]
 train_label = train_label[:100,:]
 test_batch = test_batch[:50,:]
@@ -320,12 +316,12 @@ batch_size = 100
 map_width_height  = 30
 map_dim = 256
 
-learning_rate = 0.000000008
+learning_rate = 0.0000001
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
 el1 = FNN(784,512,act=tf_atan,d_act=d_tf_atan)
-el2 = FNN(512,256,act=tf_tanh,d_act=d_tf_tanh)
+el2 = FNN(512,256,act=tf_atan,d_act=d_tf_atan)
 SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim,
 num_epoch = num_epoch,learning_rate_som=0.8,radius_factor=1.1,gaussian_std = 0.08 )
 
@@ -347,7 +343,6 @@ grad_update = SOM_Update + egrad2_up + egrad1_up
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-
 
     # start the training
     for iter in range(num_epoch):
