@@ -27,12 +27,15 @@ ia.seed(6278)
 # SOM as layer
 class SOM_Layer(): 
 
-    def __init__(self,m,n,dim,learning_rate_som = 0.04,radius_factor = 0.7):
+    def __init__(self,m,n,dim,learning_rate_som = 0.04,radius_factor = 1.1,gaussian_std=0.5):
         
         self.m = m
         self.n = n
         self.dim = dim
-        self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0,maxval=1,seed=2))
+        self.gaussian_std = gaussian_std
+        # self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0,maxval=1,seed=2))
+        self.map = tf.Variable(tf.random_normal(shape=[m*n,dim],seed=2))
+
         self.location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
         self.alpha = learning_rate_som
         self.sigma = max(m,n)*1.1
@@ -77,7 +80,7 @@ class SOM_Layer():
 
         self.neighbourhood_func = tf.exp(tf.divide(tf.negative(tf.cast(
                 self.bmu_distance_squares, "float32")), tf.multiply(
-                tf.square(tf.multiply(radius, 0.3)), 2)))
+                tf.square(tf.multiply(radius, self.gaussian_std)), 2)))
 
         self.learning_rate_op = tf.multiply(self.neighbourhood_func, alpha)
         
@@ -112,13 +115,14 @@ print(test_batch.shape)
 print(test_label.shape)
 
 # hyper parameter
-map_width_height  = 50
+map_width_height  = 30
 map_dim = 784
-num_epoch = 200
-batch_size = 50
+num_epoch = 100
+batch_size = 100
 
 # class
-SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim)
+SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim,
+learning_rate_som=0.9,radius_factor=1.1,gaussian_std = 0.08 )
 
 # create the graph
 x = tf.placeholder(shape=[None,map_dim],dtype=tf.float32)
