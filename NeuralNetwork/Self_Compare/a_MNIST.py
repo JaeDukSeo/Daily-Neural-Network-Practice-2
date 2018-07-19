@@ -301,8 +301,8 @@ x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels
 
 train_batch = x_data/255.0
 test_batch = y_data/255.0
-train_batch = train_batch[:1000,:]
-train_label = train_label[:1000,:]
+train_batch = train_batch[:3000,:]
+train_label = train_label[:3000,:]
 test_batch = test_batch[:100,:]
 test_label = test_label[:100,:]
 
