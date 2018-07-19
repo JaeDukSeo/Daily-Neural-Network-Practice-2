@@ -24,6 +24,12 @@ np.random.seed(6278)
 tf.set_random_seed(6728)
 ia.seed(6278)
 
+def unpickle(file):
+    import pickle
+    with open(file, 'rb') as fo:
+        dict = pickle.load(fo, encoding='bytes')
+    return dict
+
 # SOM as layer
 class SOM_Layer(): 
 
@@ -146,7 +152,7 @@ test_batch[:,:,1] = (test_batch[:,:,1]-test_batch[:,:,1].min())/(test_batch[:,:,
 test_batch[:,:,2] = (test_batch[:,:,2]-test_batch[:,:,2].min())/(test_batch[:,:,2].max()-test_batch[:,:,2].min())
 
 train_batch = np.reshape(train_batch,[100,-1])
-test_batch = np.reshape(test_batch,[100,-1])
+test_batch = np.reshape(test_batch,[50,-1])
 
 # hyper parameter
 map_width_height  = 30
@@ -193,7 +199,7 @@ with tf.Session() as sess:
     for i, m in enumerate(locations):
         plt.text( m[0], m[1],index[i], ha='center', va='center', 
         bbox=dict(facecolor='white', alpha=0.5, lw=0))
-    plt.title('Train MNIST 100')
+    plt.title('Train CIFAR 100')
 
     locations2 = sess.run(SOM_layer.getlocation(),feed_dict={x:test_batch})
     x2 = locations2[:,0]; y2 = locations2[:,1]
@@ -211,7 +217,7 @@ with tf.Session() as sess:
     # Just adding text
     for i, m in enumerate(locations2):
         plt.text( m[0], m[1],index2[i], ha='center', va='center', bbox=dict(facecolor='red', alpha=0.5, lw=0))
-    plt.title('Test MNIST 10 + Train MNIST 100')
+    plt.title('Test CIFAR 50 + Train CIFAR 100')
     plt.show()
 
 

@@ -100,6 +100,12 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
     plt.close('all')
 # ================= VIZ =================
 
+def unpickle(file):
+    import pickle
+    with open(file, 'rb') as fo:
+        dict = pickle.load(fo, encoding='bytes')
+    return dict
+
 # ================= LAYER CLASSES =================
 class CNN():
     
@@ -220,20 +226,17 @@ class FNN():
 
 class SOM_Layer(): 
 
-    def __init__(self,m,n,dim,num_epoch,learning_rate_som = 0.04,radius_factor = 1.1,
-    gaussian_std=0.5):
+    def __init__(self,m,n,dim,num_epoch,learning_rate_som ,radius_factor ,gaussian_std):
         
         self.m = m
         self.n = n
         self.dim = dim
         self.gaussian_std = gaussian_std
         self.num_epoch = num_epoch
-        # self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0,maxval=1,seed=2))
-        self.map = tf.Variable(tf.random_normal(shape=[m*n,dim],seed=2))
-
+        self.map = tf.Variable(tf.random_normal(shape=[m*n,dim],stddev=0.05))
         self.location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
         self.alpha = learning_rate_som
-        self.sigma = max(m,n)*1.1
+        self.sigma = max(m,n)*radius_factor
 
     def _neuron_locations(self, m, n):
         """
@@ -248,7 +251,6 @@ class SOM_Layer():
     def getlocation(self): return self.bmu_locs
 
     def feedforward(self,input):
-    
         self.input = input
         self.grad_pass = tf.pow(tf.subtract(tf.expand_dims(self.map, axis=0),tf.expand_dims(self.input, axis=1)), 2)
         self.squared_distance = tf.reduce_sum(self.grad_pass, 2)
@@ -290,7 +292,7 @@ class SOM_Layer():
         self.new_weights = tf.div(self.numerator, self.denominator)
         self.update = [tf.assign(self.map, self.new_weights)]
 
-        return self.update,tf.reduce_mean(self.grad_pass, 1)
+        return self.update,tf.reduce_mean(self.grad_pass,1)
 
 # ================= LAYER CLASSES =================
 
@@ -326,52 +328,58 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 
+train_batch = train_batch[:500,:,:,:]
+train_label = train_label[:500,:]
+test_batch = test_batch[:100,:,:,:]
+test_label = test_label[:100,:]
+
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
 print(test_batch.shape)
 print(test_label.shape)
 
-sys.exit()
+train_batch[:,:,0] = (train_batch[:,:,0]-train_batch[:,:,0].min())/(train_batch[:,:,0].max()-train_batch[:,:,0].min())
+train_batch[:,:,1] = (train_batch[:,:,1]-train_batch[:,:,1].min())/(train_batch[:,:,1].max()-train_batch[:,:,1].min())
+train_batch[:,:,2] = (train_batch[:,:,2]-train_batch[:,:,2].min())/(train_batch[:,:,2].max()-train_batch[:,:,2].min())
+
+test_batch[:,:,0] = (test_batch[:,:,0]-test_batch[:,:,0].min())/(test_batch[:,:,0].max()-test_batch[:,:,0].min())
+test_batch[:,:,1] = (test_batch[:,:,1]-test_batch[:,:,1].min())/(test_batch[:,:,1].max()-test_batch[:,:,1].min())
+test_batch[:,:,2] = (test_batch[:,:,2]-test_batch[:,:,2].min())/(test_batch[:,:,2].max()-test_batch[:,:,2].min())
 
 # hyper parameter 10000
-num_epoch = 100
+num_epoch = 30 
 batch_size = 100
-print_size = 2
 
-map_width_height  = 20
-# map_dim = 7*7*10
-map_dim = 3
+map_width_height  = 30
+map_dim = 1024
 
-learning_rate = 0.00008
-learnind_rate_decay = 0.0
+learning_rate = 0.000000001
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # define class here
-el1 = CNN(3,1,3)
-el2 = CNN(3,3,3)
-SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim,num_epoch = num_epoch,
-learning_rate_som=0.9,radius_factor=1.1,gaussian_std = 0.08 )
+el1 = CNN(3,3,16)
+el2 = CNN(3,16,32)
+el3 = FNN(8*8*32,1024,act=tf_atan,d_act=d_tf_atan)
+SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim,num_epoch = num_epoch,learning_rate_som=0.8,radius_factor=0.5,gaussian_std = 0.3)
 
 # graph
-x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32,name="input")
+x = tf.placeholder(shape=[None,32,32,3],dtype=tf.float32,name="input")
 current_iter = tf.placeholder(shape=[],dtype=tf.float32)
 
 # encoder
-elayer1 = el1.feedforward(x,padding='SAME')
-elayer2_input = tf.nn.avg_pool(elayer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-elayer2 = el2.feedforward(elayer2_input,padding='SAME')
-elayer3_input = tf.nn.avg_pool(elayer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-elayer3_flatten = tf.reshape(elayer3_input,[batch_size,-1])
-SOM_layer.feedforward(elayer3_flatten)
+elayer1 = el1.feedforward(x,padding='SAME',stride=2)
+elayer2 = el2.feedforward(elayer1,padding='SAME',stride=2)
+elayer3_flatten = tf.reshape(elayer2,[batch_size,-1])
+elayer3 = el3.feedforward(elayer3_flatten)  
+SOM_layer.feedforward(elayer3)
 
 SOM_Update,SOM_grad = SOM_layer.backprop(current_iter,num_epoch)
-egrad2_Input = tf_repeat(tf.reshape(SOM_grad,[batch_size,7,7,10]),[1,2,2,1])
-egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME')
-egrad1_Input = tf_repeat(egrad2,[1,2,2,1])
-egrad1,egrad1_up = el1.backprop(egrad1_Input,padding='SAME')
-
-grad_update = SOM_Update + egrad2_up + egrad1_up
+egrad3,egrad3_up = el3.backprop(SOM_grad)
+egrad2_Input = tf.reshape(egrad3,[batch_size,8,8,32])
+egrad2,egrad2_up = el2.backprop(egrad2_Input,padding='SAME',stride=2)
+egrad1,egrad1_up = el1.backprop(egrad2,padding='SAME',stride=2)
+grad_update = SOM_Update + egrad3_up + egrad2_up + egrad1_up
 
 # sess
 with tf.Session() as sess:
@@ -381,18 +389,14 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        train_batch,train_label = shuffle(train_batch,train_label)
+        # train_batch,train_label = shuffle(train_batch,train_label)
+
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             sess_results = sess.run(grad_update,feed_dict={x:current_batch,current_iter:iter})
             print('Current Iter: ',iter,' Current Train Index: ',batch_size_index,
             ' Current SUM of updated Values: ',sess_results[0].sum(),end='\r' )
         print('\n-----------------------')
-
-
-    mappp = sess.run(SOM_layer.getmap())
-    plt.imshow(mappp)
-    plt.show()
 
     # after training is done get the cloest vector
     locations = sess.run(SOM_layer.getlocation(),feed_dict={x:train_batch[:batch_size]})
@@ -408,9 +412,10 @@ with tf.Session() as sess:
     for i, m in enumerate(locations):
         plt.text( m[0], m[1],index[i], ha='center', va='center', 
         bbox=dict(facecolor='white', alpha=0.5, lw=0))
-    plt.title('Train MNIST 100')
+    plt.title('Train CIFAR 100')
 
     locations2 = sess.run(SOM_layer.getlocation(),feed_dict={x:test_batch})
+    locations2 = locations2[:50]
     x2 = locations2[:,0]; y2 = locations2[:,1]
     index2 = [ np.where(r==1)[0][0] for r in test_label ]
     index2 = list(map(str, index2))
@@ -426,7 +431,7 @@ with tf.Session() as sess:
     # Just adding text
     for i, m in enumerate(locations2):
         plt.text( m[0], m[1],index2[i], ha='center', va='center', bbox=dict(facecolor='red', alpha=0.5, lw=0))
-    plt.title('Test MNIST 10 + Train MNIST 100')
+    plt.title('Test CIFAR 50 + Train CIFAR 100')
     plt.show()
 
 # -- end code --
