@@ -16,10 +16,13 @@ from skimage.color import rgba2rgb
 
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
+from tensorflow.examples.tutorials.mnist import input_data
+
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 np.random.seed(6278)
 tf.set_random_seed(6728)
+ia.seed(6278)
 
 # SOM as layer
 class SOM_Layer(): 
@@ -90,36 +93,31 @@ class SOM_Layer():
 
         return self.update
 
-#Training inputs for RGBcolors
-colors = np.array([[0., 0., 0.],
-      [0., 0., 1.],
-      [0., 0., 0.5],
-      [0.125, 0.529, 1.0],
-      [0.33, 0.4, 0.67],
-      [0.6, 0.5, 1.0],
-      [0., 1., 0.],
-      [1., 0., 0.],
-      [0., 1., 1.],
-      [1., 0., 1.],
-      [1., 1., 0.],
-      [1., 1., 1.],
-      [.33, .33, .33],
-      [.5, .5, .5],
-      [.66, .66, .66]])
+# data
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+train, test = tf.keras.datasets.mnist.load_data()
+x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
-color_names = ['black', 'blue', 'darkblue', 'skyblue',
-     'greyblue', 'lilac', 'green', 'red',
-     'cyan', 'violet', 'yellow', 'white',
-     'darkgrey', 'mediumgrey', 'lightgrey']
+train_batch = x_data/255.0
+test_batch = y_data/255.0
+
+# print out the data shape
+print(train_batch.shape)
+print(train_label.shape)
+print(test_batch.shape)
+print(test_label.shape)
 
 # hyper parameter
-dim  = 1080
-SOM_layer = SOM_Layer(dim,dim,3)
-num_epoch = 8
-batch_size = 15
+map_width_height  = 100
+map_dim = 784
+num_epoch = 100
+batch_size = 10
+
+# class
+SOM_layer = SOM_Layer(map_width_height,map_width_height,map_dim)
 
 # create the graph
-x = tf.placeholder(shape=[batch_size,3],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,map_dim],dtype=tf.float32)
 current_iter = tf.placeholder(shape=[],dtype=tf.float32)
 
 # graph
@@ -133,9 +131,11 @@ with tf.Session() as sess:
 
     # start the training
     for iter in range(num_epoch):
-        for current_train_index in range(0,len(colors),batch_size):
-            currren_train = colors[current_train_index:current_train_index+batch_size]
-            sess.run(map_update,feed_dict={x:currren_train,current_iter:iter})
+        for current_train_index in range(0,len(test_batch),batch_size):
+            currren_train = test_batch[current_train_index:current_train_index+batch_size]
+            sess_results = sess.run(map_update,feed_dict={x:currren_train,current_iter:iter})
+            print('Current Iter: ',iter,' Current Train Index: ',current_train_index,' Current SUM of updated Values: ',sess_results.sum(),end='\r' )
+        print('\n-----------------------')
 
     # get the trained map and normalize
     trained_map = sess.run(SOM_layer.getmap()).reshape(dim,dim,3)
@@ -144,11 +144,10 @@ with tf.Session() as sess:
     trained_map[:,:,2] = (trained_map[:,:,2]-trained_map[:,:,2].min())/(trained_map[:,:,2].max()-trained_map[:,:,2].min())
 
     # after training is done get the cloest vector
-    locations = sess.run(SOM_layer.getlocation(),feed_dict={x:colors})
-
+    # locations = sess.run(SOM_layer.getlocation(),feed_dict={x:colors})
     plt.imshow(trained_map.astype(float))
-    for i, m in enumerate(locations):
-        plt.text(m[1], m[0], color_names[i], ha='center', va='center',bbox=dict(facecolor='white', alpha=0.5,lw=0)) 
+    # for i, m in enumerate(locations):
+    #     plt.text(m[1], m[0], color_names[i], ha='center', va='center',bbox=dict(facecolor='white', alpha=0.5,lw=0)) 
     plt.axis('off')
     plt.title('Color SOM')
     plt.show()
