@@ -250,7 +250,7 @@ class ICA_Layer():
         update_w = []
         g_tf = tf.linalg.inv(tf.transpose(self.w_ica)) - (2/batch_size) * tf.matmul(tf.transpose(self.input),self.ica_est_act)
 
-        update_w.append(tf.assign(self.w_ica,self.w_ica+learning_rate*0.00001*g_tf))
+        update_w.append(tf.assign(self.w_ica,self.w_ica+learning_rate*0.01*g_tf))
         return grad_pass,update_w  
 
 # ================= LAYER CLASSES =================
@@ -272,10 +272,11 @@ for x in range(len(y_data)):
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
-train_batch = train_batch[:10000]
-train_label = train_label[:10000]
-test_batch = test_batch[:1000]
-test_label = test_label[:1000]
+train_batch = train_batch[:100]
+train_label = train_label[:100]
+test_batch = test_batch[:100]
+test_label = test_label[:100]
+
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
@@ -291,7 +292,7 @@ el2 = CNN(3,16,32)
 el3 = CNN(3,32,64)
 el4 = FNN(7*7*64,256,act=tf_atan,d_act=d_tf_atan)
 
-ica_l0 = FNN(256,3,act=tf_atan,d_act=d_tf_atan)
+ica_l0 = FNN(256,3,act=tf_sigmoid,d_act=d_tf_sigmoid)
 ica_l1 = ICA_Layer(3)
 
 dl0 = FNN(256,7*7*128,act=tf_elu,d_act=d_tf_elu)
@@ -303,10 +304,10 @@ fl1 = CNN(3,32,32)
 fl2 = CNN(3,16,1,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # hyper
-num_epoch = 21
+num_epoch = 401
 learning_rate = 0.0008
-batch_size = 20
-print_size = 2
+batch_size = 100
+print_size = 5
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -458,7 +459,7 @@ with tf.Session() as sess:
     final_train = sess.run([flayer2,ica_layer1],feed_dict={x:train_batch[:batch_size,:,:,:]}) 
     final_train_ica = final_train[1]
     final_train = final_train[0]
-    for current_image_index in range(batch_size):
+    for current_image_index in range(batch_size//2):
         plt.figure(1, figsize=(18,9))
         plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
         plt.subplot(121)
@@ -474,7 +475,7 @@ with tf.Session() as sess:
     final_test = sess.run([flayer2,ica_layer1],feed_dict={x:test_batch[:batch_size,:,:,:]}) 
     final_test_ica = final_test[1]
     final_test = final_test[0]
-    for current_image_index in range(batch_size):
+    for current_image_index in range(batch_size//2):
         plt.figure(1, figsize=(18,9))
         plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
         plt.subplot(121)
