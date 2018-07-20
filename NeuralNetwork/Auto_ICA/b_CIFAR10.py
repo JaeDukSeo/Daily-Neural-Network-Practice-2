@@ -9,9 +9,7 @@ from skimage.transform import resize
 from imgaug import augmenters as iaa
 import imgaug as ia
 from skimage.color import rgba2rgb
-from matplotlib import rcParams
 
-rcParams['axes.titlepad'] = 20 
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
@@ -261,16 +259,6 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 # rotate data
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-
-train_batch_temp = np.zeros((train_batch.shape[0],48,48,3))
-test_batch_temp = np.zeros((test_batch.shape[0],48,48,3))
-for x in range(len(train_batch)):
-    train_batch_temp[x,:,:,:] = imresize(train_batch[x,:,:,:],(48,48))
-for x in range(len(test_batch)):
-    test_batch_temp[x,:,:,:] = imresize(test_batch[x,:,:,:],(48,48))
-
-train_batch = train_batch_temp
-test_batch = test_batch_temp
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
@@ -283,6 +271,7 @@ print(test_batch.shape)
 print(test_label.shape)
 print(test_batch.max(),test_batch.min())
 
+
 # class
 el1 = CNN(3,3,64)
 el2 = CNN(3,64,128)
@@ -292,19 +281,19 @@ dl1 = CNN_Trans(3,128,256)
 dl2 = CNN_Trans(3,64,128)
 dl3 = CNN_Trans(3,32,64)
 
-fl0 = CNN(3,32,3,act=tf_sigmoid,d_act=d_tf_sigmoid)
-vgg16_loss = tf.keras.applications.VGG16(weights='imagenet', include_top=False,input_shape=(48,48,3))
+fl1 = CNN(3,64,64)
+fl2 = CNN(3,32,3,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # hyper
 num_epoch = 30
-learning_rate = 0.000008
-batch_size = 100
+learning_rate = 0.0001
+batch_size = 50
 print_size = 2
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # graph
-x = tf.placeholder(shape=[batch_size,48,48,3],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
 
 elayer1 = el1.feedforward(x)
 elayer2_input = tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
@@ -313,15 +302,16 @@ elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding
 elayer3 = el3.feedforward(elayer3_input)
 
 dlayer1 = dl1.feedforward(elayer3,stride=2)
-dlayer2 = dl2.feedforward(dlayer1,stride=1)
-dlayer3 = dl3.feedforward(dlayer2,stride=2)
-dlayer4 = fl0.feedforward(dlayer3)
+dlayer2 = dl2.feedforward(dlayer1,stride=2)
+flayer1 = fl1.feedforward(dlayer2,stride=2)
 
-og_cost = vgg16_loss(x)
-predict = vgg16_loss(dlayer4)
-cost = tf.reduce_mean(tf.square(predict-og_cost))
-total_cost = cost
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+dlayer3 = dl3.feedforward(dlayer2,stride=2)
+flayer2 = fl2.feedforward(dlayer3,stride=2)
+
+cost0 = tf.reduce_mean(tf.square(flayer2-x))
+
+total_cost = cost0
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
 with tf.Session() as sess:
@@ -355,7 +345,7 @@ with tf.Session() as sess:
             print("--------------")
 
             test_example = train_batch[:batch_size,:,:,:]
-            sess_results = sess.run([dlayer4],feed_dict={x:test_example})
+            sess_results = sess.run([flayer2],feed_dict={x:test_example})
             sess_results = sess_results[0][0,:,:,:]
             test_example = test_example[0,:,:,:]
 
