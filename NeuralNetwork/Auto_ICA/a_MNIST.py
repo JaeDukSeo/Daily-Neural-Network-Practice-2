@@ -320,9 +320,8 @@ with tf.Session() as sess:
             sess_results = sess_results[0][0,:,:,:]
             test_example = test_example[0,:,:,:]
 
-            plt.figure(1, figsize=(12,6))
-            plt.subplots_adjust(top=0.85)
-            plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter))
+            plt.figure(1, figsize=(18,9))
+            plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
 
             plt.subplot(121)
             plt.axis('off')
@@ -330,7 +329,6 @@ with tf.Session() as sess:
             plt.subplot(122)
             plt.axis('off')
             plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
-            plt.tight_layout()
             plt.savefig('train_change/'+str(iter)+"_train_results.png",bbox_inches='tight')
             plt.close('all')
 

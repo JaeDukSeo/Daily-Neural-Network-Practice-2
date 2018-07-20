@@ -41,6 +41,7 @@ def d_tf_iden(x): return 1.0
 def tf_softmax(x): return tf.nn.softmax(x)
 # ======= Activation Function  ==========
 
+# ====== miscellaneous =====
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
     """
@@ -58,6 +59,13 @@ def tf_repeat(tensor, repeats):
     tiled_tensor = tf.tile(expanded_tensor, multiples = multiples)
     repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
     return repeated_tesnor
+
+def unpickle(file):
+    import pickle
+    with open(file, 'rb') as fo:
+        dict = pickle.load(fo, encoding='bytes')
+    return dict
+# ====== miscellaneous =====
 
 # ================= VIZ =================
 # Def: Simple funciton to view the histogram of weights
@@ -222,23 +230,49 @@ class FNN():
 
         return grad_pass,update_w   
 # ================= LAYER CLASSES =================
-
 # data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-train, test = tf.keras.datasets.mnist.load_data()
-x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-train_batch = np.zeros((55000,28,28,1))
-test_batch = np.zeros((10000,28,28,1))
-for x in range(len(x_data)):
-    train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
-for x in range(len(y_data)):
-    test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
+PathDicom = "../../Dataset/cifar-10-batches-py/"
+lstFilesDCM = []  # create an empty list
+for dirName, subdirList, fileList in os.walk(PathDicom):
+    for filename in fileList:
+        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
+            lstFilesDCM.append(os.path.join(dirName,filename))
 
-# simple normalize
+# Read the data traind and Test
+batch0 = unpickle(lstFilesDCM[0])
+batch1 = unpickle(lstFilesDCM[1])
+batch2 = unpickle(lstFilesDCM[2])
+batch3 = unpickle(lstFilesDCM[3])
+batch4 = unpickle(lstFilesDCM[4])
+
+onehot_encoder = OneHotEncoder(sparse=True)
+train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
+train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
+train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
+
+test_batch = unpickle(lstFilesDCM[5])[b'data']
+test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
+test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
+
+# reshape data
+train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
+test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
+
+# rotate data
+train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
+
+train_batch_temp = np.zeros((train_batch.shape[0],48,48,3))
+test_batch_temp = np.zeros((test_batch.shape[0],48,48,3))
+for x in range(len(train_batch)):
+    train_batch_temp[x,:,:,:] = imresize(train_batch[x,:,:,:],(48,48))
+for x in range(len(test_batch)):
+    test_batch_temp[x,:,:,:] = imresize(test_batch[x,:,:,:],(48,48))
+
+train_batch = train_batch_temp
+test_batch = test_batch_temp
 
 # print out the data shape
 print(train_batch.shape)
@@ -250,26 +284,27 @@ print(test_label.shape)
 print(test_batch.max(),test_batch.min())
 
 # class
-el1 = CNN(3,1,32)
-el2 = CNN(3,32,64)
-el3 = CNN(3,64,128)
+el1 = CNN(3,3,64)
+el2 = CNN(3,64,128)
+el3 = CNN(3,128,256)
 
-dl1 = CNN_Trans(3,64,128)
-dl2 = CNN_Trans(3,32,64)
-dl3 = CNN_Trans(3,16,32)
+dl1 = CNN_Trans(3,128,256)
+dl2 = CNN_Trans(3,64,128)
+dl3 = CNN_Trans(3,32,64)
 
-fl0 = CNN(3,16,1,act=tf_sigmoid,d_act=d_tf_sigmoid)
+fl0 = CNN(3,32,3,act=tf_sigmoid,d_act=d_tf_sigmoid)
+vgg16_loss = tf.keras.applications.VGG16(weights='imagenet', include_top=False,input_shape=(48,48,3))
 
 # hyper
 num_epoch = 30
-learning_rate = 0.00001
+learning_rate = 0.000008
 batch_size = 100
 print_size = 2
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # graph
-x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,48,48,3],dtype=tf.float32)
 
 elayer1 = el1.feedforward(x)
 elayer2_input = tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
@@ -280,11 +315,15 @@ elayer3 = el3.feedforward(elayer3_input)
 dlayer1 = dl1.feedforward(elayer3,stride=2)
 dlayer2 = dl2.feedforward(dlayer1,stride=1)
 dlayer3 = dl3.feedforward(dlayer2,stride=2)
-
 dlayer4 = fl0.feedforward(dlayer3)
 
-cost = tf.reduce_mean(tf.square(dlayer4-x))
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+targets_dict = dict([(layer.name, layer.output) for layer in vgg16_loss.layers])
+print(targets_dict)
+
+
+sys.exit()
+total_cost = cost0 + cost1 +  cost2 + cost3  
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
 with tf.Session() as sess:
@@ -307,7 +346,7 @@ with tf.Session() as sess:
         # train for batch
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,auto_train],feed_dict={x:current_batch})
+            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
