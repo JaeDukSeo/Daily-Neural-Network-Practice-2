@@ -261,8 +261,6 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 # rotate data
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-train_batch = train_batch/255.0
-test_batch = test_batch/255.0
 
 train_batch_temp = np.zeros((train_batch.shape[0],48,48,3))
 test_batch_temp = np.zeros((test_batch.shape[0],48,48,3))
@@ -273,6 +271,8 @@ for x in range(len(test_batch)):
 
 train_batch = train_batch_temp
 test_batch = test_batch_temp
+train_batch = train_batch/255.0
+test_batch = test_batch/255.0
 
 # print out the data shape
 print(train_batch.shape)
@@ -317,13 +317,11 @@ dlayer2 = dl2.feedforward(dlayer1,stride=1)
 dlayer3 = dl3.feedforward(dlayer2,stride=2)
 dlayer4 = fl0.feedforward(dlayer3)
 
-targets_dict = dict([(layer.name, layer.output) for layer in vgg16_loss.layers])
-print(targets_dict)
-
-
-sys.exit()
-total_cost = cost0 + cost1 +  cost2 + cost3  
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
+og_cost = vgg16_loss(x)
+predict = vgg16_loss(dlayer4)
+cost = tf.reduce_mean(tf.square(predict-og_cost))
+total_cost = cost
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # sess
 with tf.Session() as sess:
