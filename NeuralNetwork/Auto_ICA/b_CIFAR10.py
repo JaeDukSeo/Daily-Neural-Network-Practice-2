@@ -226,7 +226,32 @@ class FNN():
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
 
-        return grad_pass,update_w   
+        return grad_pass,update_w  
+
+class ICA_Layer():
+
+    def __init__(self,inc):
+        # self.w_ica = tf.Variable(tf.random_normal([inc,outc],stddev=0.05)) 
+        self.w_ica = tf.Variable(tf.eye(inc)) 
+
+    def feedforward(self,input):
+        self.input = input
+        self.ica_est = tf.matmul(elayer4,self.w_ica)
+        self.ica_est_act = tf_tanh(self.ica_est)
+        return self.ica_est_act
+
+    def backprop(self):
+        grad_part_2 = d_tf_tanh(self.ica_est)
+        grad_part_3 = self.input
+
+        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w_ica))
+
+        update_w = []
+        g_tf = tf.linalg.inv(tf.transpose(self.w_ica)) - (2/batch_size) * tf.matmul(tf.transpose(self.input),self.ica_est_act)
+
+        update_w.append(tf.assign(self.w_ica,self.w_ica+learning_rate*0.01*g_tf))
+        return grad_pass,update_w  
+
 # ================= LAYER CLASSES =================
 # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
@@ -271,12 +296,13 @@ print(test_batch.shape)
 print(test_label.shape)
 print(test_batch.max(),test_batch.min())
 
-
 # class
 el1 = CNN(3,3,32)
 el2 = CNN(3,32,64)
 el3 = CNN(3,64,128)
 el4 = FNN(8*8*128,512,act=tf_atan,d_act=d_tf_atan)
+
+ica_l = ICA_Layer(512,3)
 
 dl0 = FNN(512,8*8*256,act=tf_elu,d_act=d_tf_elu)
 dl1 = CNN_Trans(3,128,256)
@@ -292,7 +318,7 @@ learning_rate = 0.0001
 batch_size = 20
 print_size = 2
 
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # graph
 x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
@@ -306,6 +332,8 @@ elayer3 = el3.feedforward(elayer3_input)
 
 elayer4_input = tf.reshape(elayer3,[batch_size,-1])
 elayer4 = el4.feedforward(elayer4_input)
+
+ica_layer = ica_l.feedforward(elayer4)
 
 dlayer0 = dl0.feedforward(elayer4)
 dlayer1_input = tf.reshape(dlayer0,[batch_size,8,8,256])
@@ -321,6 +349,8 @@ flayer2 = fl2.feedforward(dlayer3)
 cost0 = tf.reduce_mean(tf.square(flayer2-x)*0.5)
 total_cost = cost0
 
+# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
+
 grad_fl2,grad_fl2_up = fl2.backprop(flayer2-x)
 grad_dl3,grad_dl3_up = dl3.backprop(grad_fl2,stride=2)
 
@@ -332,7 +362,9 @@ grad_dl1,grad_dl1_up = dl1.backprop(grad_dl2,stride=2)
 grad_d0_input = tf.reshape(grad_dl1,[batch_size,-1])
 grad_dl0,grad_dl0_up = dl0.backprop(grad_d0_input)
 
-grad_el4,grad_el4_up = el4.backprop(grad_dl0)
+grad_ica,grad_ica_up = ica_l.backprop()
+
+grad_el4,grad_el4_up = el4.backprop(grad_dl0+grad_ica)
 grad_el3_input = tf.reshape(grad_el4,[batch_size,8,8,128])
 
 grad_el3,grad_el3_up = el3.backprop(grad_el3_input)
@@ -345,6 +377,7 @@ grad_el1,grad_el1_up = el1.backprop(grad_el1_input)
 
 grad_update = grad_fl2_up + grad_dl3_up + \
               grad_fl1_up + grad_dl2_up + \
+              grad_ica_up + \
               grad_dl1_up + grad_dl0_up + \
               grad_el4_up + grad_el3_up + \
               grad_el2_up + grad_el1_up 
