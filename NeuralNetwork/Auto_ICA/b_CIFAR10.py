@@ -302,7 +302,8 @@ el2 = CNN(3,32,64)
 el3 = CNN(3,64,128)
 el4 = FNN(8*8*128,512,act=tf_atan,d_act=d_tf_atan)
 
-ica_l = ICA_Layer(512,3)
+ica_l0 = FNN(512,3,act=tf_atan,d_act=d_tf_atan)
+ica_l1 = ICA_Layer(3)
 
 dl0 = FNN(512,8*8*256,act=tf_elu,d_act=d_tf_elu)
 dl1 = CNN_Trans(3,128,256)
@@ -333,7 +334,8 @@ elayer3 = el3.feedforward(elayer3_input)
 elayer4_input = tf.reshape(elayer3,[batch_size,-1])
 elayer4 = el4.feedforward(elayer4_input)
 
-ica_layer = ica_l.feedforward(elayer4)
+ica_layer0 = ica_l0.feedforward(elayer4)
+ica_layer1 = ica_l1.feedforward(ica_layer0)
 
 dlayer0 = dl0.feedforward(elayer4)
 dlayer1_input = tf.reshape(dlayer0,[batch_size,8,8,256])
@@ -362,9 +364,10 @@ grad_dl1,grad_dl1_up = dl1.backprop(grad_dl2,stride=2)
 grad_d0_input = tf.reshape(grad_dl1,[batch_size,-1])
 grad_dl0,grad_dl0_up = dl0.backprop(grad_d0_input)
 
-grad_ica,grad_ica_up = ica_l.backprop()
+grad_ica1,grad_ica_up1 = ica_l1.backprop()
+grad_ica0,grad_ica_up0 = ica_l0.backprop(grad_ica1)
 
-grad_el4,grad_el4_up = el4.backprop(grad_dl0+grad_ica)
+grad_el4,grad_el4_up = el4.backprop(grad_dl0+grad_ica0)
 grad_el3_input = tf.reshape(grad_el4,[batch_size,8,8,128])
 
 grad_el3,grad_el3_up = el3.backprop(grad_el3_input)
@@ -377,7 +380,7 @@ grad_el1,grad_el1_up = el1.backprop(grad_el1_input)
 
 grad_update = grad_fl2_up + grad_dl3_up + \
               grad_fl1_up + grad_dl2_up + \
-              grad_ica_up + \
+              grad_ica_up1 +grad_ica_up0 + \ 
               grad_dl1_up + grad_dl0_up + \
               grad_el4_up + grad_el3_up + \
               grad_el2_up + grad_el1_up 
