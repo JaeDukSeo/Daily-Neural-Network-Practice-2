@@ -115,7 +115,7 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -155,7 +155,7 @@ class CNN():
 class CNN_Trans():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -232,25 +232,24 @@ class FNN():
 class ICA_Layer():
 
     def __init__(self,inc):
-        self.w_ica = tf.Variable(tf.random_normal([inc,inc],stddev=0.05)) 
-        # self.w_ica = tf.Variable(tf.eye(inc)) 
+        self.w_ica = tf.Variable(tf.random_normal([inc,inc],stddev=0.05,seed=2)) 
+        # self.w_ica = tf.Variable(tf.eye(inc)*0.0001) 
 
     def feedforward(self,input):
         self.input = input
         self.ica_est = tf.matmul(input,self.w_ica)
-        self.ica_est_act = tf_tanh(self.ica_est)
+        self.ica_est_act = tf_atan(self.ica_est)
         return self.ica_est_act
 
     def backprop(self):
-        grad_part_2 = d_tf_tanh(self.ica_est)
+        grad_part_2 = d_tf_atan(self.ica_est)
         grad_part_3 = self.input
 
+        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w_ica))
         g_tf = tf.linalg.inv(tf.transpose(self.w_ica)) - (2/batch_size) * tf.matmul(tf.transpose(self.input),self.ica_est_act)
 
         update_w = []
-        update_w.append(tf.assign(self.w_ica,self.w_ica+learning_rate*100*g_tf))
-
-        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w_ica))
+        update_w.append(tf.assign(self.w_ica,self.w_ica+0.2*g_tf))
 
         return grad_pass,update_w  
 
@@ -264,6 +263,7 @@ x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 train_batch = np.zeros((55000,28,28,1))
 test_batch = np.zeros((10000,28,28,1))
+
 for x in range(len(x_data)):
     train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
 for x in range(len(y_data)):
@@ -273,10 +273,10 @@ for x in range(len(y_data)):
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
-train_batch = train_batch[:40000]
-train_label = train_label[:40000]
-test_batch = test_batch[:100]
-test_label = test_label[:100]
+train_batch = train_batch[:1000]
+train_label = train_label[:1000]
+test_batch = test_batch[:200]
+test_label = test_label[:200]
 
 # print out the data shape
 print(train_batch.shape)
@@ -305,10 +305,10 @@ fl1 = CNN(3,32,32)
 fl2 = CNN(3,16,1,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # hyper
-num_epoch = 51
+num_epoch = 101
 learning_rate = 0.0001
-batch_size = 100
-print_size = 10
+batch_size = 200
+print_size = num_epoch
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -326,7 +326,12 @@ elayer4_input = tf.reshape(elayer3,[batch_size,-1])
 elayer4 = el4.feedforward(elayer4_input)
 
 ica_layer0 = ica_l0.feedforward(elayer4)
-ica_layer1 = ica_l1.feedforward(ica_layer0)
+
+ica_layer1_temp = []
+for _ in range(int(num_epoch*3)):
+    ica_layer1 = ica_l1.feedforward(ica_layer0)
+    grad_ica1,grad_ica_up1 = ica_l1.backprop()
+    ica_layer1_temp.append(grad_ica_up1)
 
 dlayer0 = dl0.feedforward(elayer4)
 dlayer1_input = tf.reshape(dlayer0,[batch_size,7,7,128])
@@ -355,7 +360,7 @@ grad_dl1,grad_dl1_up = dl1.backprop(grad_dl2,stride=2)
 grad_d0_input = tf.reshape(grad_dl1,[batch_size,-1])
 grad_dl0,grad_dl0_up = dl0.backprop(grad_d0_input)
 
-grad_ica1,grad_ica_up1 = ica_l1.backprop()
+# grad_ica1,grad_ica_up1 = ica_l1.backprop()
 grad_ica0,grad_ica_up0 = ica_l0.backprop(grad_ica1)
 
 grad_el4,grad_el4_up = el4.backprop(grad_dl0+grad_ica0)
@@ -369,9 +374,15 @@ grad_el1_input = tf_repeat(grad_el2,[1,2,2,1])
 
 grad_el1,grad_el1_up = el1.backprop(grad_el1_input)
 
-grad_update = grad_fl2_up + grad_dl3_up + \
+grad_update0 = grad_fl2_up + grad_dl3_up + \
               grad_fl1_up + grad_dl2_up + \
-              grad_ica_up1 + grad_ica_up0 + \
+              grad_dl1_up + grad_dl0_up + \
+              grad_el4_up + grad_el3_up + \
+              grad_el2_up + grad_el1_up 
+
+grad_update1 = grad_fl2_up + grad_dl3_up + \
+              grad_fl1_up + grad_dl2_up + \
+              ica_layer1_temp + grad_ica_up0 + \
               grad_dl1_up + grad_dl0_up + \
               grad_el4_up + grad_el3_up + \
               grad_el2_up + grad_el1_up 
@@ -391,14 +402,15 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        # shuffle data
-        train_batch,train_label = shuffle(train_batch,train_label)
-        test_batch,test_label = shuffle(test_batch,test_label)
+        if iter > num_epoch//3:
+            sess_aim = [total_cost,grad_update1]
+        else:
+            sess_aim = [total_cost,grad_update0]
 
         # train for batch
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([total_cost,grad_update],feed_dict={x:current_batch})
+            sess_result = sess.run(sess_aim,feed_dict={x:current_batch})
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
@@ -460,7 +472,7 @@ with tf.Session() as sess:
     final_train = sess.run([flayer2,ica_layer1],feed_dict={x:train_batch[:batch_size,:,:,:]}) 
     final_train_ica = final_train[1]
     final_train = final_train[0]
-    for current_image_index in range(batch_size//8):
+    for current_image_index in range(batch_size//100):
         plt.figure(1, figsize=(18,9))
         plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
         plt.subplot(121)
@@ -476,7 +488,7 @@ with tf.Session() as sess:
     final_test = sess.run([flayer2,ica_layer1],feed_dict={x:test_batch[:batch_size,:,:,:]}) 
     final_test_ica = final_test[1]
     final_test = final_test[0]
-    for current_image_index in range(batch_size//8):
+    for current_image_index in range(batch_size//100):
         plt.figure(1, figsize=(18,9))
         plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
         plt.subplot(121)
