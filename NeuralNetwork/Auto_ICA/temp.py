@@ -39,7 +39,6 @@ def d_tf_iden(x): return 1.0
 def tf_softmax(x): return tf.nn.softmax(x)
 # ======= Activation Function  ==========
 
-# ====== miscellaneous =====
 # code from: https://github.com/tensorflow/tensorflow/issues/8246
 def tf_repeat(tensor, repeats):
     """
@@ -57,13 +56,6 @@ def tf_repeat(tensor, repeats):
     tiled_tensor = tf.tile(expanded_tensor, multiples = multiples)
     repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
     return repeated_tesnor
-
-def unpickle(file):
-    import pickle
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
-# ====== miscellaneous =====
 
 # ================= VIZ =================
 # Def: Simple funciton to view the histogram of weights
@@ -226,64 +218,23 @@ class FNN():
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
 
-        return grad_pass,update_w  
-
-class ICA_Layer():
-
-    def __init__(self,inc):
-        # self.w_ica = tf.Variable(tf.random_normal([inc,outc],stddev=0.05)) 
-        self.w_ica = tf.Variable(tf.eye(inc)) 
-
-    def feedforward(self,input):
-        self.input = input
-        self.ica_est = tf.matmul(input,self.w_ica)
-        self.ica_est_act = tf_tanh(self.ica_est)
-        return self.ica_est_act
-
-    def backprop(self):
-        grad_part_2 = d_tf_tanh(self.ica_est)
-        grad_part_3 = self.input
-
-        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w_ica))
-
-        update_w = []
-        g_tf = tf.linalg.inv(tf.transpose(self.w_ica)) - (2/batch_size) * tf.matmul(tf.transpose(self.input),self.ica_est_act)
-
-        update_w.append(tf.assign(self.w_ica,self.w_ica+learning_rate*0.01*g_tf))
-        return grad_pass,update_w  
-
+        return grad_pass,update_w   
 # ================= LAYER CLASSES =================
+
 # data
-PathDicom = "../../Dataset/cifar-10-batches-py/"
-lstFilesDCM = []  # create an empty list
-for dirName, subdirList, fileList in os.walk(PathDicom):
-    for filename in fileList:
-        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
-            lstFilesDCM.append(os.path.join(dirName,filename))
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+train, test = tf.keras.datasets.mnist.load_data()
+x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+train_batch = np.zeros((55000,28,28,1))
+test_batch = np.zeros((10000,28,28,1))
+for x in range(len(x_data)):
+    train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
+for x in range(len(y_data)):
+    test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-# Read the data traind and Test
-batch0 = unpickle(lstFilesDCM[0])
-batch1 = unpickle(lstFilesDCM[1])
-batch2 = unpickle(lstFilesDCM[2])
-batch3 = unpickle(lstFilesDCM[3])
-batch4 = unpickle(lstFilesDCM[4])
-
-onehot_encoder = OneHotEncoder(sparse=True)
-train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
-train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float32)
-train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float32)
-
-test_batch = unpickle(lstFilesDCM[5])[b'data']
-test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float32)
-test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float32)
-
-# reshape data
-train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
-test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
-
-# rotate data
-train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
-test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float32)
+# simple normalize
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
@@ -297,93 +248,41 @@ print(test_label.shape)
 print(test_batch.max(),test_batch.min())
 
 # class
-el1 = CNN(3,3,32)
+el1 = CNN(3,1,32)
 el2 = CNN(3,32,64)
 el3 = CNN(3,64,128)
-el4 = FNN(8*8*128,512,act=tf_atan,d_act=d_tf_atan)
 
-ica_l0 = FNN(512,3,act=tf_atan,d_act=d_tf_atan)
-ica_l1 = ICA_Layer(3)
+dl1 = CNN_Trans(3,64,128)
+dl2 = CNN_Trans(3,32,64)
+dl3 = CNN_Trans(3,16,32)
 
-dl0 = FNN(512,8*8*256,act=tf_elu,d_act=d_tf_elu)
-dl1 = CNN_Trans(3,128,256)
-dl2 = CNN_Trans(3,64,128)
-dl3 = CNN_Trans(3,32,64)
-
-fl1 = CNN(3,64,64)
-fl2 = CNN(3,32,3,act=tf_sigmoid,d_act=d_tf_sigmoid)
+fl0 = CNN(3,16,1,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # hyper
-num_epoch = 21
-learning_rate = 0.0008
-batch_size = 20
+num_epoch = 30
+learning_rate = 0.00001
+batch_size = 100
 print_size = 2
 
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # graph
-x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
+x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32)
 
 elayer1 = el1.feedforward(x)
 elayer2_input = tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input)
-
 elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer3 = el3.feedforward(elayer3_input)
 
-elayer4_input = tf.reshape(elayer3,[batch_size,-1])
-elayer4 = el4.feedforward(elayer4_input)
+dlayer1 = dl1.feedforward(elayer3,stride=2)
+dlayer2 = dl2.feedforward(dlayer1,stride=1)
+dlayer3 = dl3.feedforward(dlayer2,stride=2)
 
-ica_layer0 = ica_l0.feedforward(elayer4)
-ica_layer1 = ica_l1.feedforward(ica_layer0)
+dlayer4 = fl0.feedforward(dlayer3)
 
-dlayer0 = dl0.feedforward(elayer4)
-dlayer1_input = tf.reshape(dlayer0,[batch_size,8,8,256])
-
-dlayer1 = dl1.feedforward(dlayer1_input,stride=2)
-
-dlayer2 = dl2.feedforward(dlayer1,stride=2)
-flayer1 = fl1.feedforward(dlayer2,stride=2)
-
-dlayer3 = dl3.feedforward(flayer1,stride=2)
-flayer2 = fl2.feedforward(dlayer3)
-
-cost0 = tf.reduce_mean(tf.square(flayer2-x)*0.5)
-total_cost = cost0
-
-# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
-
-grad_fl2,grad_fl2_up = fl2.backprop(flayer2-x)
-grad_dl3,grad_dl3_up = dl3.backprop(grad_fl2,stride=2)
-
-grad_fl1,grad_fl1_up = fl1.backprop(grad_dl3,stride=2)
-grad_dl2,grad_dl2_up = dl2.backprop(grad_fl1,stride=2)
-
-grad_dl1,grad_dl1_up = dl1.backprop(grad_dl2,stride=2)
-
-grad_d0_input = tf.reshape(grad_dl1,[batch_size,-1])
-grad_dl0,grad_dl0_up = dl0.backprop(grad_d0_input)
-
-grad_ica1,grad_ica_up1 = ica_l1.backprop()
-grad_ica0,grad_ica_up0 = ica_l0.backprop(grad_ica1)
-
-grad_el4,grad_el4_up = el4.backprop(grad_dl0+grad_ica0)
-grad_el3_input = tf.reshape(grad_el4,[batch_size,8,8,128])
-
-grad_el3,grad_el3_up = el3.backprop(grad_el3_input)
-grad_el2_input = tf_repeat(grad_el3,[1,2,2,1])
-
-grad_el2,grad_el2_up = el2.backprop(grad_el2_input)
-grad_el1_input = tf_repeat(grad_el2,[1,2,2,1])
-
-grad_el1,grad_el1_up = el1.backprop(grad_el1_input)
-
-grad_update = grad_fl2_up + grad_dl3_up + \
-              grad_fl1_up + grad_dl2_up + \
-              grad_ica_up1 + grad_ica_up0 + \
-              grad_dl1_up + grad_dl0_up + \
-              grad_el4_up + grad_el3_up + \
-              grad_el2_up + grad_el1_up 
+cost = tf.reduce_mean(tf.square(dlayer4-x))
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # sess
 with tf.Session() as sess:
@@ -402,12 +301,11 @@ with tf.Session() as sess:
 
         # shuffle data
         train_batch,train_label = shuffle(train_batch,train_label)
-        test_batch,test_label = shuffle(test_batch,test_label)
 
         # train for batch
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([total_cost,grad_update],feed_dict={x:current_batch})
+            sess_result = sess.run([cost,auto_train],feed_dict={x:current_batch})
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
@@ -417,14 +315,14 @@ with tf.Session() as sess:
             print('Current Iter: ',iter,' Accumulated Train cost : ', train_cota/(len(train_batch)/(batch_size)),end='\n')
             print("--------------")
 
-            # get one image from train batch and show results
             test_example = train_batch[:batch_size,:,:,:]
-            sess_results = sess.run([flayer2],feed_dict={x:test_example})
+            sess_results = sess.run([dlayer4],feed_dict={x:test_example})
             sess_results = sess_results[0][0,:,:,:]
             test_example = test_example[0,:,:,:]
 
             plt.figure(1, figsize=(18,9))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
+
             plt.subplot(121)
             plt.axis('off')
             plt.imshow(np.squeeze(test_example),cmap='gray')
@@ -432,23 +330,6 @@ with tf.Session() as sess:
             plt.axis('off')
             plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
             plt.savefig('train_change/'+str(iter)+"_train_results.png",bbox_inches='tight')
-            plt.close('all')
-
-            # get one image from test batch and show results
-            test_example = test_batch[:batch_size,:,:,:]
-            sess_results = sess.run([flayer2],feed_dict={x:test_example})
-            sess_results = sess_results[0][0,:,:,:]
-            test_example = test_example[0,:,:,:]
-
-            plt.figure(1, figsize=(18,9))
-            plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
-            plt.subplot(121)
-            plt.axis('off')
-            plt.imshow(np.squeeze(test_example),cmap='gray')
-            plt.subplot(122)
-            plt.axis('off')
-            plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
-            plt.savefig('test_change/'+str(iter)+"_test_results.png",bbox_inches='tight')
             plt.close('all')
 
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
@@ -459,41 +340,13 @@ with tf.Session() as sess:
 
     # plot the training and testing graph
     plt.figure()
+    plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
     plt.savefig("viz/Case Train.png")
     plt.close('all')
 
-    # train image final show
-    final_train = sess.run(flayer2,feed_dict={x:train_batch[:batch_size,:,:,:]}) 
-    for current_image_index in range(batch_size):
-        plt.figure(1, figsize=(12,6))
-        plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
-        plt.subplot(121)
-        plt.axis('off')
-        plt.imshow(np.squeeze(train_batch[current_image_index]))
-        plt.subplot(122)
-        plt.axis('off')
-        plt.imshow(np.squeeze(final_train[current_image_index]).astype(np.float32))
-        plt.tight_layout()
-        plt.savefig('final_train/'+str(current_image_index)+"_train_results.png",bbox_inches='tight')
-        plt.close('all')
-        
-    # test image final show
-    final_test = sess.run(flayer2,feed_dict={x:test_batch[:batch_size,:,:,:]}) 
-    for current_image_index in range(batch_size):
-        plt.figure(1, figsize=(12,6))
-        plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
-        plt.subplot(121)
-        plt.axis('off')
-        plt.imshow(np.squeeze(test_batch[current_image_index]))
-        plt.subplot(122)
-        plt.axis('off')
-        plt.imshow(np.squeeze(final_test[current_image_index]).astype(np.float32))
-        plt.tight_layout()
-        plt.savefig('final_test/'+str(current_image_index)+"_test_results.png",bbox_inches='tight')
-        plt.close('all')
 
     sys.exit()
     # generate the 3D plot figure
