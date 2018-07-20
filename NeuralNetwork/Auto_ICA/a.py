@@ -219,7 +219,6 @@ class FNN():
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
 
         return grad_pass,update_w   
-
 # ================= LAYER CLASSES =================
 
 # data
@@ -241,20 +240,146 @@ test_batch = test_batch/255.0
 
 # print out the data shape
 print(train_batch.shape)
-print(train_batch.max(),train_batch.min())
 print(train_label.shape)
+print(train_batch.max(),train_batch.min())
+
 print(test_batch.shape)
-print(test_batch.max(),test_batch.min())
 print(test_label.shape)
+print(test_batch.max(),test_batch.min())
 
 # class
-l1 = 
+el1 = CNN(3,1,32)
+el2 = CNN(3,32,64)
+el3 = CNN(3,64,128)
 
+dl1 = CNN_Trans(3,64,128)
+dl2 = CNN_Trans(3,32,64)
+# dl3 = CNN_Trans(3,16,32)
+
+fl0 = CNN(3,32,1,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # hyper
+num_epoch = 30
+learning_rate = 0.000008
+batch_size = 50
+print_size = 2
+
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # graph
+x = tf.placeholder(shape=[None,28,28,1],dtype=tf.float32)
 
-# session
+elayer1 = el1.feedforward(x)
+elayer2_input = tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer2 = el2.feedforward(elayer2_input)
+elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer3 = el3.feedforward(elayer3_input)
 
+dlayer1 = dl1.feedforward(elayer3,stride=2)
+dlayer2 = dl2.feedforward(dlayer1,stride=2)
+# dlayer3 = dl3.feedforward(dlayer2)
+
+dlayer4 = fl0.feedforward(dlayer2)
+
+cost = tf.reduce_mean(tf.square(dlayer4-x))
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
+# sess
+with tf.Session() as sess:
+
+    sess.run(tf.global_variables_initializer())
+    saver = tf.train.Saver()
+
+    train_cota,train_acca = 0,0
+    train_cot,train_acc = [],[]
+    
+    test_cota,test_acca = 0,0
+    test_cot,test_acc = [],[]
+
+    # start the training
+    for iter in range(num_epoch):
+
+        # shuffle data
+        train_batch,train_label = shuffle(train_batch,train_label)
+
+        # train for batch
+        for batch_size_index in range(0,len(train_batch),batch_size):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+            sess_result = sess.run([cost,auto_train],feed_dict={x:current_batch})
+            print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
+            train_cota = train_cota + sess_result[0]
+
+        # if it is print size print the cost and Sample Image
+        if iter % print_size==0:
+            print("\n--------------")   
+            print('Current Iter: ',iter,' Accumulated Train cost : ', train_cota/(len(train_batch)/(batch_size)),end='\n')
+            print("--------------")
+
+            test_example = train_batch[:batch_size,:,:,:]
+            sess_results = sess.run([dlayer4],feed_dict={x:test_example})
+            sess_results = sess_results[0][0,:,:,:]
+            test_example = test_example[0,:,:,:]
+
+            plt.figure(1, figsize=(12,6))
+            plt.subplot(121)
+            plt.axis('off')
+            plt.imshow(np.squeeze(test_example),cmap='gray')
+            plt.subplot(122)
+            plt.axis('off')
+            plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
+            plt.title('Original Image (left) Generated Image (right) Iter: ' + str(iter))
+            plt.savefig('train_change/'+str(iter)+"train_results.png",bbox_inches='tight')
+            plt.close('all')
+
+        train_cot.append(train_cota/(len(train_batch)/(batch_size)))
+        train_cota,train_acca = 0,0
+
+    # Normalize the cost of the training
+    train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
+
+    # plot the training and testing graph
+    plt.figure()
+    plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
+    plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
+    plt.legend()
+    plt.title("Train Average Accuracy / Cost Over Time")
+    plt.savefig("viz/Case Train.png")
+    plt.close('all')
+
+
+    sys.exit()
+    # generate the 3D plot figure
+    test_batch = train_batch[:1000]
+    test_label = train_label[:1000]
+
+    test_latent = sess.run(elayer3,feed_dict={x:test_batch[:batch_size,:,:,:]})
+    for iii in range(batch_size,len(test_batch),batch_size):
+        temp = sess.run(elayer3,feed_dict={x:test_batch[iii:batch_size+iii,:,:,:]})
+        test_latent = np.vstack((test_latent,temp))
+
+    from mpl_toolkits.mplot3d import Axes3D
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    color_dict = {
+        0:'red',
+        1:'blue',
+        2:'green',
+        3:'yellow',
+        4:'purple',
+        5:'grey',
+        6:'black',
+        7:'violet',
+        8:'silver',
+        9:'cyan',
+    }
+
+    color_mapping = [color_dict[x] for x in np.argmax(test_label,1) ]
+    ax.scatter(test_latent[:,0], test_latent[:,1],test_latent[:,2],c=color_mapping,label=str(color_dict))
+    ax.set_xlabel('X Label')
+    ax.set_ylabel('Y Label')
+    ax.set_zlabel('Z Label')
+    ax.legend()
+    ax.grid(True)
+    plt.show()
 # -- end code --
