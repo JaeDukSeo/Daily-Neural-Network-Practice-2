@@ -9,7 +9,9 @@ from skimage.transform import resize
 from imgaug import augmenters as iaa
 import imgaug as ia
 from skimage.color import rgba2rgb
+from matplotlib import rcParams
 
+rcParams['axes.titlepad'] = 20 
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
@@ -254,14 +256,14 @@ el3 = CNN(3,64,128)
 
 dl1 = CNN_Trans(3,64,128)
 dl2 = CNN_Trans(3,32,64)
-# dl3 = CNN_Trans(3,16,32)
+dl3 = CNN_Trans(3,16,32)
 
-fl0 = CNN(3,32,1,act=tf_sigmoid,d_act=d_tf_sigmoid)
+fl0 = CNN(3,16,1,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # hyper
 num_epoch = 30
-learning_rate = 0.000008
-batch_size = 50
+learning_rate = 0.00001
+batch_size = 100
 print_size = 2
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
@@ -276,10 +278,10 @@ elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding
 elayer3 = el3.feedforward(elayer3_input)
 
 dlayer1 = dl1.feedforward(elayer3,stride=2)
-dlayer2 = dl2.feedforward(dlayer1,stride=2)
-# dlayer3 = dl3.feedforward(dlayer2)
+dlayer2 = dl2.feedforward(dlayer1,stride=1)
+dlayer3 = dl3.feedforward(dlayer2,stride=2)
 
-dlayer4 = fl0.feedforward(dlayer2)
+dlayer4 = fl0.feedforward(dlayer3)
 
 cost = tf.reduce_mean(tf.square(dlayer4-x))
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
@@ -321,14 +323,16 @@ with tf.Session() as sess:
             test_example = test_example[0,:,:,:]
 
             plt.figure(1, figsize=(12,6))
+            plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter))
+
             plt.subplot(121)
             plt.axis('off')
             plt.imshow(np.squeeze(test_example),cmap='gray')
             plt.subplot(122)
             plt.axis('off')
             plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
-            plt.title('Original Image (left) Generated Image (right) Iter: ' + str(iter))
-            plt.savefig('train_change/'+str(iter)+"train_results.png",bbox_inches='tight')
+            plt.tight_layout()
+            plt.savefig('train_change/'+str(iter)+"_train_results.png",bbox_inches='tight')
             plt.close('all')
 
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
