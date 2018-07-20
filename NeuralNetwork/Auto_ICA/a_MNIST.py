@@ -232,8 +232,8 @@ class FNN():
 class ICA_Layer():
 
     def __init__(self,inc):
-        # self.w_ica = tf.Variable(tf.random_normal([inc,outc],stddev=0.05)) 
-        self.w_ica = tf.Variable(tf.eye(inc)) 
+        self.w_ica = tf.Variable(tf.random_normal([inc,inc],stddev=0.05)) 
+        # self.w_ica = tf.Variable(tf.eye(inc)) 
 
     def feedforward(self,input):
         self.input = input
@@ -245,12 +245,13 @@ class ICA_Layer():
         grad_part_2 = d_tf_tanh(self.ica_est)
         grad_part_3 = self.input
 
-        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w_ica))
-
-        update_w = []
         g_tf = tf.linalg.inv(tf.transpose(self.w_ica)) - (2/batch_size) * tf.matmul(tf.transpose(self.input),self.ica_est_act)
 
-        update_w.append(tf.assign(self.w_ica,self.w_ica+learning_rate*0.01*g_tf))
+        update_w = []
+        update_w.append(tf.assign(self.w_ica,self.w_ica+learning_rate*100*g_tf))
+
+        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w_ica))
+
         return grad_pass,update_w  
 
 # ================= LAYER CLASSES =================
@@ -272,8 +273,8 @@ for x in range(len(y_data)):
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
-train_batch = train_batch[:100]
-train_label = train_label[:100]
+train_batch = train_batch[:40000]
+train_label = train_label[:40000]
 test_batch = test_batch[:100]
 test_label = test_label[:100]
 
@@ -292,10 +293,10 @@ el2 = CNN(3,16,32)
 el3 = CNN(3,32,64)
 el4 = FNN(7*7*64,256,act=tf_atan,d_act=d_tf_atan)
 
-ica_l0 = FNN(256,3,act=tf_sigmoid,d_act=d_tf_sigmoid)
+ica_l0 = FNN(256,3,act=tf_atan,d_act=d_tf_atan)
 ica_l1 = ICA_Layer(3)
 
-dl0 = FNN(256,7*7*128,act=tf_elu,d_act=d_tf_elu)
+dl0 = FNN(256,7*7*128,act=tf_iden,d_act=d_tf_iden)
 dl1 = CNN_Trans(3,64,128)
 dl2 = CNN_Trans(3,32,64)
 dl3 = CNN_Trans(3,16,32)
@@ -304,10 +305,10 @@ fl1 = CNN(3,32,32)
 fl2 = CNN(3,16,1,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # hyper
-num_epoch = 401
-learning_rate = 0.0008
+num_epoch = 51
+learning_rate = 0.0001
 batch_size = 100
-print_size = 5
+print_size = 10
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -459,7 +460,7 @@ with tf.Session() as sess:
     final_train = sess.run([flayer2,ica_layer1],feed_dict={x:train_batch[:batch_size,:,:,:]}) 
     final_train_ica = final_train[1]
     final_train = final_train[0]
-    for current_image_index in range(batch_size//2):
+    for current_image_index in range(batch_size//8):
         plt.figure(1, figsize=(18,9))
         plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
         plt.subplot(121)
@@ -475,7 +476,7 @@ with tf.Session() as sess:
     final_test = sess.run([flayer2,ica_layer1],feed_dict={x:test_batch[:batch_size,:,:,:]}) 
     final_test_ica = final_test[1]
     final_test = final_test[0]
-    for current_image_index in range(batch_size//2):
+    for current_image_index in range(batch_size//8):
         plt.figure(1, figsize=(18,9))
         plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
         plt.subplot(121)
@@ -505,6 +506,7 @@ with tf.Session() as sess:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
+
     color_mapping = [color_dict[x] for x in np.argmax(train_label[:batch_size],1) ]
     ax.scatter(final_train_ica[:,0], final_train_ica[:,1],final_train_ica[:,2],c=color_mapping,label=str(color_dict))
 
@@ -515,9 +517,9 @@ with tf.Session() as sess:
     ax.set_ylabel('Y Label')
     ax.set_zlabel('Z Label')
 
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
-    ax.set_zticklabels([])
+    # ax.set_xticklabels([])
+    # ax.set_yticklabels([])
+    # ax.set_zticklabels([])
 
     ax.legend()
     ax.grid(True)
