@@ -285,9 +285,9 @@ fl1 = CNN(3,64,64)
 fl2 = CNN(3,32,3,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # hyper
-num_epoch = 30
-learning_rate = 0.0001
-batch_size = 50
+num_epoch = 21
+learning_rate = 0.0003
+batch_size = 20
 print_size = 2
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
@@ -330,6 +330,7 @@ with tf.Session() as sess:
 
         # shuffle data
         train_batch,train_label = shuffle(train_batch,train_label)
+        test_batch,test_label = shuffle(test_batch,test_label)
 
         # train for batch
         for batch_size_index in range(0,len(train_batch),batch_size):
@@ -344,6 +345,7 @@ with tf.Session() as sess:
             print('Current Iter: ',iter,' Accumulated Train cost : ', train_cota/(len(train_batch)/(batch_size)),end='\n')
             print("--------------")
 
+            # get one image from train batch and show results
             test_example = train_batch[:batch_size,:,:,:]
             sess_results = sess.run([flayer2],feed_dict={x:test_example})
             sess_results = sess_results[0][0,:,:,:]
@@ -351,7 +353,6 @@ with tf.Session() as sess:
 
             plt.figure(1, figsize=(12,6))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter))
-
             plt.subplot(121)
             plt.axis('off')
             plt.imshow(np.squeeze(test_example),cmap='gray')
@@ -362,6 +363,24 @@ with tf.Session() as sess:
             plt.savefig('train_change/'+str(iter)+"_train_results.png",bbox_inches='tight')
             plt.close('all')
 
+            # get one image from test batch and show results
+            test_example = test_batch[:batch_size,:,:,:]
+            sess_results = sess.run([flayer2],feed_dict={x:test_example})
+            sess_results = sess_results[0][0,:,:,:]
+            test_example = test_example[0,:,:,:]
+
+            plt.figure(1, figsize=(12,6))
+            plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter))
+            plt.subplot(121)
+            plt.axis('off')
+            plt.imshow(np.squeeze(test_example),cmap='gray')
+            plt.subplot(122)
+            plt.axis('off')
+            plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
+            plt.tight_layout()
+            plt.savefig('test_change/'+str(iter)+"_test_results.png",bbox_inches='tight')
+            plt.close('all')
+
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 
@@ -370,13 +389,41 @@ with tf.Session() as sess:
 
     # plot the training and testing graph
     plt.figure()
-    plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
     plt.title("Train Average Accuracy / Cost Over Time")
     plt.savefig("viz/Case Train.png")
     plt.close('all')
 
+    # train image final show
+    final_train = sess.run(flayer2,feed_dict={x:train_batch[:batch_size,:,:,:]}) 
+    for current_image_index in range(batch_size):
+        plt.figure(1, figsize=(12,6))
+        plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter))
+        plt.subplot(121)
+        plt.axis('off')
+        plt.imshow(np.squeeze(train_batch[current_image_index]))
+        plt.subplot(122)
+        plt.axis('off')
+        plt.imshow(np.squeeze(final_train[current_image_index]).astype(np.float32))
+        plt.tight_layout()
+        plt.savefig('final_train/'+str(current_image_index)+"_train_results.png",bbox_inches='tight')
+        plt.close('all')
+        
+    # test image final show
+    final_test = sess.run([flayer2],feed_dict={x:test_batch[:batch_size,:,:,:]}) 
+    for current_image_index in range(batch_size):
+        plt.figure(1, figsize=(12,6))
+        plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter))
+        plt.subplot(121)
+        plt.axis('off')
+        plt.imshow(np.squeeze(test_batch[current_image_index]))
+        plt.subplot(122)
+        plt.axis('off')
+        plt.imshow(np.squeeze(final_test[current_image_index]).astype(np.float32))
+        plt.tight_layout()
+        plt.savefig('final_test/'+str(current_image_index)+"_test_results.png",bbox_inches='tight')
+        plt.close('all')
 
     sys.exit()
     # generate the 3D plot figure
