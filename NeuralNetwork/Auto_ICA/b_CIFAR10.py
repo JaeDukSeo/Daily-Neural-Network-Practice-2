@@ -273,10 +273,12 @@ print(test_batch.max(),test_batch.min())
 
 
 # class
-el1 = CNN(3,3,64)
-el2 = CNN(3,64,128)
-el3 = CNN(3,128,256)
+el1 = CNN(3,3,32)
+el2 = CNN(3,32,64)
+el3 = CNN(3,64,128)
+el4 = FNN(8*8*128,512,act=tf_atan,d_act=d_tf_atan)
 
+dl0 = FNN(512,8*8*256,act=tf_elu,d_act=d_tf_elu)
 dl1 = CNN_Trans(3,128,256)
 dl2 = CNN_Trans(3,64,128)
 dl3 = CNN_Trans(3,32,64)
@@ -286,7 +288,7 @@ fl2 = CNN(3,32,3,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # hyper
 num_epoch = 21
-learning_rate = 0.0003
+learning_rate = 0.0001
 batch_size = 20
 print_size = 2
 
@@ -298,20 +300,54 @@ x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float32)
 elayer1 = el1.feedforward(x)
 elayer2_input = tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input)
+
 elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer3 = el3.feedforward(elayer3_input)
 
-dlayer1 = dl1.feedforward(elayer3,stride=2)
+elayer4_input = tf.reshape(elayer3,[batch_size,-1])
+elayer4 = el4.feedforward(elayer4_input)
+
+dlayer0 = dl0.feedforward(elayer4)
+dlayer1_input = tf.reshape(dlayer0,[batch_size,8,8,256])
+
+dlayer1 = dl1.feedforward(dlayer1_input,stride=2)
+
 dlayer2 = dl2.feedforward(dlayer1,stride=2)
 flayer1 = fl1.feedforward(dlayer2,stride=2)
 
-dlayer3 = dl3.feedforward(dlayer2,stride=2)
-flayer2 = fl2.feedforward(dlayer3,stride=2)
+dlayer3 = dl3.feedforward(flayer1,stride=2)
+flayer2 = fl2.feedforward(dlayer3)
 
-cost0 = tf.reduce_mean(tf.square(flayer2-x))
-
+cost0 = tf.reduce_mean(tf.square(flayer2-x)*0.5)
 total_cost = cost0
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
+
+grad_fl2,grad_fl2_up = fl2.backprop(flayer2-x)
+grad_dl3,grad_dl3_up = dl3.backprop(grad_fl2,stride=2)
+
+grad_fl1,grad_fl1_up = fl1.backprop(grad_dl3,stride=2)
+grad_dl2,grad_dl2_up = dl2.backprop(grad_fl1,stride=2)
+
+grad_dl1,grad_dl1_up = dl1.backprop(grad_dl2,stride=2)
+
+grad_d0_input = tf.reshape(grad_dl1,[batch_size,-1])
+grad_dl0,grad_dl0_up = dl0.backprop(grad_d0_input)
+
+grad_el4,grad_el4_up = el4.backprop(grad_dl0)
+grad_el3_input = tf.reshape(grad_el4,[batch_size,8,8,128])
+
+grad_el3,grad_el3_up = el3.backprop(grad_el3_input)
+grad_el2_input = tf_repeat(grad_el3,[1,2,2,1])
+
+grad_el2,grad_el2_up = el2.backprop(grad_el2_input)
+grad_el1_input = tf_repeat(grad_el2,[1,2,2,1])
+
+grad_el1,grad_el1_up = el1.backprop(grad_el1_input)
+
+grad_update = grad_fl2_up + grad_dl3_up + \
+              grad_fl1_up + grad_dl2_up + \
+              grad_dl1_up + grad_dl0_up + \
+              grad_el4_up + grad_el3_up + \
+              grad_el2_up + grad_el1_up 
 
 # sess
 with tf.Session() as sess:
@@ -335,7 +371,7 @@ with tf.Session() as sess:
         # train for batch
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
+            sess_result = sess.run([total_cost,grad_update],feed_dict={x:current_batch})
             print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
@@ -399,7 +435,7 @@ with tf.Session() as sess:
     final_train = sess.run(flayer2,feed_dict={x:train_batch[:batch_size,:,:,:]}) 
     for current_image_index in range(batch_size):
         plt.figure(1, figsize=(12,6))
-        plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter))
+        plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
         plt.subplot(121)
         plt.axis('off')
         plt.imshow(np.squeeze(train_batch[current_image_index]))
@@ -411,10 +447,10 @@ with tf.Session() as sess:
         plt.close('all')
         
     # test image final show
-    final_test = sess.run([flayer2],feed_dict={x:test_batch[:batch_size,:,:,:]}) 
+    final_test = sess.run(flayer2,feed_dict={x:test_batch[:batch_size,:,:,:]}) 
     for current_image_index in range(batch_size):
         plt.figure(1, figsize=(12,6))
-        plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter))
+        plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
         plt.subplot(121)
         plt.axis('off')
         plt.imshow(np.squeeze(test_batch[current_image_index]))
