@@ -1,7 +1,22 @@
 import numpy as np
 import sys
 import tensorflow as tf
+import sys, os,cv2
+from sklearn.utils import shuffle
+from scipy.misc import imread,imresize
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import OneHotEncoder
+from skimage.transform import resize
+from imgaug import augmenters as iaa
+import imgaug as ia
+from skimage.color import rgba2rgb
 
+old_v = tf.logging.get_verbosity()
+tf.logging.set_verbosity(tf.logging.ERROR)
+from tensorflow.examples.tutorials.mnist import input_data
+
+plt.style.use('seaborn-white')
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 def neg_squared_euc_dists(X):
     """Compute matrix containing negative squared euclidean
@@ -141,6 +156,33 @@ def symmetric_sne_grad(P, Q, Y, _):
     grad = 4. * (pq_expanded * y_diffs).sum(1)  #Nx2
     return grad
 
+def categorical_scatter_2d(X2D, class_idxs, ms=3, ax=None, alpha=0.1, 
+                           legend=True, figsize=None, show=False, 
+                           savename=None):
+    ## Plot a 2D matrix with corresponding class labels: each class diff colour
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize)
+    #ax.margins(0.05) # Optional, just adds 5% padding to the autoscaling
+    classes = list(np.unique(class_idxs))
+    markers = 'os' * len(classes)
+    colors = plt.cm.rainbow(np.linspace(0,1,len(classes)))
+
+    for i, cls in enumerate(classes):
+        mark = markers[i]
+        ax.plot(X2D[class_idxs==cls, 0], X2D[class_idxs==cls, 1], marker=mark, 
+            linestyle='', ms=ms, label=str(cls), alpha=alpha, color=colors[i],
+            markeredgecolor='black', markeredgewidth=0.4)
+    if legend:
+        ax.legend()
+        
+    if savename is not None:
+        plt.tight_layout()
+        plt.savefig(savename)
+    
+    if show:
+        plt.show()
+    
+    return ax
 
 def estimate_sne(X, y, P, rng, num_iters, q_fn, grad_fn, learning_rate,
                  momentum, plot):
@@ -182,21 +224,21 @@ def estimate_sne(X, y, P, rng, num_iters, q_fn, grad_fn, learning_rate,
             Y_m2 = Y_m1.copy()
             Y_m1 = Y.copy()
 
-        # Plot sometimes
-        if plot and i % (num_iters / plot) == 0:
-            categorical_scatter_2d(Y, y, alpha=1.0, ms=6,
-                                   show=True, figsize=(9, 6))
+        # # Plot sometimes
+        # if plot and i % (num_iters / plot) == 0:
+        #     categorical_scatter_2d(Y, y, alpha=1.0, ms=6,
+        #                            show=True, figsize=(9, 6))
 
     return Y
 
 # Set global parameters
 NUM_POINTS = 200            # Number of samples from MNIST
 CLASSES_TO_USE = [0, 1, 8]  # MNIST classes to use
-PERPLEXITY = 20
+PERPLEXITY = 3
 SEED = 1                    # Random seed
 MOMENTUM = 0.9
-LEARNING_RATE = 10.
-NUM_ITERS = 500             # Num iterations to train for
+LEARNING_RATE = 0.1
+NUM_ITERS = 1000             # Num iterations to train for
 TSNE = False                # If False, Symmetric SNE
 NUM_PLOTS = 5               # Num. times to plot in training
 
@@ -205,21 +247,48 @@ def main():
     # numpy RandomState for reproducibility
     rng = np.random.RandomState(SEED)
 
-    # Load the first NUM_POINTS 0's, 1's and 8's from MNIST
-    X, y = load_mnist('datasets/',
-                      digits_to_keep=CLASSES_TO_USE,
-                      N=NUM_POINTS)
+    mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+    train, test = tf.keras.datasets.mnist.load_data()
+    x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+
+
+    X = x_data[:500]
+    train_label = train_label[:500]
+
+    # # Load the first NUM_POINTS 0's, 1's and 8's from MNIST
+    # X, y = load_mnist('datasets/',
+    #                   digits_to_keep=CLASSES_TO_USE,
+    #                   N=NUM_POINTS)
 
     # Obtain matrix of joint probabilities p_ij
     P = p_joint(X, PERPLEXITY)
 
     # Fit SNE or t-SNE
-    Y = estimate_sne(X, y, P, rng,
+    Y = estimate_sne(X, train_label, P, rng,
              num_iters=NUM_ITERS,
              q_fn=q_tsne if TSNE else q_joint,
              grad_fn=tsne_grad if TSNE else symmetric_sne_grad,
              learning_rate=LEARNING_RATE,
              momentum=MOMENTUM,
              plot=NUM_PLOTS)
+
+    color_dict = {
+        0:'red',
+        1:'blue',
+        2:'green',
+        3:'yellow',
+        4:'purple',
+        5:'grey',
+        6:'black',
+        7:'violet',
+        8:'silver',
+        9:'cyan',
+    }
+
+    color_mapping = [color_dict[x] for x in np.argmax(train_label,1) ]
+    plt.scatter(Y[:,0],Y[:,1],c=color_mapping)
+    plt.show()
+
+main()
 
 # -- end code --
