@@ -114,36 +114,85 @@ def p_joint(X, target_perplexity):
     P = p_conditional_to_joint(p_conditional)
     return P
 
-def sym_grad(P,Q,Y):
+def sym_grad(P,Q,Y,one=None):
     """Estimate the gradient of the cost with respect to Y"""
     pq_diff = P - Q  # NxN matrix
     pq_expanded = np.expand_dims(pq_diff, 2)  #NxNx1
     y_diffs = np.expand_dims(Y, 1) - np.expand_dims(Y, 0)  #NxNx2
-    grad = 4. * (pq_expanded * y_diffs).sum(1)  #Nx2
+    if one.any():
+        grad = 4. * (1/(1+one**2)).dot(pq_expanded * y_diffs).sum(1)  
+    else:
+        grad = 4. * (pq_expanded * y_diffs).sum(1)  #Nx2
     return grad
 
 # Set global parameters
-NUM_POINTS = 300            # Number of samples from MNIST
-CLASSES_TO_USE = [0, 1, 8]  # MNIST classes to use
-num_epoch = 1000
-learning_rate = 10
-print_size = 2
-perplexity_number = 15
+NUM_POINTS = 1200            # Number of samples from MNIST
+CLASSES_TO_USE = [0, 6,7,9]  # MNIST classes to use
+num_epoch = 1300
+learning_rate = 0.09
+print_size = 100
+perplexity_number = 30
 
 X, y = load_mnist('datasets/',digits_to_keep=CLASSES_TO_USE,N=NUM_POINTS)
-W = 2.0 * np.random.randn(300,2) + 0.0
+W =  np.random.randn(NUM_POINTS,2) 
 P = p_joint(X,perplexity_number)
 
+# grad_sum_overtime = []
+# for iter in range(2):
+#     Q = q_joint(W)
+#     grad = sym_grad(P,Q,W)
+#     W = W - learning_rate * grad
+#     grad_sum_overtime.append(grad.sum())
+#     print('Current Iter: ',iter, ' Current Grad Sum : ',grad_sum_overtime[-1],end='\r')
+#     if iter % print_size == 0 : print('\n---------------\n')
+
+grad_sum_overtime = []
+W2 = np.random.randn(NUM_POINTS,2) 
+V2 = np.zeros_like(W2)
+M2 = np.zeros_like(W2)
 for iter in range(num_epoch):
-    Q = q_joint(W)
-    grad = sym_grad(P,Q,W)
-    W = W - learning_rate * grad
-    print('Current Iter: ',iter, ' Current Grad Sum : ',grad.sum(),end='\r')
+    one = q_joint(W2)
+    Q = np.arctan(one)
+    grad = sym_grad(P,Q,W2,one)
+
+    M2 = 0.9 * M2 + (1-0.9) * grad
+    V2 = 0.999 * V2 + (1-0.999) * grad ** 2
+
+    M_hat = M2/(1-0.9)
+    V_hat = V2/(1-0.999)
+
+    W2 = W2 - learning_rate/(np.sqrt(V_hat)+1e-8) * M_hat
+    grad_sum_overtime.append(grad.sum())
+    print('Current Iter: ',iter, ' Current Grad Sum : ',grad_sum_overtime[-1],end='\r')
     if iter % print_size == 0 : print('\n---------------\n')
 
-plt.figure(figsize=(5,5))
-plt.scatter(W[:,0],W[:,1],c=y)
-plt.axis('off')
+
+color_dict = {
+    0:'red',
+    1:'blue',
+    2:'green',
+    3:'yellow',
+    4:'purple',
+    5:'grey',
+    6:'black',
+    7:'cyan',
+    8:'pink',
+    9:'skyblue',
+}
+
+plt.figure()
+plt.suptitle(str(color_dict))
+# plt.subplot(1, 2, 1)
+# color_mapping = [color_dict[x] for x in y ]
+# plt.scatter(W[:,0],W[:,1],c=color_mapping)
+# plt.legend()
+# plt.axis('off')
+
+# plt.subplot(1, 2, 2)
+color_mapping = [color_dict[x] for x in y ]
+plt.scatter(W2[:,0],W2[:,1],c=color_mapping)
+plt.legend()
+plt.axis()
 plt.show()
 
 
