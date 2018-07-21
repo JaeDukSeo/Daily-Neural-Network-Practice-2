@@ -39,7 +39,7 @@ def load_mnist(datasets_path, digits_to_keep=[0, 1], N=500):
     
     # Load the dataset
     f = gzip.open(path, 'rb')
-    train_set, _, _ = pickle.load(f)
+    train_set, _, _ = pickle.load(f,encoding = 'latin1')
     f.close()
     
     # Find indices of digits in training set that we will keep

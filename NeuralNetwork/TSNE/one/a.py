@@ -20,6 +20,36 @@ X, y = load_mnist('datasets/',
                       digits_to_keep=CLASSES_TO_USE,
                       N=NUM_POINTS)
 
+print(X.shape)
+print(y.shape)
+
+def neg_distance(X):
+    X_sum = np.sum(X**2,1)
+    distance = np.reshape(X_sum,[-1,1])
+    return -(distance - 2*X.dot(X.T)+distance.T) 
+
+def softmax_max(X,diag=True):
+    X_exp = np.exp(X - X.max(1).reshape([-1, 1]))
+    X_exp = X_exp + 1e-10
+    if diag: np.fill_diagonal(X_exp, 0.)
+    # X_exp = X_exp + 1e-10
+    return X_exp/X_exp.sum(1).reshape([-1, 1])
+
+def calc_prob_matrix(distances, sigmas=None):
+    """Convert a distances matrix to a matrix of probabilities."""
+    if sigmas is not None:
+        two_sig_sq = 2. * sigmas.reshape([-1, 1]) ** 2
+        return softmax(distances / two_sig_sq)
+    else:
+        return softmax(distances)
+
+temp = np.array([
+    [1,1],
+    [2,2],
+    [3,3]
+])
+print(neg_distance(temp))
+print(softmax_max(neg_distance(temp)))
 
 
 
