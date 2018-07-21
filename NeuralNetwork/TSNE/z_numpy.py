@@ -11,12 +11,11 @@ from imgaug import augmenters as iaa
 import imgaug as ia
 from skimage.color import rgba2rgb
 
-old_v = tf.logging.get_verbosity()
-tf.logging.set_verbosity(tf.logging.ERROR)
-from tensorflow.examples.tutorials.mnist import input_data
-
-plt.style.use('seaborn-white')
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+# old_v = tf.logging.get_verbosity()
+# tf.logging.set_verbosity(tf.logging.ERROR)
+# from tensorflow.examples.tutorials.mnist import input_data
+# plt.style.use('seaborn-white')
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 def neg_squared_euc_dists(X):
     """Compute matrix containing negative squared euclidean
@@ -30,8 +29,32 @@ def neg_squared_euc_dists(X):
     """
     # Math? See https://stackoverflow.com/questions/37009647
     sum_X = np.sum(np.square(X), 1)
-    D = np.add(np.add(-2 * np.dot(X, X.T), sum_X).T, sum_X)
+    D = np.add(
+            np.add(-2 * np.dot(X, X.T), 
+                   sum_X).T, 
+        sum_X)
     return -D
+
+temp = np.array([
+    [1,1],
+    [2,2],
+    [1,1]
+])
+
+one = np.sum(np.square(temp),1)
+one = np.reshape(one,[-1,1])
+print(one)
+ss = one + - 2*temp.dot(temp.T) + one.T 
+print(ss)
+
+print('-----')
+print(np.square(temp))
+print( np.sum(np.square(temp), 1))
+print(neg_squared_euc_dists(temp))
+sys.exit()
+
+
+
 
 def softmax(X, diag_zero=True):
     """Take softmax of each row of matrix X."""
@@ -234,11 +257,11 @@ def estimate_sne(X, y, P, rng, num_iters, q_fn, grad_fn, learning_rate,
 # Set global parameters
 NUM_POINTS = 200            # Number of samples from MNIST
 CLASSES_TO_USE = [0, 1, 8]  # MNIST classes to use
-PERPLEXITY = 3
+PERPLEXITY = 10 
 SEED = 1                    # Random seed
 MOMENTUM = 0.9
-LEARNING_RATE = 0.1
-NUM_ITERS = 1000             # Num iterations to train for
+LEARNING_RATE = 0.9
+NUM_ITERS = 3000             # Num iterations to train for
 TSNE = False                # If False, Symmetric SNE
 NUM_PLOTS = 5               # Num. times to plot in training
 
