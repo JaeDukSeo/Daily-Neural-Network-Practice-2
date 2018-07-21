@@ -509,9 +509,9 @@ with tf.Session() as sess:
         4:'purple',
         5:'grey',
         6:'black',
-        7:'violet',
-        8:'silver',
-        9:'cyan',
+        7:'white',
+        8:'pink',
+        9:'skyblue',
     }
 
     plt.close('all')

@@ -114,6 +114,14 @@ def p_joint(X, target_perplexity):
     P = p_conditional_to_joint(p_conditional)
     return P
 
+def q_tsne(Y):
+    """t-SNE: Given low-dimensional representations Y, compute
+    matrix of joint probabilities with entries q_ij."""
+    distances = neg_squared_euc_dists(Y)
+    inv_distances = np.power(1. - distances, -1)
+    np.fill_diagonal(inv_distances, 0.)
+    return inv_distances / np.sum(inv_distances), inv_distances
+
 def sym_grad(P,Q,Y,one=None):
     """Estimate the gradient of the cost with respect to Y"""
     pq_diff = P - Q  # NxN matrix
@@ -122,13 +130,29 @@ def sym_grad(P,Q,Y,one=None):
     grad = 4. * (pq_expanded * y_diffs).sum(1)  #Nx2
     return grad
 
+def tsne_grad(P, Q, Y, inv_distances):
+    """Estimate the gradient of t-SNE cost with respect to Y."""
+    pq_diff = P - Q
+    pq_expanded = np.expand_dims(pq_diff, 2)
+    y_diffs = np.expand_dims(Y, 1) - np.expand_dims(Y, 0)
+
+    # Expand our inv_distances matrix so can multiply by y_diffs
+    distances_expanded = np.expand_dims(inv_distances, 2)
+
+    # Multiply this by inverse distances matrix
+    y_diffs_wt = y_diffs * distances_expanded
+
+    # Multiply then sum over j's
+    grad = 4. * (pq_expanded * y_diffs_wt).sum(1)
+    return grad
+
 # Set global parameters
-NUM_POINTS = 1000            # Number of samples from MNIST
-CLASSES_TO_USE = [0,7,9]  # MNIST classes to use
+NUM_POINTS = 1200            # Number of samples from MNIST
+CLASSES_TO_USE = [0,6,7,9]  # MNIST classes to use
 num_epoch = 1300
-learning_rate = 10
+learning_rate = 0.9
 print_size = 100
-perplexity_number = 30
+perplexity_number = 7
 
 X, y = load_mnist('datasets/',digits_to_keep=CLASSES_TO_USE,N=NUM_POINTS)
 W =  np.random.randn(NUM_POINTS,2) 
@@ -148,8 +172,8 @@ W2 = np.random.randn(NUM_POINTS,2)
 V2 = np.zeros_like(W2)
 M2 = np.zeros_like(W2)
 for iter in range(num_epoch):
-    Q = q_joint(W2)
-    grad = sym_grad(P,Q,W2)
+    Q,inv_distances = q_tsne(W2)
+    grad = tsne_grad(P,Q,W2,inv_distances)
 
     M2 = 0.9 * M2 + (1-0.9) * grad
     V2 = 0.999 * V2 + (1-0.999) * grad ** 2
