@@ -44,7 +44,7 @@ def perplexity(distances, sigmas):
     perplexity = 2.0 ** entropy
     return perplexity
 
-def binary_search(distance_vec, target, max_iter=20000,tol=1e-13, lower=1e-5, upper=1e5):
+def binary_search(distance_vec, target, max_iter=20000,tol=1e-13, lower=1e-10, upper=1e10):
     """Perform a binary search over input values to eval_fn.
     # Arguments
         eval_fn: Function that we are optimising over.
@@ -119,17 +119,14 @@ def sym_grad(P,Q,Y,one=None):
     pq_diff = P - Q  # NxN matrix
     pq_expanded = np.expand_dims(pq_diff, 2)  #NxNx1
     y_diffs = np.expand_dims(Y, 1) - np.expand_dims(Y, 0)  #NxNx2
-    if one.any():
-        grad = 4. * (1/(1+one**2)).dot(pq_expanded * y_diffs).sum(1)  
-    else:
-        grad = 4. * (pq_expanded * y_diffs).sum(1)  #Nx2
+    grad = 4. * (pq_expanded * y_diffs).sum(1)  #Nx2
     return grad
 
 # Set global parameters
-NUM_POINTS = 1200            # Number of samples from MNIST
-CLASSES_TO_USE = [0, 6,7,9]  # MNIST classes to use
+NUM_POINTS = 1000            # Number of samples from MNIST
+CLASSES_TO_USE = [0,7,9]  # MNIST classes to use
 num_epoch = 1300
-learning_rate = 0.09
+learning_rate = 10
 print_size = 100
 perplexity_number = 30
 
@@ -151,9 +148,8 @@ W2 = np.random.randn(NUM_POINTS,2)
 V2 = np.zeros_like(W2)
 M2 = np.zeros_like(W2)
 for iter in range(num_epoch):
-    one = q_joint(W2)
-    Q = np.arctan(one)
-    grad = sym_grad(P,Q,W2,one)
+    Q = q_joint(W2)
+    grad = sym_grad(P,Q,W2)
 
     M2 = 0.9 * M2 + (1-0.9) * grad
     V2 = 0.999 * V2 + (1-0.999) * grad ** 2
@@ -165,7 +161,6 @@ for iter in range(num_epoch):
     grad_sum_overtime.append(grad.sum())
     print('Current Iter: ',iter, ' Current Grad Sum : ',grad_sum_overtime[-1],end='\r')
     if iter % print_size == 0 : print('\n---------------\n')
-
 
 color_dict = {
     0:'red',
