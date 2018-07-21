@@ -117,7 +117,7 @@ def p_joint(X, target_perplexity):
 def q_tsne(Y):
     """t-SNE: Given low-dimensional representations Y, compute
     matrix of joint probabilities with entries q_ij."""
-    distances = neg_squared_euc_dists(Y)
+    distances = neg_distance(Y)
     inv_distances = np.power(1. - distances, -1)
     np.fill_diagonal(inv_distances, 0.)
     return inv_distances / np.sum(inv_distances), inv_distances
@@ -150,9 +150,9 @@ def tsne_grad(P, Q, Y, inv_distances):
 NUM_POINTS = 1200            # Number of samples from MNIST
 CLASSES_TO_USE = [0,6,7,9]  # MNIST classes to use
 num_epoch = 1300
-learning_rate = 0.9
+learning_rate = 0.09
 print_size = 100
-perplexity_number = 7
+perplexity_number = 20
 
 X, y = load_mnist('datasets/',digits_to_keep=CLASSES_TO_USE,N=NUM_POINTS)
 W =  np.random.randn(NUM_POINTS,2) 
