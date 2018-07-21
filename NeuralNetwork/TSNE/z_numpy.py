@@ -35,6 +35,21 @@ def neg_squared_euc_dists(X):
         sum_X)
     return -D
 
+def softmax(X, diag_zero=True):
+    """Take softmax of each row of matrix X."""
+
+    # Subtract max for numerical stability
+    e_x = np.exp(X - np.max(X, axis=1).reshape([-1, 1]))
+
+    # We usually want diagonal probailities to be 0.
+    if diag_zero:
+        np.fill_diagonal(e_x, 0.)
+
+    # Add a tiny constant for stability of log we take later
+    e_x = e_x + 1e-8  # numerical stability
+
+    return e_x / e_x.sum(axis=1).reshape([-1, 1])
+
 temp = np.array([
     [1,1],
     [2,2],
@@ -51,25 +66,13 @@ print('-----')
 print(np.square(temp))
 print( np.sum(np.square(temp), 1))
 print(neg_squared_euc_dists(temp))
+print(softmax(neg_squared_euc_dists(temp)))
 sys.exit()
 
 
 
 
-def softmax(X, diag_zero=True):
-    """Take softmax of each row of matrix X."""
 
-    # Subtract max for numerical stability
-    e_x = np.exp(X - np.max(X, axis=1).reshape([-1, 1]))
-
-    # We usually want diagonal probailities to be 0.
-    if diag_zero:
-        np.fill_diagonal(e_x, 0.)
-
-    # Add a tiny constant for stability of log we take later
-    e_x = e_x + 1e-8  # numerical stability
-
-    return e_x / e_x.sum(axis=1).reshape([-1, 1])
 
 def calc_prob_matrix(distances, sigmas=None):
     """Convert a distances matrix to a matrix of probabilities."""

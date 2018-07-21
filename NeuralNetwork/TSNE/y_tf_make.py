@@ -17,6 +17,8 @@ from tensorflow.examples.tutorials.mnist import input_data
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
+AA = tf.placeholder(shape=[3,2],dtype=tf.float32)
+
 def tf_neg_squared_euc_dists(A):
     r = tf.reduce_sum(A*A, 1)
 
@@ -24,6 +26,8 @@ def tf_neg_squared_euc_dists(A):
     r = tf.reshape(r, [-1, 1])
     D = r - 2*tf.matmul(A, tf.transpose(A)) + tf.transpose(r)
     return -D 
+
+tf_soft = tf.nn.softmax(tf_neg_squared_euc_dists(AA))
 
 temp = np.array([
     [1,1],
@@ -33,6 +37,7 @@ temp = np.array([
 
 sess = tf.Session()
 print(sess.run(tf_neg_squared_euc_dists(temp)))
+print(sess.run(tf_soft,feed_dict={AA:temp}))
 
 
 
