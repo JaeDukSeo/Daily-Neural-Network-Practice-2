@@ -10,6 +10,7 @@ from skimage.transform import resize
 from imgaug import augmenters as iaa
 import imgaug as ia
 from skimage.color import rgba2rgb
+np.set_printoptions(precision=2)
 
 # old_v = tf.logging.get_verbosity()
 # tf.logging.set_verbosity(tf.logging.ERROR)
@@ -56,17 +57,15 @@ temp = np.array([
     [1,1]
 ])
 
-one = np.sum(np.square(temp),1)
-one = np.reshape(one,[-1,1])
-print(one)
-ss = one + - 2*temp.dot(temp.T) + one.T 
-print(ss)
 
 print('-----')
 print(np.square(temp))
 print( np.sum(np.square(temp), 1))
 print(neg_squared_euc_dists(temp))
-print(softmax(neg_squared_euc_dists(temp)))
+print(np.around(softmax(neg_squared_euc_dists(temp)),2))
+
+
+
 sys.exit()
 
 
