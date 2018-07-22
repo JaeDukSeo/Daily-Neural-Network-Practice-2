@@ -16,7 +16,7 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
 
 plt.style.use('seaborn-white')
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 np.random.seed(6278)
 tf.set_random_seed(6728)
 ia.seed(6278)
@@ -257,25 +257,24 @@ class ICA_Layer():
 
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-train, test = tf.keras.datasets.mnist.load_data()
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+# x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
+# y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 train_batch = np.zeros((55000,28,28,1))
 test_batch = np.zeros((10000,28,28,1))
 
-for x in range(len(x_data)):
-    train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
-for x in range(len(y_data)):
-    test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
+# for x in range(len(x_data)):
+#     train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
+# for x in range(len(y_data)):
+#     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
 # simple normalize
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
-train_batch = train_batch[:1000]
-train_label = train_label[:1000]
-test_batch = test_batch[:200]
+train_batch = x_data[:3]
+train_label = train_label[:3]
+test_batch = y_data[:200]
 test_label = test_label[:200]
 
 # print out the data shape
@@ -287,7 +286,129 @@ print(test_batch.shape)
 print(test_label.shape)
 print(test_batch.max(),test_batch.min())
 
+# ======= TSNE ======
+def neg_distance(X):
+    X_sum = np.sum(X**2,1)
+    distance = np.reshape(X_sum,[-1,1])
+    return -(distance - 2*X.dot(X.T)+distance.T) 
+
+def softmax_max(X,diag=True):
+    X_exp = np.exp(X - X.max(1).reshape([-1, 1]))
+    X_exp = X_exp + 1e-10
+    if diag: np.fill_diagonal(X_exp, 0.)
+    # X_exp = X_exp + 1e-10
+    return X_exp/X_exp.sum(1).reshape([-1, 1])
+
+def calc_prob_matrix(distances, sigmas=None):
+    """Convert a distances matrix to a matrix of probabilities."""
+    if sigmas is not None:
+        two_sig_sq = 2. * sigmas.reshape([-1, 1]) ** 2
+        return softmax_max(distances / two_sig_sq)
+    else:
+        return softmax_max(distances)
+
+def perplexity(distances, sigmas):
+    """Wrapper function for quick calculation of 
+    perplexity over a distance matrix."""
+    prob_matrix = calc_prob_matrix(distances, sigmas)
+    entropy = -np.sum(prob_matrix * np.log2(prob_matrix + 1e-10), 1)
+    perplexity = 2.0 ** entropy
+    return perplexity
+
+def binary_search(distance_vec, target, max_iter=20000,tol=1e-13, lower=1e-10, upper=1e10):
+    """Perform a binary search over input values to eval_fn.
+    # Arguments
+        eval_fn: Function that we are optimising over.
+        target: Target value we want the function to output.
+        tol: Float, once our guess is this close to target, stop.
+        max_iter: Integer, maximum num. iterations to search for.
+        lower: Float, lower bound of search range.
+        upper: Float, upper bound of search range.
+    # Returns:
+        Float, best input value to function found during search.
+    """
+    for i in range(max_iter):
+        guess = (lower + upper) / 2.
+        val = perplexity(distance_vec,np.array(guess))
+        if val > target:
+            upper = guess
+        else:
+            lower = guess
+        if np.abs(val - target) <= tol:
+            break
+    return guess
+
+def find_optimal_sigmas(distances, target_perplexity):
+    """For each row of distances matrix, find sigma that results
+    in target perplexity for that role."""
+    sigmas = [] 
+    # For each row of the matrix (each point in our dataset)
+    for i in range(distances.shape[0]):
+        # Binary search over sigmas to achieve target perplexity
+        correct_sigma = binary_search(distances[i:i+1, :], target_perplexity)
+        # Append the resulting sigma to our output array
+        sigmas.append(correct_sigma)
+    return np.array(sigmas)
+
+def p_conditional_to_joint(P):
+    """Given conditional probabilities matrix P, return
+    approximation of joint distribution probabilities."""
+    return (P + P.T) / (2. * P.shape[0])
+
+def p_joint(X, target_perplexity):
+    """Given a data matrix X, gives joint probabilities matrix.
+
+    # Arguments
+        X: Input data matrix.
+    # Returns:
+        P: Matrix with entries p_ij = joint probabilities.
+    """
+    # Get the negative euclidian distances matrix for our data
+    distances = neg_distance(X)
+    # Find optimal sigma for each row of this distances matrix
+    sigmas = find_optimal_sigmas(distances, target_perplexity)
+    # Calculate the probabilities based on these optimal sigmas
+    p_conditional = calc_prob_matrix(distances, sigmas)
+    # Go from conditional to joint probabilities matrix
+    P = p_conditional_to_joint(p_conditional)
+    return P
+# ======= TSNE ======
+
+# ====== TF TSNE ====
+def tf_neg_distance(X):
+    X_sum = tf.reduce_sum(X**2,1)
+    distance = tf.reshape(X_sum,[-1,1])
+    return -(distance - 2*tf.matmul(X,tf.transpose(X))+tf.transpose(distance)) 
+
+def tf_q_tsne(Y):
+    distances = tf_neg_distance(Y)
+    inv_distances = tf.pow(1. - distances, -1)
+    inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float32)) 
+    return inv_distances / tf.reduce_sum(inv_distances), inv_distances
 
 
+# ====== TF TSNE ====
 
+
+# hyper
+perplexity_number = 20
+reduced_dimension = 2
+P = p_joint(train_batch,perplexity_number)
+
+# graph
+W = tf.Variable(tf.random_normal(shape=[P.shape[0],reduced_dimension],dtype=tf.float32,stddev=0.05))
+
+one = tf_q_tsne(W)
+
+
+# sess
+with tf.Session() as sess:
+
+    sess.run(tf.global_variables_initializer())
+
+    sess_results = sess.run(one)
+    print(sess_results[0].shape)
+    print(sess_results[0])
+    print(sess_results[1].shape)
+    print(sess_results[1])
 # -- end code --
