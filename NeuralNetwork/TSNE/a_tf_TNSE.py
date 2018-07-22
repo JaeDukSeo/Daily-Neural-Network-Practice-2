@@ -272,8 +272,8 @@ test_batch = np.zeros((10000,28,28,1))
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
-train_batch = x_data[:3]
-train_label = train_label[:3]
+train_batch = x_data[:1000]
+train_label = train_label[:1000]
 test_batch = y_data[:200]
 test_label = test_label[:200]
 
@@ -387,10 +387,19 @@ def tf_q_tsne(Y):
     return inv_distances / tf.reduce_sum(inv_distances), inv_distances
 
 def tf_tsne_grad(P,Q,W,inv):
-    P = tf.constant(P)
     pq_diff = P - Q
-    return 
+    pq_expanded = tf.expand_dims(pq_diff, 2)
+    y_diffs = tf.expand_dims(W, 1) - tf.expand_dims(W, 0)
 
+    # Expand our inv_distances matrix so can multiply by y_diffs
+    distances_expanded = tf.expand_dims(inv_distances, 2)
+
+    # Multiply this by inverse distances matrix
+    y_diffs_wt = y_diffs * distances_expanded
+
+    # Multiply then sum over j's
+    grad = 4. * tf.reduce_sum(pq_expanded * y_diffs_wt,1)
+    return grad
 
 # ====== TF TSNE ====
 
@@ -398,6 +407,10 @@ def tf_tsne_grad(P,Q,W,inv):
 # hyper
 perplexity_number = 20
 reduced_dimension = 2
+
+num_epoch = 300
+learning_rate = 10
+
 P = p_joint(train_batch,perplexity_number)
 
 # class
@@ -405,17 +418,37 @@ W = tf.Variable(tf.random_normal(shape=[P.shape[0],reduced_dimension],dtype=tf.f
 
 # graph
 Q,inv_distances = tf_q_tsne(W)
-grad = tsne_grad(P,Q,W,inv_distances)
-
+grad = tf_tsne_grad(P,Q,W,inv_distances)
+grad_update = tf.assign(W,W-learning_rate * grad)
 
 # sess
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
 
-    sess_results = sess.run(one)
-    print(sess_results[0].shape)
-    print(sess_results[0])
-    print(sess_results[1].shape)
-    print(sess_results[1])
+    for iter in range(num_epoch):
+        sess_results = sess.run(grad_update)
+        print('current iter: ',iter)
+
+    W = sess.run(W)
+    color_dict = {
+        0:'red',
+        1:'blue',
+        2:'green',
+        3:'yellow',
+        4:'purple',
+        5:'grey',
+        6:'black',
+        7:'cyan',
+        8:'pink',
+        9:'skyblue',
+    }  
+
+    plt.figure()
+    plt.suptitle(str(color_dict))
+    color_mapping = [color_dict[x] for x in np.argmax(train_label ,1) ]
+    plt.scatter(W[:,0],W[:,1],c=color_mapping)
+    plt.legend()
+    plt.axis()
+    plt.show()
 # -- end code --
