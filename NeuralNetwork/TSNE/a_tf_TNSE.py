@@ -386,6 +386,11 @@ def tf_q_tsne(Y):
     inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float32)) 
     return inv_distances / tf.reduce_sum(inv_distances), inv_distances
 
+def tf_tsne_grad(P,Q,W,inv):
+    P = tf.constant(P)
+    pq_diff = P - Q
+    return 
+
 
 # ====== TF TSNE ====
 
@@ -395,10 +400,12 @@ perplexity_number = 20
 reduced_dimension = 2
 P = p_joint(train_batch,perplexity_number)
 
-# graph
+# class
 W = tf.Variable(tf.random_normal(shape=[P.shape[0],reduced_dimension],dtype=tf.float32,stddev=0.05))
 
-one = tf_q_tsne(W)
+# graph
+Q,inv_distances = tf_q_tsne(W)
+grad = tsne_grad(P,Q,W,inv_distances)
 
 
 # sess
