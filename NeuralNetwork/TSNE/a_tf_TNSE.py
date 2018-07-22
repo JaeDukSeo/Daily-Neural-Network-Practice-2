@@ -253,6 +253,48 @@ class ICA_Layer():
 
         return grad_pass,update_w  
 
+class TSNE_Layer():
+
+    def __init__(self,inc,outc,P):
+        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float32,stddev=0.05))
+        self.P = P
+
+    def getw(self): return self.w   
+
+    def tf_neg_distance(self,X):
+        X_sum = tf.reduce_sum(X**2,1)
+        distance = tf.reshape(X_sum,[-1,1])
+        return -(distance - 2*tf.matmul(X,tf.transpose(X))+tf.transpose(distance)) 
+
+    def tf_q_tsne(self,Y):
+        distances = self.tf_neg_distance(Y)
+        inv_distances = tf.pow(1. - distances, -1)
+        inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float32)) 
+        return inv_distances / tf.reduce_sum(inv_distances), inv_distances
+
+    def tf_tsne_grad(self,P,Q,W,inv):
+        pq_diff = P - Q
+        pq_expanded = tf.expand_dims(pq_diff, 2)
+        y_diffs = tf.expand_dims(W, 1) - tf.expand_dims(W, 0)
+
+        # Expand our inv_distances matrix so can multiply by y_diffs
+        distances_expanded = tf.expand_dims(inv, 2)
+
+        # Multiply this by inverse distances matrix
+        y_diffs_wt = y_diffs * distances_expanded
+
+        # Multiply then sum over j's
+        grad = 4. * tf.reduce_sum(pq_expanded * y_diffs_wt,1)
+        return grad
+
+    def feedforward(self):
+        self.Q,self.inv_distances = self.tf_q_tsne(self.w)
+
+    def backprop(self):
+        grad = self.tf_tsne_grad(self.P,self.Q,self.w,self.inv_distances)
+        grad_update = tf.assign(self.w,self.w-learning_rate * grad)
+        return grad,[grad_update]
+
 # ================= LAYER CLASSES =================
 
 # data
@@ -374,36 +416,6 @@ def p_joint(X, target_perplexity):
     return P
 # ======= TSNE ======
 
-# ====== TF TSNE ====
-def tf_neg_distance(X):
-    X_sum = tf.reduce_sum(X**2,1)
-    distance = tf.reshape(X_sum,[-1,1])
-    return -(distance - 2*tf.matmul(X,tf.transpose(X))+tf.transpose(distance)) 
-
-def tf_q_tsne(Y):
-    distances = tf_neg_distance(Y)
-    inv_distances = tf.pow(1. - distances, -1)
-    inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float32)) 
-    return inv_distances / tf.reduce_sum(inv_distances), inv_distances
-
-def tf_tsne_grad(P,Q,W,inv):
-    pq_diff = P - Q
-    pq_expanded = tf.expand_dims(pq_diff, 2)
-    y_diffs = tf.expand_dims(W, 1) - tf.expand_dims(W, 0)
-
-    # Expand our inv_distances matrix so can multiply by y_diffs
-    distances_expanded = tf.expand_dims(inv_distances, 2)
-
-    # Multiply this by inverse distances matrix
-    y_diffs_wt = y_diffs * distances_expanded
-
-    # Multiply then sum over j's
-    grad = 4. * tf.reduce_sum(pq_expanded * y_diffs_wt,1)
-    return grad
-
-# ====== TF TSNE ====
-
-
 # hyper
 perplexity_number = 20
 reduced_dimension = 2
@@ -414,12 +426,11 @@ learning_rate = 10
 P = p_joint(train_batch,perplexity_number)
 
 # class
-W = tf.Variable(tf.random_normal(shape=[P.shape[0],reduced_dimension],dtype=tf.float32,stddev=0.05))
+tsne_l = TSNE_Layer(1000,reduced_dimension,P)
 
 # graph
-Q,inv_distances = tf_q_tsne(W)
-grad = tf_tsne_grad(P,Q,W,inv_distances)
-grad_update = tf.assign(W,W-learning_rate * grad)
+tsne_l.feedforward()
+grad,grad_update = tsne_l.backprop()
 
 # sess
 with tf.Session() as sess:
@@ -430,7 +441,7 @@ with tf.Session() as sess:
         sess_results = sess.run(grad_update)
         print('current iter: ',iter)
 
-    W = sess.run(W)
+    W = sess.run(tsne_l.getw())
     color_dict = {
         0:'red',
         1:'blue',
