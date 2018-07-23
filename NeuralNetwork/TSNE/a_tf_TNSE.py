@@ -283,7 +283,7 @@ class TSNE_Layer():
         # Multiply this by inverse distances matrix
         y_diffs_wt = y_diffs * distances_expanded
 
-        # Multiply then sum over j's
+        # Multiply then sum over j's and
         grad = 4. * tf.reduce_sum(pq_expanded * y_diffs_wt,1)
         return grad
 
