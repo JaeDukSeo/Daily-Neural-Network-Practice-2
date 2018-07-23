@@ -425,9 +425,9 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 25
 reduced_dimension = 2
-print_size = 10
+print_size = 100
 
-num_epoch = 500
+num_epoch = 1000
 learning_rate = 10.0
 
 # TSNE - calculate perplexity
@@ -447,7 +447,7 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
         sess_results = sess.run([grad_update])
-        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0],end='\r')
+        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0].sum(),end='\r')
         if iter % print_size == 0 : print('\n-----------------------------\n')
 
     W = sess.run(tsne_l.getw())
