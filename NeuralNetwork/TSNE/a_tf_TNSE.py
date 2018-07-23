@@ -259,7 +259,8 @@ class TSNE_Layer():
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
         # self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
-        self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
+        # self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
+        self.w = tf.Variable(tf.random_gamma(shape=[inc,outc],dtype=tf.float64,alpha=0.05,seed=1))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -458,7 +459,7 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 10
 reduced_dimension = 2
-print_size = 10
+print_size = 200
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 number_of_example = train_batch.shape[0]
@@ -506,7 +507,7 @@ with tf.Session() as sess:
             images.append([img,ttl])
             print('\n-----------------------------\n')
     ani = ArtistAnimation(fig, images,interval=10)
-    ani.save("mlp_process.mp4")
+    ani.save("casea.mp4")
     plt.close('all')
 
     # print the final output of the colors
