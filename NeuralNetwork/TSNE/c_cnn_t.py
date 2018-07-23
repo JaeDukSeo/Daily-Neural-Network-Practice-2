@@ -326,7 +326,7 @@ x_data, train_label, test_batch, test_label = mnist.train.images, mnist.train.la
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
 # 1. Prepare only one and only zero  
-numer_images = 20
+numer_images = 100
 only_0_index  = np.asarray(np.where(test_label == 0))[:,:numer_images]
 only_1_index  = np.asarray(np.where(test_label == 1))[:,:numer_images]
 only_2_index  = np.asarray(np.where(test_label == 2))[:,:numer_images]
@@ -473,16 +473,17 @@ print_size = 10000
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 number_of_example = train_batch.shape[0]
-num_epoch = 8000
-learning_rate = 0.009
+num_epoch = 1000
+learning_rate = 0.000008
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
 
 # class
-l0 = CNN(3,1,64,act=tf_elu,d_act=d_tf_elu)
-l1 = CNN(3,64,64,act=tf_elu,d_act=d_tf_elu)
-l2 = FNN(7*7*64,2,act=tf_elu,d_act=d_tf_elu)
+l0 = CNN(3,1,16,act=tf_elu,d_act=d_tf_elu)
+l1 = CNN(3,16,32,act=tf_elu,d_act=d_tf_elu)
+l2 = FNN(7*7*32,256,act=tf_elu,d_act=d_tf_elu)
+l3 = FNN(256,2,act=tf_elu,d_act=d_tf_elu)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
@@ -495,17 +496,20 @@ layer1 = l1.feedforward(layer1_input)
 layer2_input = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer2_reshape = tf.reshape(layer2_input,[number_of_example,-1])
 layer2 = l2.feedforward(layer2_reshape)
+layer3 = l3.feedforward(layer2)
 
-Q = tsne_l.feedforward(layer2)
+Q = tsne_l.feedforward(layer3)
 cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-10,1e10)/tf.clip_by_value(Q,1e-10,1e10) ))
 
-grad_l2,grad_l2_up = l2.backprop(tsne_l.backprop())
-grad_l1_input = tf_repeat(tf.reshape(grad_l2,[number_of_example,7,7,64]),[1,2,2,1])
+grad_l3,grad_l3_up = l3.backprop(tsne_l.backprop())
+grad_l2,grad_l2_up = l2.backprop(grad_l3)
+
+grad_l1_input = tf_repeat(tf.reshape(grad_l2,[number_of_example,7,7,32]),[1,2,2,1])
 grad_l1,grad_l1_up = l1.backprop(grad_l1_input)
 gradl0_input = tf_repeat(grad_l1,[1,2,2,1])
 grad_l0,grad_l0_up = l0.backprop(gradl0_input)
 
-grad_update = grad_l2_up + grad_l1_up + grad_l0_up
+grad_update = grad_l3_up + grad_l2_up + grad_l1_up + grad_l0_up
 
 # sess
 with tf.Session() as sess:
@@ -528,7 +532,7 @@ with tf.Session() as sess:
     color_mapping = [ color_dict[x] for x in train_label ]
 
     for iter in range(num_epoch):
-        sess_results = sess.run([cost,grad_update,layer2] ,feed_dict = {x:train_batch.astype(np.float64)})
+        sess_results = sess.run([cost,grad_update,layer3] ,feed_dict = {x:train_batch.astype(np.float64)})
         W = sess_results[2]
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
         if iter % print_size == 0 : 
@@ -541,7 +545,7 @@ with tf.Session() as sess:
     plt.close('all')
 
     # print the final output of the colors
-    W = sess.run(layer2,feed_dict = {x:train_batch.astype(np.float64)})
+    W = sess.run(layer3,feed_dict = {x:train_batch.astype(np.float64)})
     fig = plt.figure(figsize=(8,8))
     plt.title(str(color_dict))
     plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=20)
