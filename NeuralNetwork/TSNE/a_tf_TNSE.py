@@ -258,7 +258,8 @@ class TSNE_Layer():
 
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
-        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
+        # self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
+        self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -402,7 +403,7 @@ def perplexity(distances, sigmas):
     perplexity = 2.0 ** entropy
     return perplexity
 
-def binary_search(distance_vec, target, max_iter=20000,tol=1e-12, lower=1e-10, upper=1e10):
+def binary_search(distance_vec, target, max_iter=20000,tol=1e-13, lower=1e-10, upper=1e10):
     """Perform a binary search over input values to eval_fn.
     # Arguments
         eval_fn: Function that we are optimising over.
@@ -464,13 +465,13 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 10
 reduced_dimension = 2
-print_size = 5
+print_size = 2
 
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 number_of_example = train_batch.shape[0]
-num_epoch = 10000
-learning_rate = 0.8
+num_epoch = 20000
+learning_rate = 0.00008
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
@@ -506,20 +507,21 @@ with tf.Session() as sess:
     for iter in range(num_epoch):
         sess_results = sess.run([cost,grad_update,tsne_l.getw()])
         W = sess_results[2]
-
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
         if iter % print_size == 0 : 
+            ttl = plt.text(0.5, 1.0, 'Iter: '+str(iter), horizontalalignment='center', verticalalignment='top')
             img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
-            images.append([img])
+            images.append([img,ttl])
             print('\n-----------------------------\n')
-
     ani = ArtistAnimation(fig, images,interval=10)
     ani.save("mlp_process.mp4")
     plt.close('all')
 
+    # print the final output of the colors
     W = sess.run(tsne_l.getw())
-
-    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='o', s=4, edgecolor='')
+    fig = plt.figure(figsize=(8,8))
+    plt.title(str(color_dict))
+    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
     plt.show()
 
 
