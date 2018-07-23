@@ -12,6 +12,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import mpl_toolkits.mplot3d.axes3d as p3
 from skimage.color import rgba2rgb
 from matplotlib.animation import ArtistAnimation
+import matplotlib.animation as animation
 
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -274,7 +275,7 @@ class TSNE_Layer():
 
     def tf_q_tsne(self,Y):
         distances = self.tf_neg_distance(Y)
-        inv_distances = tf.pow(1. - distances, -1)
+        inv_distances = tf.pow(1. + distances/2, -3/2)
         inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float64)) 
         return inv_distances / tf.reduce_sum(inv_distances), inv_distances
 
@@ -473,8 +474,8 @@ print_size = 20
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 number_of_example = train_batch.shape[0]
-num_epoch = 20000
-learning_rate = 0.00003
+num_epoch = 2000
+learning_rate = 0.00000001
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
@@ -483,7 +484,7 @@ P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
 l0 = FNN(784,256,act=tf_elu,d_act=d_tf_elu)
 l1 = FNN(256,128,act=tf_elu,d_act=d_tf_elu)
 l2 = FNN(128,64,act=tf_elu,d_act=d_tf_elu)
-l3 = FNN(64,2,act=tf_elu,d_act=d_tf_elu)
+l3 = FNN(64,3,act=tf_elu,d_act=d_tf_elu)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
@@ -494,7 +495,7 @@ layer1 = l1.feedforward(layer0)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 Q = tsne_l.feedforward(layer3)
-cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-10,1e10)/tf.clip_by_value(Q,1e-10,1e10) ))
+cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-5,1e10)/tf.clip_by_value(Q,1e-5,1e10) ))
 
 grad_l3,grad_l3_up = l3.backprop(tsne_l.backprop())
 grad_l2,grad_l2_up = l2.backprop(grad_l3)
@@ -508,8 +509,6 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     images = []
-    fig = plt.figure()
-    ax = p3.Axes3D(fig)
     color_dict = {
         0:'red',
         1:'blue',
@@ -526,24 +525,37 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
         sess_results = sess.run([cost,grad_update,layer3] ,feed_dict = {x:train_batch.astype(np.float64)})
-        W = sess_results[2]
+        tempW = sess_results[2]
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
         if iter % print_size == 0 : 
-            ttl = plt.text(0.5, 1.0, 'Iter: '+str(iter), horizontalalignment='center', verticalalignment='top')
-            img = ax.plot(W[:, 0], W[:, 1],W[:,2],c=color_mapping,marker='^', s=10)
-            images.append([img,ttl])
+            images.append(tempW)
             print('\n-----------------------------\n')
-    ani = ArtistAnimation(fig, images,interval=10)
-    ani.save("cased.mp4")
+
+
+    images = np.asarray(images)
+    # Attaching 3D axis to the figure
+    fig = plt.figure()
+    ax = p3.Axes3D(fig)
+    ax.scatter(images[0][:,0],images[0][:,1],images[0][:,2],c=color_mapping)
+    plt.show()
+
+    fig = plt.figure()
+    ax = p3.Axes3D(fig)
+    for current_data in images:
+        ax.scatter(current_data[:,0],current_data[:,1],current_data[:,2],c=color_mapping,marker='^')
+        plt.draw()
+        plt.title(str(current_data))
+        plt.pause(0.001)
+        ax.clf()
+
     plt.close('all')
 
     # print the final output of the colors
     W = sess.run(layer3,feed_dict = {x:train_batch.astype(np.float64)})
-    fig = plt.figure(figsize=(8,8))
     fig = plt.figure()
     ax = p3.Axes3D(fig)
     plt.title(str(color_dict))
-    ax.plot(W[:, 0], W[:, 1],W[:,2],c=color_mapping,marker='^', s=10)
+    ax.scatter(W[:, 0], W[:, 1],W[:,2],c=color_mapping,marker='^', s=10)
     plt.show()
 
 
