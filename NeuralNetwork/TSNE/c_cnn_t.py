@@ -139,7 +139,7 @@ class CNN():
             strides=[1,stride,stride,1],padding=padding
         )
 
-        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
+        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [number_of_example] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
         )
 
@@ -476,7 +476,7 @@ num_epoch = 20000
 learning_rate = 0.0003
 
 # TSNE - calculate perplexity
-P = p_joint(train_batch,perplexity_number)
+P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
 
 # class
 l0 = CNN(3,1,32,act=tf_elu,d_act=d_tf_elu)
@@ -485,20 +485,20 @@ l2 = FNN(7*7*64,2,act=tf_elu,d_act=d_tf_elu)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
-x = tf.placeholder(shape=[number_of_example,784],dtype=tf.float64)
+x = tf.placeholder(shape=[number_of_example,28,28,1],dtype=tf.float64)
 
 layer0 = l0.feedforward(x)
 layer1_input = tf.nn.avg_pool(layer0,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer1 = l1.feedforward(layer1_input)
-layer2_input = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer2_reshape = tf.reshape(layer2_input,[numer_images,-1])
 
+layer2_input = tf.nn.avg_pool(layer1,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer2_reshape = tf.reshape(layer2_input,[number_of_example,-1])
 layer2 = l2.feedforward(layer2_reshape)
+
 Q = tsne_l.feedforward(layer2)
 cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-10,1e10)/tf.clip_by_value(Q,1e-10,1e10) ))
 
 grad_l2,grad_l2_up = l2.backprop(tsne_l.backprop())
-
 grad_l1_input = tf_repeat(tf.reshape(grad_l2,[number_of_example,7,7,64]),[1,2,2,1])
 grad_l1,grad_l1_up = l1.backprop(grad_l1_input)
 
