@@ -116,8 +116,7 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_poisson(shape=[k,k,inc,out],dtype=tf.float64,lam=0.05,seed=1))
-        # self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.act,self.d_act = act,d_act
 
@@ -201,8 +200,7 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_poisson(shape=[input_dim,hidden_dim],dtype=tf.float64,lam=0.05,seed=1))
-        # self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -367,7 +365,7 @@ only_6_image = np.squeeze(test_batch[only_6_index])
 only_7_image = np.squeeze(test_batch[only_7_index])
 only_8_image = np.squeeze(test_batch[only_8_index])
 only_9_image = np.squeeze(test_batch[only_9_index])
-x_data = np.vstack((only_0_image,only_1_image,
+train_batch = np.vstack((only_0_image,only_1_image,
                         only_2_image,only_3_image,
                         only_4_image,only_5_image,
                         only_6_image,only_7_image,
@@ -475,7 +473,7 @@ beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 number_of_example = train_batch.shape[0]
 num_epoch = 20000
-learning_rate = 0.000008
+learning_rate = 0.0003
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
@@ -525,7 +523,7 @@ with tf.Session() as sess:
     color_mapping = [ color_dict[x] for x in train_label ]
 
     for iter in range(num_epoch):
-        sess_results = sess.run([cost,grad_update,layer2] ,feed_dict = {x:train_batch.astype(np.float64)})
+        sess_results = sess.run([cost,grad_update,layer3] ,feed_dict = {x:train_batch.astype(np.float64)})
         W = sess_results[2]
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
         if iter % print_size == 0 : 
@@ -538,7 +536,7 @@ with tf.Session() as sess:
     plt.close('all')
 
     # print the final output of the colors
-    W = sess.run(layer2,feed_dict = {x:train_batch.astype(np.float64)})
+    W = sess.run(layer3,feed_dict = {x:train_batch.astype(np.float64)})
     fig = plt.figure(figsize=(8,8))
     plt.title(str(color_dict))
     plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
