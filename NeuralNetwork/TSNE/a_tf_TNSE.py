@@ -255,13 +255,12 @@ class ICA_Layer():
         return grad_pass,update_w  
 
 class TSNE_Layer():
-
+    
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
         # self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
-        self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.5,seed=1))
-        # self.w = tf.Variable(tf.random_gamma(shape=[inc,outc],dtype=tf.float64,alpha=0.05,seed=1))
-
+        # self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
+        self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -299,7 +298,6 @@ class TSNE_Layer():
 
     def backprop(self):
         grad = self.tf_tsne_grad(self.P,self.Q,self.w,self.inv_distances)
-
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
         update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
@@ -467,7 +465,7 @@ beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 number_of_example = train_batch.shape[0]
 num_epoch = 20000
-learning_rate = 0.00003
+learning_rate = 10.0
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
@@ -514,7 +512,7 @@ with tf.Session() as sess:
     plt.close('all')
 
     # print the final output of the colors
-    W = sess.run(tsne_l.getw(),feed_dict = {x:train_batch.astype(np.float64)})
+    W = sess.run(tsne_l.getw())
     fig = plt.figure(figsize=(8,8))
     plt.title(str(color_dict))
     plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
