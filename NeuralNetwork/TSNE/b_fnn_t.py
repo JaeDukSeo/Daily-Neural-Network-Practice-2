@@ -427,7 +427,7 @@ reduced_dimension = 2
 num_epoch = 100
 print_size = 10
 
-learning_rate = 0.0003
+learning_rate = 0.00001
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
@@ -463,7 +463,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     images = []
-    fig = plt.figure(figsize=(3,3))
+    fig = plt.figure(figsize=(5,5))
     color_dict = {
         0:'red',
         1:'blue',
@@ -484,7 +484,9 @@ with tf.Session() as sess:
         pred= sess_results[1]
         img = plt.scatter(pred[:, 0], pred[:, 1], c=color_mapping,marker='o', s=3, edgecolor='')
         images.append([img])
+
         if iter % print_size == 0 : print('\n-----------------------------\n')
+
     ani = ArtistAnimation(fig, images, interval=100, repeat_delay=2000)
     ani.save("mlp_process2.mp4")
     plt.close('all')

@@ -11,6 +11,7 @@ import imgaug as ia
 from mpl_toolkits.mplot3d import Axes3D
 from skimage.color import rgba2rgb
 from load_data import load_mnist
+from matplotlib.animation import ArtistAnimation
 
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -316,7 +317,7 @@ x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-number_of_example = 2000
+number_of_example = 1500
 # classes_to_use = [0,1,2,3,4,5,6,7,8,9]
 # train_batch, train_label = load_mnist('one/datasets/',digits_to_keep=classes_to_use,N=number_of_example)
 
@@ -423,12 +424,12 @@ def p_joint(X, target_perplexity):
 # ======= TSNE ======
 
 # hyper
-perplexity_number = 25
+perplexity_number = 30
 reduced_dimension = 2
-print_size = 100
+print_size = 10
 
 num_epoch = 1000
-learning_rate = 20.0
+learning_rate = 10.0
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
@@ -444,13 +445,8 @@ grad,grad_update = tsne_l.backprop()
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-
-    for iter in range(num_epoch):
-        sess_results = sess.run(grad_update)
-        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0].sum(),end='\r')
-        if iter % print_size == 0 : print('\n-----------------------------\n')
-
-    W = sess.run(tsne_l.getw())
+    images = []
+    fig = plt.figure(figsize=(8,8))
     color_dict = {
         0:'red',
         1:'blue',
@@ -463,13 +459,21 @@ with tf.Session() as sess:
         8:'pink',
         9:'skyblue',
     }  
-
-    plt.figure()
-    plt.suptitle(str(color_dict))
-    # color_mapping = [color_dict[x] for x in train_label ]
     color_mapping = [color_dict[x] for x in np.argmax(train_label,1) ]
-    plt.scatter(W[:,0],W[:,1],c=color_mapping)
-    plt.legend()
-    plt.axis()
-    plt.show()
+
+    for iter in range(num_epoch):
+        sess_results = sess.run(grad_update)
+        W = sess.run(tsne_l.getw())
+
+        img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='o', s=4, edgecolor='')
+        images.append([img])
+
+        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0].sum(),end='\r')
+        if iter % print_size == 0 : print('\n-----------------------------\n')
+
+    ani = ArtistAnimation(fig, images,interval=200)
+    ani.save("mlp_process.mp4")
+    plt.close('all')
+
+
 # -- end code --
