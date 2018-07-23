@@ -11,6 +11,7 @@ import imgaug as ia
 from mpl_toolkits.mplot3d import Axes3D
 from skimage.color import rgba2rgb
 from load_data import load_mnist
+from matplotlib.animation import ArtistAnimation
 
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -420,10 +421,10 @@ def p_joint(X, target_perplexity):
 # ======= TSNE ======
 
 # hyper
-perplexity_number = 20
+perplexity_number = 30
 reduced_dimension = 2
 
-num_epoch = 5000
+num_epoch = 100
 print_size = 10
 
 learning_rate = 0.0000003
@@ -462,7 +463,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     images = []
-    fig = plt.figure(figsize=(5, 5))
+    fig = plt.figure(figsize=(3,3))
     color_dict = {
         0:'red',
         1:'blue',
@@ -485,13 +486,13 @@ with tf.Session() as sess:
         images.append([img])
         if iter % print_size == 0 : print('\n-----------------------------\n')
     ani = ArtistAnimation(fig, images, interval=100, repeat_delay=2000)
-    ani.save("mlp_process.mp4")
-    plt.clf()
+    ani.save("mlp_process2.mp4")
+    plt.close('all')
 
-    W = sess.run(layer2,feed_dict={x:train_batch.astype(np.float64)})
-    plt.figure()
-    plt.suptitle(str(color_dict))
-    plt.scatter(W[:,0],W[:,1],c=color_mapping)
-    plt.axis()
-    plt.show()
+    # W = sess.run(layer2,feed_dict={x:train_batch.astype(np.float64)})
+    # plt.figure()
+    # plt.suptitle(str(color_dict))
+    # plt.scatter(W[:,0],W[:,1],c=color_mapping)
+    # plt.axis()
+    # plt.show()
 # -- end code --
