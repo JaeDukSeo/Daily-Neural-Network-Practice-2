@@ -259,8 +259,9 @@ class TSNE_Layer():
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
         # self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
-        # self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
-        self.w = tf.Variable(tf.random_gamma(shape=[inc,outc],dtype=tf.float64,alpha=0.05,seed=1))
+        self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.5,seed=1))
+        # self.w = tf.Variable(tf.random_gamma(shape=[inc,outc],dtype=tf.float64,alpha=0.05,seed=1))
+
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -459,12 +460,12 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 10
 reduced_dimension = 2
-print_size = 200
+print_size = 20
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 number_of_example = train_batch.shape[0]
 num_epoch = 20000
-learning_rate = 0.0008
+learning_rate = 0.0003
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
@@ -482,7 +483,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     images = []
-    fig = plt.figure(figsize=(6,6))
+    fig = plt.figure(figsize=(8,8))
     color_dict = {
         0:'red',
         1:'blue',
@@ -503,7 +504,7 @@ with tf.Session() as sess:
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
         if iter % print_size == 0 : 
             ttl = plt.text(0.5, 1.0, 'Iter: '+str(iter), horizontalalignment='center', verticalalignment='top')
-            img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
+            img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
             images.append([img,ttl])
             print('\n-----------------------------\n')
     ani = ArtistAnimation(fig, images,interval=10)
@@ -512,9 +513,9 @@ with tf.Session() as sess:
 
     # print the final output of the colors
     W = sess.run(tsne_l.getw())
-    fig = plt.figure(figsize=(6,6))
+    fig = plt.figure(figsize=(8,8))
     plt.title(str(color_dict))
-    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
+    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
     plt.show()
 
 

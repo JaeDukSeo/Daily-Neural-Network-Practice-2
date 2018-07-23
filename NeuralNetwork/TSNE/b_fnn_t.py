@@ -24,7 +24,7 @@ ia.seed(6278)
 
 # ======= Activation Function  ==========
 def tf_elu(x): return tf.nn.elu(x)
-def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
+def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float64) * x) + 1.0)
 
 def tf_tanh(x): return tf.nn.tanh(x)
 def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
@@ -116,8 +116,8 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2))
-        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
+        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.act,self.d_act = act,d_act
 
     def getw(self): return self.w
@@ -200,8 +200,8 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2))
-        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
+        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -259,6 +259,7 @@ class TSNE_Layer():
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
         # self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
+        # self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
         self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
@@ -292,13 +293,12 @@ class TSNE_Layer():
         return grad
 
     def feedforward(self,input):
-        self.input = self.input
+        self.input = input
         self.Q,self.inv_distances = self.tf_q_tsne(self.input)
         return self.Q
 
     def backprop(self):
         grad = self.tf_tsne_grad(self.P,self.Q,self.input,self.inv_distances)
-
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
         update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
@@ -472,15 +472,15 @@ beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 number_of_example = train_batch.shape[0]
 num_epoch = 20000
-learning_rate = 0.00008
+learning_rate = 0.0003
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
 
 # class
-l0 = FNN(784,256)
-l1 = FNN(256,128)
-l2 = FNN(128,2)
+l0 = FNN(784,256,act=tf_elu,d_act=d_tf_elu)
+l1 = FNN(256,128,act=tf_elu,d_act=d_tf_elu)
+l2 = FNN(128,2,act=tf_elu,d_act=d_tf_elu)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
@@ -492,9 +492,9 @@ layer2 = l2.feedforward(layer1)
 Q = tsne_l.feedforward(layer2)
 cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-10,1e10)/tf.clip_by_value(Q,1e-10,1e10) ))
 
-grad_l2,grad_l2_up = layer2.backprop(tsne_l.backprop())
-grad_l1,grad_l1_up = layer1.backprop(grad_l2)
-grad_l0,grad_l0_up = layer0.backprop(grad_l1)
+grad_l2,grad_l2_up = l2.backprop(tsne_l.backprop())
+grad_l1,grad_l1_up = l1.backprop(grad_l2)
+grad_l0,grad_l0_up = l0.backprop(grad_l1)
 
 grad_update = grad_l2_up + grad_l1_up + grad_l0_up
 
@@ -516,7 +516,7 @@ with tf.Session() as sess:
         8:'pink',
         9:'skyblue',
     }  
-    color_mapping = [color_dict[x] for x in train_label ]
+    color_mapping = [ color_dict[x] for x in train_label ]
 
     for iter in range(num_epoch):
         sess_results = sess.run([cost,grad_update,layer2] ,feed_dict = {x:train_batch.astype(np.float64)})
@@ -524,18 +524,18 @@ with tf.Session() as sess:
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
         if iter % print_size == 0 : 
             ttl = plt.text(0.5, 1.0, 'Iter: '+str(iter), horizontalalignment='center', verticalalignment='top')
-            img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
+            img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
             images.append([img,ttl])
             print('\n-----------------------------\n')
     ani = ArtistAnimation(fig, images,interval=10)
-    ani.save("mlp_process.mp4")
+    ani.save("casea.mp4")
     plt.close('all')
 
     # print the final output of the colors
     W = sess.run(layer2,feed_dict = {x:train_batch.astype(np.float64)})
     fig = plt.figure(figsize=(8,8))
     plt.title(str(color_dict))
-    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
+    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
     plt.show()
 
 
