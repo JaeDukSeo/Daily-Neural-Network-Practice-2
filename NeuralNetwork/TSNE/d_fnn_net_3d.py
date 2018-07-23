@@ -259,7 +259,7 @@ class ICA_Layer():
 class TSNE_Layer():
 
     def __init__(self,inc,outc,P):
-        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
+        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=2))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -467,12 +467,12 @@ def p_joint(X, target_perplexity):
 perplexity_number = 30
 reduced_dimension = 3
 
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 number_of_example = train_batch.shape[0]
-num_epoch = 20000
-print_size = 20
-learning_rate = 0.00003
+num_epoch = 800
+print_size = 5
+learning_rate = 0.00009
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
@@ -531,9 +531,13 @@ with tf.Session() as sess:
 
     # Attaching 3D axis to the figure
     images = np.asarray(images)
+
+    # print the final output of the colors
+    W = sess.run(layer3,feed_dict = {x:train_batch.astype(np.float64)})
     fig = plt.figure()
     ax = p3.Axes3D(fig)
-    ax.scatter(images[0][:,0],images[0][:,1],images[0][:,2],c=color_mapping)
+    plt.title(str(color_dict))
+    ax.scatter(W[:, 0], W[:, 1],W[:,2],c=color_mapping,marker='^', s=10)
     plt.show()
 
     fig = plt.figure()
@@ -544,6 +548,9 @@ with tf.Session() as sess:
         plt.title("Current Iter : "+str(current_data_index))
         plt.pause(0.01)
         ax.cla()
+        if current_data_index==0: 
+            import time
+            time.sleep(5)
     plt.close('all')
 
     # print the final output of the colors

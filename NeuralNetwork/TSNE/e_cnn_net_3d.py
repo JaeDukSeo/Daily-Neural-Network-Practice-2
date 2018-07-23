@@ -116,7 +116,7 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=1,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.act,self.d_act = act,d_act
 
@@ -200,7 +200,7 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=1,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -255,12 +255,9 @@ class ICA_Layer():
         return grad_pass,update_w  
 
 class TSNE_Layer():
-
+    
     def __init__(self,inc,outc,P):
-        # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
-        # self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
-        # self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
-        self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
+        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=2))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -273,7 +270,7 @@ class TSNE_Layer():
 
     def tf_q_tsne(self,Y):
         distances = self.tf_neg_distance(Y)
-        inv_distances = tf.pow(1. - distances, -1)
+        inv_distances = tf.pow(1. - distances/2.0, -1.5)
         inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float64)) 
         return inv_distances / tf.reduce_sum(inv_distances), inv_distances
 
@@ -467,12 +464,13 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 30
 reduced_dimension = 3
-print_size = 20
 
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-8
+
 number_of_example = train_batch.shape[0]
-num_epoch = 20000
-learning_rate = 0.00003
+num_epoch = 800
+print_size = 5
+learning_rate = 0.00009
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
@@ -514,7 +512,6 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     images = []
-    fig = plt.figure(figsize=(8,8))
     color_dict = {
         0:'red',
         1:'blue',
@@ -531,23 +528,42 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
         sess_results = sess.run([cost,grad_update,layer3] ,feed_dict = {x:train_batch.astype(np.float64)})
-        W = sess_results[2]
+        tempW = sess_results[2]
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
         if iter % print_size == 0 : 
-            ttl = plt.text(0.5, 1.0, 'Iter: '+str(iter), horizontalalignment='center', verticalalignment='top')
-            img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
-            images.append([img,ttl])
+            images.append(tempW)
             print('\n-----------------------------\n')
-    ani = ArtistAnimation(fig, images,interval=10)
-    ani.save("casec.mp4")
+
+    # Attaching 3D axis to the figure
+    images = np.asarray(images)
+
+    # print the final output of the colors
+    W = sess.run(layer3,feed_dict = {x:train_batch.astype(np.float64)})
+    fig = plt.figure()
+    ax = p3.Axes3D(fig)
+    plt.title(str(color_dict))
+    ax.scatter(W[:, 0], W[:, 1],W[:,2],c=color_mapping,marker='^', s=10)
+    plt.show()
+
+    fig = plt.figure()
+    ax = p3.Axes3D(fig)
+    for current_data_index in range(len(images)):
+        current_data = images[current_data_index,:,:]
+        ax.scatter(current_data[:,0],current_data[:,1],current_data[:,2],c=color_mapping,marker='^')
+        plt.title("Current Iter : "+str(current_data_index))
+        plt.pause(0.01)
+        ax.cla()
+        if current_data_index==0: 
+            import time
+            time.sleep(5)
     plt.close('all')
 
     # print the final output of the colors
     W = sess.run(layer3,feed_dict = {x:train_batch.astype(np.float64)})
-    fig = plt.figure(figsize=(8,8))
+    fig = plt.figure()
+    ax = p3.Axes3D(fig)
     plt.title(str(color_dict))
-    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=20)
+    ax.scatter(W[:, 0], W[:, 1],W[:,2],c=color_mapping,marker='^', s=10)
     plt.show()
-
 
 # -- end code --
