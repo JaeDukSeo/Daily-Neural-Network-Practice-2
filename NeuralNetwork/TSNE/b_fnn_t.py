@@ -427,7 +427,7 @@ reduced_dimension = 2
 num_epoch = 100
 print_size = 10
 
-learning_rate = 0.0000003
+learning_rate = 0.0003
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
