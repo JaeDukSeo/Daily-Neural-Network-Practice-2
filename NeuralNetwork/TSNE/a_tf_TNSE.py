@@ -258,7 +258,7 @@ class TSNE_Layer():
 
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
-        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float32,stddev=0.25))
+        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05))
         self.P = P
 
     def getw(self): return self.w   
@@ -271,7 +271,7 @@ class TSNE_Layer():
     def tf_q_tsne(self,Y):
         distances = self.tf_neg_distance(Y)
         inv_distances = tf.pow(1. - distances, -1)
-        inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float32)) 
+        inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float64)) 
         return inv_distances / tf.reduce_sum(inv_distances), inv_distances
 
     def tf_tsne_grad(self,P,Q,W,inv):
@@ -428,7 +428,7 @@ reduced_dimension = 2
 print_size = 10
 
 num_epoch = 500
-learning_rate = 10
+learning_rate = 10.0
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
@@ -438,7 +438,13 @@ tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
 Q = tsne_l.feedforward()
-cost = tf.reduce_sum(P * tf.log(P/Q))
+
+def clip(x, vmax = 1-1e-20, vmin = 1e-20):
+    return tf.clip_by_value(x, clip_value_max=vmax, clip_value_min=vmin)
+
+cost = tf.reduce_sum(P * tf.log(clip(P)/clip(Q)  ))
+
+# auto_train = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 grad,grad_update = tsne_l.backprop()
 
 # sess
