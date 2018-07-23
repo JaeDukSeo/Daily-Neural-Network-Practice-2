@@ -420,22 +420,23 @@ def p_joint(X, target_perplexity):
 # ======= TSNE ======
 
 # hyper
-perplexity_number = 10
+perplexity_number = 20
 reduced_dimension = 2
-print_size = 100
 
-num_epoch = 1000
-learning_rate = 0.000009
+num_epoch = 500
+print_size = 10
 
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+learning_rate = 0.00003
+
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
 
 # class
-l0 = FNN(784,256,act=tf_atan,d_act=d_tf_atan)
-l1 = FNN(256,128,act=tf_atan,d_act=d_tf_atan)
-l2 = FNN(128,2,act=tf_atan,d_act=d_tf_atan)
+l0 = FNN(784,256,act=tf_tanh,d_act=d_tf_tanh)
+l1 = FNN(256,64,act=tf_tanh,d_act=d_tf_tanh)
+l2 = FNN(64,2,act=tf_tanh,d_act=d_tf_tanh)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
@@ -444,46 +445,17 @@ x = tf.placeholder(shape=[number_of_example,784],dtype=tf.float64)
 layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
 layer2 = l2.feedforward(layer1)
-
-def get_perp(entropy):
-    return np.power(2, entropy)
-
-def get_shape(tensor):
-    return tensor.get_shape().as_list()
-
-def t_sne(y):
-    '''
-    Arg :
-        y - 2D tensor [ndata, nmap]
-    '''
-    batch, nmap = get_shape(y)
-    y_tr = tf.transpose(y)
-    y_mapped = []
-    for i in range(nmap):
-        y_mapped.append(tf.transpose([y_tr[i]])-y_tr[i])
-    y_square = tf.Variable(0.0,dtype=tf.float64)
-    for i in range(nmap):
-        y_square+= tf.square(y_mapped[i])
-    y_add = y_square+1
-    y_div = tf.div(tf.constant(1.,dtype=tf.float64), y_add)
-    y_mask = y_div*(tf.constant(1.,dtype=tf.float64)-tf.eye(batch))
-    y_sum = tf.reduce_sum(y_mask)
-    y_normalize = y_mask/y_sum
-    cost = -tf.reduce_mean(P*tf.log(clip(y_normalize)))
-    return cost
+tsne_Q = tsne_l.feedforward(layer2)
 
 def clip(x, vmax = 1-1e-10, vmin = 1e-10):
     return tf.clip_by_value(x, clip_value_max=vmax, clip_value_min=vmin)
+cost = tf.reduce_sum(P * tf.log(clip(P)/clip(tsne_Q)))
 
-cost = t_sne(layer2)
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
-# tsne_layer = tsne_l.feedforward(layer2)
- 
-# grad = tsne_l.backprop()
-# grad_l2,grad_l2_up = l2.backprop(grad)
-# grad_l1,grad_l1_up = l1.backprop(grad_l2)
-# grad_l0,grad_l0_up = l0.backprop(grad_l1)
-# grad_update = grad_l2_up + grad_l1_up + grad_l0_up
+grad = tsne_l.backprop()
+grad_l2,grad_l2_up = l2.backprop(grad)
+grad_l1,grad_l1_up = l1.backprop(grad_l2)
+grad_l0,grad_l0_up = l0.backprop(grad_l1)
+grad_update = grad_l2_up + grad_l1_up + grad_l0_up
 
 # sess
 with tf.Session() as sess:
@@ -491,8 +463,8 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
     for iter in range(num_epoch):
-        sess_results = sess.run(cost,feed_dict={x:train_batch.astype(np.float64)})
-        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results,end='\r')
+        sess_results = sess.run([cost,grad_update],feed_dict={x:train_batch.astype(np.float64)})
+        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0],end='\r')
         if iter % print_size == 0 : print('\n-----------------------------\n')
 
     W = sess.run(layer2,feed_dict={x:train_batch.astype(np.float64)})
@@ -510,11 +482,9 @@ with tf.Session() as sess:
     }  
 
     plt.figure()
-    plt.suptitle(str(color_dict))
-    # color_mapping = [color_dict[x] for x in train_label ]
+    plt.suptitle(str(list(color_dict)))
     color_mapping = [color_dict[x] for x in np.argmax(train_label,1) ]
     plt.scatter(W[:,0],W[:,1],c=color_mapping)
-    plt.legend()
     plt.axis()
     plt.show()
 # -- end code --
