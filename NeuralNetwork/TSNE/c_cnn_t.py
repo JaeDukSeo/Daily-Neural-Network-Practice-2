@@ -467,21 +467,21 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 10
 reduced_dimension = 2
-print_size = 50
+print_size = 800
 
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 number_of_example = train_batch.shape[0]
-num_epoch = 20000
-learning_rate = 0.0003
+num_epoch = 8000
+learning_rate = 0.00008
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
 
 # class
-l0 = CNN(3,1,32,act=tf_elu,d_act=d_tf_elu)
-l1 = CNN(3,32,64,act=tf_elu,d_act=d_tf_elu)
-l2 = FNN(7*7*64,2,act=tf_elu,d_act=d_tf_elu)
+l0 = CNN(3,1,12,act=tf_elu,d_act=d_tf_elu)
+l1 = CNN(3,12,24,act=tf_elu,d_act=d_tf_elu)
+l2 = FNN(7*7*24,2,act=tf_elu,d_act=d_tf_elu)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
@@ -499,9 +499,8 @@ Q = tsne_l.feedforward(layer2)
 cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-10,1e10)/tf.clip_by_value(Q,1e-10,1e10) ))
 
 grad_l2,grad_l2_up = l2.backprop(tsne_l.backprop())
-grad_l1_input = tf_repeat(tf.reshape(grad_l2,[number_of_example,7,7,64]),[1,2,2,1])
+grad_l1_input = tf_repeat(tf.reshape(grad_l2,[number_of_example,7,7,24]),[1,2,2,1])
 grad_l1,grad_l1_up = l1.backprop(grad_l1_input)
-
 gradl0_input = tf_repeat(grad_l1,[1,2,2,1])
 grad_l0,grad_l0_up = l0.backprop(gradl0_input)
 
