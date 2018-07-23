@@ -116,8 +116,7 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_poisson(shape=[k,k,inc,out],dtype=tf.float64,lam=0.05,seed=1))
-        # self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=1,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.act,self.d_act = act,d_act
 
@@ -201,8 +200,7 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_poisson(shape=[input_dim,hidden_dim],dtype=tf.float64,lam=0.05,seed=1))
-        # self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=1,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
