@@ -306,7 +306,7 @@ class TSNE_Layer():
 
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=False)
-x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+x_data, train_label, test_batch, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 # x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 # y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 # train_batch = np.zeros((55000,28,28,1))
@@ -316,13 +316,6 @@ x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels
 #     train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
-
-number_of_example = 1500
-# classes_to_use = [0,1,2,3,4,5,6,7,8,9]
-# train_batch, train_label = load_mnist('one/datasets/',digits_to_keep=classes_to_use,N=number_of_example)
-
-# simple normalize
-test_batch = y_data/255.0
 
 # 1. Prepare only one and only zero
 only_0_index  = np.asarray(np.where(test_label == 0))[:,:100]
@@ -352,6 +345,7 @@ train_label = np.vstack((only_0_label,only_1_label,
                         only_4_label,only_5_label,
                         only_6_label,only_7_label,
                         only_8_label,only_9_label))
+train_label = np.squeeze(train_label)
 
 # # 2. prepare matrix image
 only_0_image = np.squeeze(test_batch[only_0_index])
@@ -468,6 +462,7 @@ perplexity_number = 30
 reduced_dimension = 2
 print_size = 10
 
+number_of_example = train_batch.shape[0]
 num_epoch = 1000
 learning_rate = 10.0
 
