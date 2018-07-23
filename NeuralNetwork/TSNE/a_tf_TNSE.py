@@ -258,7 +258,7 @@ class TSNE_Layer():
 
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
-        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=6))
+        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=8))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -306,7 +306,6 @@ class TSNE_Layer():
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
 
         return grad,update_w
-
 # ================= LAYER CLASSES =================
 
 # data
@@ -403,7 +402,7 @@ def perplexity(distances, sigmas):
     perplexity = 2.0 ** entropy
     return perplexity
 
-def binary_search(distance_vec, target, max_iter=10000,tol=1e-10, lower=1e-10, upper=1e10):
+def binary_search(distance_vec, target, max_iter=20000,tol=1e-12, lower=1e-10, upper=1e10):
     """Perform a binary search over input values to eval_fn.
     # Arguments
         eval_fn: Function that we are optimising over.
@@ -463,14 +462,14 @@ def p_joint(X, target_perplexity):
 # ======= TSNE ======
 
 # hyper
-perplexity_number =2
+perplexity_number = 10
 reduced_dimension = 2
-print_size = 10
+print_size = 100
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 number_of_example = train_batch.shape[0]
-num_epoch = 1000
+num_epoch = 10000
 learning_rate = 0.09
 
 # TSNE - calculate perplexity
@@ -489,7 +488,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     images = []
-    fig = plt.figure(figsize=(8,8))
+    fig = plt.figure(figsize=(5,5))
     color_dict = {
         0:'red',
         1:'blue',
@@ -507,11 +506,12 @@ with tf.Session() as sess:
     for iter in range(num_epoch):
         sess_results = sess.run([cost,grad_update,tsne_l.getw()])
         W = sess_results[2]
-        img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='o', s=4, edgecolor='')
-        images.append([img])
 
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
-        if iter % print_size == 0 : print('\n-----------------------------\n')
+        if iter % print_size == 0 : 
+            img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='o', s=4, edgecolor='')
+            images.append([img])
+            print('\n-----------------------------\n')
 
     ani = ArtistAnimation(fig, images,interval=10)
     ani.save("mlp_process.mp4")
