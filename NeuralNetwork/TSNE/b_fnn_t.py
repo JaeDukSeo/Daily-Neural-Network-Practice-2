@@ -116,7 +116,8 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_poisson(shape=[k,k,inc,out],dtype=tf.float64,lam=0.05,seed=1))
+        # self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.act,self.d_act = act,d_act
 
@@ -139,7 +140,7 @@ class CNN():
             strides=[1,stride,stride,1],padding=padding
         )
 
-        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
+        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [number_of_example] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
         )
 
@@ -200,7 +201,8 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_poisson(shape=[input_dim,hidden_dim],dtype=tf.float64,lam=0.05,seed=1))
+        # self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -323,7 +325,7 @@ x_data, train_label, test_batch, test_label = mnist.train.images, mnist.train.la
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-# 1. Prepare only one and only zero 200
+# 1. Prepare only one and only zero  
 numer_images = 100
 only_0_index  = np.asarray(np.where(test_label == 0))[:,:numer_images]
 only_1_index  = np.asarray(np.where(test_label == 1))[:,:numer_images]
@@ -365,11 +367,12 @@ only_6_image = np.squeeze(test_batch[only_6_index])
 only_7_image = np.squeeze(test_batch[only_7_index])
 only_8_image = np.squeeze(test_batch[only_8_index])
 only_9_image = np.squeeze(test_batch[only_9_index])
-train_batch = np.vstack((only_0_image,only_1_image,
+x_data = np.vstack((only_0_image,only_1_image,
                         only_2_image,only_3_image,
                         only_4_image,only_5_image,
                         only_6_image,only_7_image,
                         only_8_image,only_9_image))
+# train_batch = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 
 # print out the data shape
 print(train_batch.shape)
@@ -475,12 +478,13 @@ num_epoch = 20000
 learning_rate = 0.000008
 
 # TSNE - calculate perplexity
-P = p_joint(train_batch,perplexity_number)
+P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
 
 # class
 l0 = FNN(784,256,act=tf_elu,d_act=d_tf_elu)
 l1 = FNN(256,128,act=tf_elu,d_act=d_tf_elu)
-l2 = FNN(128,2,act=tf_elu,d_act=d_tf_elu)
+l2 = FNN(128,64,act=tf_elu,d_act=d_tf_elu)
+l3 = FNN(64,2,act=tf_elu,d_act=d_tf_elu)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
@@ -489,14 +493,16 @@ x = tf.placeholder(shape=[number_of_example,784],dtype=tf.float64)
 layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
 layer2 = l2.feedforward(layer1)
-Q = tsne_l.feedforward(layer2)
+layer3 = l3.feedforward(layer2)
+Q = tsne_l.feedforward(layer3)
 cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-10,1e10)/tf.clip_by_value(Q,1e-10,1e10) ))
 
-grad_l2,grad_l2_up = l2.backprop(tsne_l.backprop())
+grad_l3,grad_l3_up = l3.backprop(tsne_l.backprop())
+grad_l2,grad_l2_up = l2.backprop(grad_l3)
 grad_l1,grad_l1_up = l1.backprop(grad_l2)
 grad_l0,grad_l0_up = l0.backprop(grad_l1)
 
-grad_update = grad_l2_up + grad_l1_up + grad_l0_up
+grad_update = grad_l3_up+grad_l2_up + grad_l1_up + grad_l0_up
 
 # sess
 with tf.Session() as sess:

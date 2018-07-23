@@ -473,7 +473,7 @@ print_size = 10000
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 number_of_example = train_batch.shape[0]
-num_epoch = 1000
+num_epoch = 20000
 learning_rate = 0.0008
 
 # TSNE - calculate perplexity
