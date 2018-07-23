@@ -305,7 +305,7 @@ class TSNE_Layer():
 # ================= LAYER CLASSES =================
 
 # data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=False)
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 # x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 # y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
@@ -322,13 +322,53 @@ number_of_example = 1500
 # train_batch, train_label = load_mnist('one/datasets/',digits_to_keep=classes_to_use,N=number_of_example)
 
 # simple normalize
-train_batch = x_data/255.0
 test_batch = y_data/255.0
 
-train_batch = x_data[:number_of_example]
-train_label = train_label[:number_of_example]
-test_batch = y_data[:200]
-test_label = test_label[:200]
+# 1. Prepare only one and only zero
+only_0_index  = np.asarray(np.where(test_label == 0))[:,:100]
+only_1_index  = np.asarray(np.where(test_label == 1))[:,:100]
+only_2_index  = np.asarray(np.where(test_label == 2))[:,:100]
+only_3_index  = np.asarray(np.where(test_label == 3))[:,:100]
+only_4_index  = np.asarray(np.where(test_label == 4))[:,:100]
+only_5_index  = np.asarray(np.where(test_label == 5))[:,:100]
+only_6_index  = np.asarray(np.where(test_label == 6))[:,:100]
+only_7_index  = np.asarray(np.where(test_label == 7))[:,:100]
+only_8_index  = np.asarray(np.where(test_label == 8))[:,:100]
+only_9_index  = np.asarray(np.where(test_label == 9))[:,:100]
+
+# # 1.5 prepare Label
+only_0_label  = test_label[only_0_index].T
+only_1_label  = test_label[only_1_index].T
+only_2_label  = test_label[only_2_index].T
+only_3_label  = test_label[only_3_index].T
+only_4_label  = test_label[only_4_index].T
+only_5_label  = test_label[only_5_index].T
+only_6_label  = test_label[only_6_index].T
+only_7_label  = test_label[only_7_index].T
+only_8_label  = test_label[only_8_index].T
+only_9_label  = test_label[only_9_index].T
+train_label = np.vstack((only_0_label,only_1_label,
+                        only_2_label,only_3_label,
+                        only_4_label,only_5_label,
+                        only_6_label,only_7_label,
+                        only_8_label,only_9_label))
+
+# # 2. prepare matrix image
+only_0_image = np.squeeze(test_batch[only_0_index])
+only_1_image = np.squeeze(test_batch[only_1_index])
+only_2_image = np.squeeze(test_batch[only_2_index])
+only_3_image = np.squeeze(test_batch[only_3_index])
+only_4_image = np.squeeze(test_batch[only_4_index])
+only_5_image = np.squeeze(test_batch[only_5_index])
+only_6_image = np.squeeze(test_batch[only_6_index])
+only_7_image = np.squeeze(test_batch[only_7_index])
+only_8_image = np.squeeze(test_batch[only_8_index])
+only_9_image = np.squeeze(test_batch[only_9_index])
+train_batch = np.vstack((only_0_image,only_1_image,
+                        only_2_image,only_3_image,
+                        only_4_image,only_5_image,
+                        only_6_image,only_7_image,
+                        only_8_image,only_9_image))
 
 # print out the data shape
 print(train_batch.shape)
@@ -459,7 +499,7 @@ with tf.Session() as sess:
         8:'pink',
         9:'skyblue',
     }  
-    color_mapping = [color_dict[x] for x in np.argmax(train_label,1) ]
+    color_mapping = [color_dict[x] for x in train_label ]
 
     for iter in range(num_epoch):
         sess_results = sess.run(grad_update)
@@ -471,7 +511,7 @@ with tf.Session() as sess:
         print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0].sum(),end='\r')
         if iter % print_size == 0 : print('\n-----------------------------\n')
 
-    ani = ArtistAnimation(fig, images,interval=200)
+    ani = ArtistAnimation(fig, images,interval=10)
     ani.save("mlp_process.mp4")
     plt.close('all')
 
