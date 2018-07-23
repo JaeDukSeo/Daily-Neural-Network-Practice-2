@@ -428,7 +428,7 @@ reduced_dimension = 2
 print_size = 100
 
 num_epoch = 1000
-learning_rate = 10.0
+learning_rate = 20.0
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
@@ -446,7 +446,7 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
     for iter in range(num_epoch):
-        sess_results = sess.run([grad_update])
+        sess_results = sess.run(grad_update)
         print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0].sum(),end='\r')
         if iter % print_size == 0 : print('\n-----------------------------\n')
 
