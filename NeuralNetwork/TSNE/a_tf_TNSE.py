@@ -316,7 +316,7 @@ x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-number_of_example = 1000
+number_of_example = 2000
 # classes_to_use = [0,1,2,3,4,5,6,7,8,9]
 # train_batch, train_label = load_mnist('one/datasets/',digits_to_keep=classes_to_use,N=number_of_example)
 
