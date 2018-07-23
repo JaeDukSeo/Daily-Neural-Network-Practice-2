@@ -324,7 +324,7 @@ x_data, train_label, test_batch, test_label = mnist.train.images, mnist.train.la
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-# 1. Prepare only one and only zero 200
+# 1. Prepare only one and only zero  
 numer_images = 100
 only_0_index  = np.asarray(np.where(test_label == 0))[:,:numer_images]
 only_1_index  = np.asarray(np.where(test_label == 1))[:,:numer_images]
@@ -371,6 +371,7 @@ train_batch = np.vstack((only_0_image,only_1_image,
                         only_4_image,only_5_image,
                         only_6_image,only_7_image,
                         only_8_image,only_9_image))
+# train_batch = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 
 # print out the data shape
 print(train_batch.shape)
@@ -463,12 +464,13 @@ reduced_dimension = 2
 print_size = 20
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
+
 number_of_example = train_batch.shape[0]
 num_epoch = 20000
-learning_rate = 0.0003
+learning_rate = 0.00003
 
 # TSNE - calculate perplexity
-P = p_joint(train_batch,perplexity_number)
+P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
 
 # class
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
@@ -512,11 +514,10 @@ with tf.Session() as sess:
     plt.close('all')
 
     # print the final output of the colors
-    W = sess.run(tsne_l.getw())
+    W = sess.run(tsne_l.getw(),feed_dict = {x:train_batch.astype(np.float64)})
     fig = plt.figure(figsize=(8,8))
     plt.title(str(color_dict))
     plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
     plt.show()
-
 
 # -- end code --
