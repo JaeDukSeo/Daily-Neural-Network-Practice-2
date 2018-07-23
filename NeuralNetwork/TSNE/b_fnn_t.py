@@ -427,6 +427,8 @@ print_size = 100
 num_epoch = 1000
 learning_rate = 20.0
 
+beta1,beta2,adam_e = 0.9,0.999,1e-8
+
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
 
@@ -443,11 +445,11 @@ layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
 layer2 = l2.feedforward(layer1)
 tsne_layer = tsne_l.feedforward(layer2)
-
+ 
 grad = tsne_l.backprop()
 grad_l2,grad_l2_up = l2.backprop(grad)
-grad_l1,grad_l1_up = l2.backprop(grad_l2)
-grad_l0,grad_l0_up = l2.backprop(grad_l1)
+grad_l1,grad_l1_up = l1.backprop(grad_l2)
+grad_l0,grad_l0_up = l0.backprop(grad_l1)
 
 grad_update = grad_l2_up + grad_l1_up + grad_l0_up
 
