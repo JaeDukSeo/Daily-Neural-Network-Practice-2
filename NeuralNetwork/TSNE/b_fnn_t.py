@@ -10,7 +10,6 @@ from imgaug import augmenters as iaa
 import imgaug as ia
 from mpl_toolkits.mplot3d import Axes3D
 from skimage.color import rgba2rgb
-from load_data import load_mnist
 from matplotlib.animation import ArtistAnimation
 
 old_v = tf.logging.get_verbosity()
@@ -25,7 +24,7 @@ ia.seed(6278)
 
 # ======= Activation Function  ==========
 def tf_elu(x): return tf.nn.elu(x)
-def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float64) * x) + 1.0)
+def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
 
 def tf_tanh(x): return tf.nn.tanh(x)
 def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
@@ -201,7 +200,7 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -259,8 +258,10 @@ class TSNE_Layer():
 
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
-        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05))
+        # self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
+        self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
         self.P = P
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
     def getw(self): return self.w   
 
@@ -291,19 +292,27 @@ class TSNE_Layer():
         return grad
 
     def feedforward(self,input):
-        self.input = input
+        self.input = self.input
         self.Q,self.inv_distances = self.tf_q_tsne(self.input)
         return self.Q
 
     def backprop(self):
         grad = self.tf_tsne_grad(self.P,self.Q,self.input,self.inv_distances)
-        return grad
 
+        update_w = []
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
+
+        return grad
 # ================= LAYER CLASSES =================
 
 # data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=False)
+x_data, train_label, test_batch, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 # x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 # y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 # train_batch = np.zeros((55000,28,28,1))
@@ -314,18 +323,53 @@ x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-number_of_example = 1000
-# classes_to_use = [0,1,2,3,4,5,6,7,8,9]
-# train_batch, train_label = load_mnist('one/datasets/',digits_to_keep=classes_to_use,N=number_of_example)
+# 1. Prepare only one and only zero 200
+numer_images = 100
+only_0_index  = np.asarray(np.where(test_label == 0))[:,:numer_images]
+only_1_index  = np.asarray(np.where(test_label == 1))[:,:numer_images]
+only_2_index  = np.asarray(np.where(test_label == 2))[:,:numer_images]
+only_3_index  = np.asarray(np.where(test_label == 3))[:,:numer_images]
+only_4_index  = np.asarray(np.where(test_label == 4))[:,:numer_images]
+only_5_index  = np.asarray(np.where(test_label == 5))[:,:numer_images]
+only_6_index  = np.asarray(np.where(test_label == 6))[:,:numer_images]
+only_7_index  = np.asarray(np.where(test_label == 7))[:,:numer_images]
+only_8_index  = np.asarray(np.where(test_label == 8))[:,:numer_images]
+only_9_index  = np.asarray(np.where(test_label == 9))[:,:numer_images]
 
-# simple normalize
-train_batch = x_data/255.0
-test_batch = y_data/255.0
+# # 1.5 prepare Label
+only_0_label  = test_label[only_0_index].T
+only_1_label  = test_label[only_1_index].T
+only_2_label  = test_label[only_2_index].T
+only_3_label  = test_label[only_3_index].T
+only_4_label  = test_label[only_4_index].T
+only_5_label  = test_label[only_5_index].T
+only_6_label  = test_label[only_6_index].T
+only_7_label  = test_label[only_7_index].T
+only_8_label  = test_label[only_8_index].T
+only_9_label  = test_label[only_9_index].T
+train_label = np.vstack((only_0_label,only_1_label,
+                        only_2_label,only_3_label,
+                        only_4_label,only_5_label,
+                        only_6_label,only_7_label,
+                        only_8_label,only_9_label))
+train_label = np.squeeze(train_label)
 
-train_batch = x_data[:number_of_example]
-train_label = train_label[:number_of_example]
-test_batch = y_data[:200]
-test_label = test_label[:200]
+# # 2. prepare matrix image
+only_0_image = np.squeeze(test_batch[only_0_index])
+only_1_image = np.squeeze(test_batch[only_1_index])
+only_2_image = np.squeeze(test_batch[only_2_index])
+only_3_image = np.squeeze(test_batch[only_3_index])
+only_4_image = np.squeeze(test_batch[only_4_index])
+only_5_image = np.squeeze(test_batch[only_5_index])
+only_6_image = np.squeeze(test_batch[only_6_index])
+only_7_image = np.squeeze(test_batch[only_7_index])
+only_8_image = np.squeeze(test_batch[only_8_index])
+only_9_image = np.squeeze(test_batch[only_9_index])
+train_batch = np.vstack((only_0_image,only_1_image,
+                        only_2_image,only_3_image,
+                        only_4_image,only_5_image,
+                        only_6_image,only_7_image,
+                        only_8_image,only_9_image))
 
 # print out the data shape
 print(train_batch.shape)
@@ -340,9 +384,8 @@ def neg_distance(X):
 
 def softmax_max(X,diag=True):
     X_exp = np.exp(X - X.max(1).reshape([-1, 1]))
-    X_exp = X_exp + 1e-10
+    X_exp = X_exp + 1e-20
     if diag: np.fill_diagonal(X_exp, 0.)
-    # X_exp = X_exp + 1e-10
     return X_exp/X_exp.sum(1).reshape([-1, 1])
 
 def calc_prob_matrix(distances, sigmas=None):
@@ -421,23 +464,23 @@ def p_joint(X, target_perplexity):
 # ======= TSNE ======
 
 # hyper
-perplexity_number = 30
+perplexity_number = 10
 reduced_dimension = 2
+print_size = 2
 
-num_epoch = 100
-print_size = 10
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 
-learning_rate = 0.00001
-
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+number_of_example = train_batch.shape[0]
+num_epoch = 20000
+learning_rate = 0.00008
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
 
 # class
-l0 = FNN(784,256,act=tf_tanh,d_act=d_tf_tanh)
-l1 = FNN(256,64,act=tf_tanh,d_act=d_tf_tanh)
-l2 = FNN(64,2,act=tf_tanh,d_act=d_tf_tanh)
+l0 = FNN(784,256)
+l1 = FNN(256,128)
+l2 = FNN(128,2)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
@@ -446,16 +489,13 @@ x = tf.placeholder(shape=[number_of_example,784],dtype=tf.float64)
 layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
 layer2 = l2.feedforward(layer1)
-tsne_Q = tsne_l.feedforward(layer2)
+Q = tsne_l.feedforward(layer2)
+cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-10,1e10)/tf.clip_by_value(Q,1e-10,1e10) ))
 
-def clip(x, vmax = 1-1e-10, vmin = 1e-10):
-    return tf.clip_by_value(x, clip_value_max=vmax, clip_value_min=vmin)
-cost = tf.reduce_sum(P * tf.log(clip(P)/clip(tsne_Q)))
+grad_l2,grad_l2_up = layer2.backprop(tsne_l.backprop())
+grad_l1,grad_l1_up = layer1.backprop(grad_l2)
+grad_l0,grad_l0_up = layer0.backprop(grad_l1)
 
-grad = tsne_l.backprop()
-grad_l2,grad_l2_up = l2.backprop(grad)
-grad_l1,grad_l1_up = l1.backprop(grad_l2)
-grad_l0,grad_l0_up = l0.backprop(grad_l1)
 grad_update = grad_l2_up + grad_l1_up + grad_l0_up
 
 # sess
@@ -463,7 +503,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     images = []
-    fig = plt.figure(figsize=(5,5))
+    fig = plt.figure(figsize=(8,8))
     color_dict = {
         0:'red',
         1:'blue',
@@ -476,25 +516,27 @@ with tf.Session() as sess:
         8:'pink',
         9:'skyblue',
     }  
-    color_mapping = [color_dict[x] for x in np.argmax(train_label,1) ]
+    color_mapping = [color_dict[x] for x in train_label ]
 
     for iter in range(num_epoch):
-        sess_results = sess.run([cost,layer2,grad_update],feed_dict={x:train_batch.astype(np.float64)})
-        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0],end='\r')
-        pred= sess_results[1]
-        img = plt.scatter(pred[:, 0], pred[:, 1], c=color_mapping,marker='o', s=3, edgecolor='')
-        images.append([img])
-
-        if iter % print_size == 0 : print('\n-----------------------------\n')
-
-    ani = ArtistAnimation(fig, images, interval=100, repeat_delay=2000)
-    ani.save("mlp_process2.mp4")
+        sess_results = sess.run([cost,grad_update,layer2] ,feed_dict = {x:train_batch.astype(np.float64)})
+        W = sess_results[2]
+        print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
+        if iter % print_size == 0 : 
+            ttl = plt.text(0.5, 1.0, 'Iter: '+str(iter), horizontalalignment='center', verticalalignment='top')
+            img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
+            images.append([img,ttl])
+            print('\n-----------------------------\n')
+    ani = ArtistAnimation(fig, images,interval=10)
+    ani.save("mlp_process.mp4")
     plt.close('all')
 
-    # W = sess.run(layer2,feed_dict={x:train_batch.astype(np.float64)})
-    # plt.figure()
-    # plt.suptitle(str(color_dict))
-    # plt.scatter(W[:,0],W[:,1],c=color_mapping)
-    # plt.axis()
-    # plt.show()
+    # print the final output of the colors
+    W = sess.run(layer2,feed_dict = {x:train_batch.astype(np.float64)})
+    fig = plt.figure(figsize=(8,8))
+    plt.title(str(color_dict))
+    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
+    plt.show()
+
+
 # -- end code --
