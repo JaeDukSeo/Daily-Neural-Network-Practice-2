@@ -423,10 +423,10 @@ def p_joint(X, target_perplexity):
 perplexity_number = 20
 reduced_dimension = 2
 
-num_epoch = 500
+num_epoch = 5000
 print_size = 10
 
-learning_rate = 0.00003
+learning_rate = 0.0000003
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
@@ -461,13 +461,8 @@ grad_update = grad_l2_up + grad_l1_up + grad_l0_up
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-
-    for iter in range(num_epoch):
-        sess_results = sess.run([cost,grad_update],feed_dict={x:train_batch.astype(np.float64)})
-        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0],end='\r')
-        if iter % print_size == 0 : print('\n-----------------------------\n')
-
-    W = sess.run(layer2,feed_dict={x:train_batch.astype(np.float64)})
+    images = []
+    fig = plt.figure(figsize=(5, 5))
     color_dict = {
         0:'red',
         1:'blue',
@@ -480,10 +475,22 @@ with tf.Session() as sess:
         8:'pink',
         9:'skyblue',
     }  
-
-    plt.figure()
-    plt.suptitle(str(list(color_dict)))
     color_mapping = [color_dict[x] for x in np.argmax(train_label,1) ]
+
+    for iter in range(num_epoch):
+        sess_results = sess.run([cost,layer2,grad_update],feed_dict={x:train_batch.astype(np.float64)})
+        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0],end='\r')
+        pred= sess_results[1]
+        img = plt.scatter(pred[:, 0], pred[:, 1], c=color_mapping,marker='o', s=3, edgecolor='')
+        images.append([img])
+        if iter % print_size == 0 : print('\n-----------------------------\n')
+    ani = ArtistAnimation(fig, images, interval=100, repeat_delay=2000)
+    ani.save("mlp_process.mp4")
+    plt.clf()
+
+    W = sess.run(layer2,feed_dict={x:train_batch.astype(np.float64)})
+    plt.figure()
+    plt.suptitle(str(color_dict))
     plt.scatter(W[:,0],W[:,1],c=color_mapping)
     plt.axis()
     plt.show()
