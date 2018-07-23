@@ -380,13 +380,11 @@ def neg_distance(X):
     X_sum = np.sum(X**2,1)
     distance = np.reshape(X_sum,[-1,1])
     return -(distance - 2*X.dot(X.T)+distance.T) 
-
 def softmax_max(X,diag=True):
     X_exp = np.exp(X - X.max(1).reshape([-1, 1]))
     X_exp = X_exp + 1e-20
     if diag: np.fill_diagonal(X_exp, 0.)
     return X_exp/X_exp.sum(1).reshape([-1, 1])
-
 def calc_prob_matrix(distances, sigmas=None):
     """Convert a distances matrix to a matrix of probabilities."""
     if sigmas is not None:
@@ -394,7 +392,6 @@ def calc_prob_matrix(distances, sigmas=None):
         return softmax_max(distances / two_sig_sq)
     else:
         return softmax_max(distances)
-
 def perplexity(distances, sigmas):
     """Wrapper function for quick calculation of 
     perplexity over a distance matrix."""
@@ -402,7 +399,6 @@ def perplexity(distances, sigmas):
     entropy = -np.sum(prob_matrix * np.log2(prob_matrix + 1e-10), 1)
     perplexity = 2.0 ** entropy
     return perplexity
-
 def binary_search(distance_vec, target, max_iter=20000,tol=1e-13, lower=1e-10, upper=1e10):
     """Perform a binary search over input values to eval_fn.
     # Arguments
@@ -425,7 +421,6 @@ def binary_search(distance_vec, target, max_iter=20000,tol=1e-13, lower=1e-10, u
         if np.abs(val - target) <= tol:
             break
     return guess
-
 def find_optimal_sigmas(distances, target_perplexity):
     """For each row of distances matrix, find sigma that results
     in target perplexity for that role."""
@@ -437,12 +432,10 @@ def find_optimal_sigmas(distances, target_perplexity):
         # Append the resulting sigma to our output array
         sigmas.append(correct_sigma)
     return np.array(sigmas)
-
 def p_conditional_to_joint(P):
     """Given conditional probabilities matrix P, return
     approximation of joint distribution probabilities."""
     return (P + P.T) / (2. * P.shape[0])
-
 def p_joint(X, target_perplexity):
     """Given a data matrix X, gives joint probabilities matrix.
 
@@ -465,13 +458,12 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 10
 reduced_dimension = 2
-print_size = 2
+print_size = 10
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
-
 number_of_example = train_batch.shape[0]
 num_epoch = 20000
-learning_rate = 0.00008
+learning_rate = 0.0008
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
@@ -489,7 +481,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     images = []
-    fig = plt.figure(figsize=(8,8))
+    fig = plt.figure(figsize=(6,6))
     color_dict = {
         0:'red',
         1:'blue',
@@ -502,7 +494,7 @@ with tf.Session() as sess:
         8:'pink',
         9:'skyblue',
     }  
-    color_mapping = [color_dict[x] for x in train_label ]
+    color_mapping = [ color_dict[x] for x in train_label ]
 
     for iter in range(num_epoch):
         sess_results = sess.run([cost,grad_update,tsne_l.getw()])
@@ -519,7 +511,7 @@ with tf.Session() as sess:
 
     # print the final output of the colors
     W = sess.run(tsne_l.getw())
-    fig = plt.figure(figsize=(8,8))
+    fig = plt.figure(figsize=(6,6))
     plt.title(str(color_dict))
     plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
     plt.show()

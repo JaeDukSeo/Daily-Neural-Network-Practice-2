@@ -466,7 +466,7 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 10
 reduced_dimension = 2
-print_size = 2
+print_size = 20
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
