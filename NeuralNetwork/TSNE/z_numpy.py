@@ -51,38 +51,9 @@ def softmax(X, diag_zero=True):
 
     return e_x / e_x.sum(axis=1).reshape([-1, 1])
 
-temp = np.array([
-    [1,1],
-    [2,2],
-    [1,1]
-])
 
 
-print('-----')
-print(np.square(temp))
-print( np.sum(np.square(temp), 1))
-print(neg_squared_euc_dists(temp))
-print(np.around(softmax(neg_squared_euc_dists(temp)),2))
-
-
-
-sys.exit()
-
-
-
-
-
-
-def calc_prob_matrix(distances, sigmas=None):
-    """Convert a distances matrix to a matrix of probabilities."""
-    if sigmas is not None:
-        two_sig_sq = 2. * np.square(sigmas.reshape((-1, 1)))
-        return softmax(distances / two_sig_sq)
-    else:
-        return softmax(distances)
-
-def binary_search(eval_fn, target, tol=1e-10, max_iter=10000, 
-                  lower=1e-20, upper=1000.):
+def binary_search(eval_fn, target, tol=1e-10, max_iter=10000, lower=1e-20, upper=1000.):
     """Perform a binary search over input values to eval_fn.
     
     # Arguments
@@ -112,7 +83,14 @@ def calc_perplexity(prob_matrix):
     entropy = -np.sum(prob_matrix * np.log2(prob_matrix), 1)
     perplexity = 2 ** entropy
     return perplexity
-
+    
+def calc_prob_matrix(distances, sigmas=None):
+    """Convert a distances matrix to a matrix of probabilities."""
+    if sigmas is not None:
+        two_sig_sq = 2. * np.square(sigmas.reshape((-1, 1)))
+        return softmax(distances / two_sig_sq)
+    else:
+        return softmax(distances)
 
 def perplexity(distances, sigmas):
     """Wrapper function for quick calculation of 
@@ -127,13 +105,43 @@ def find_optimal_sigmas(distances, target_perplexity):
     # For each row of the matrix (each point in our dataset)
     for i in range(distances.shape[0]):
         # Make fn that returns perplexity of this row given sigma
-        eval_fn = lambda sigma: \
-            perplexity(distances[i:i+1, :], np.array(sigma))
+        eval_fn = lambda sigma: perplexity(distances[i:i+1, :], np.array(sigma))
+
         # Binary search over sigmas to achieve target perplexity
         correct_sigma = binary_search(eval_fn, target_perplexity)
+
         # Append the resulting sigma to our output array
         sigmas.append(correct_sigma)
     return np.array(sigmas)
+
+
+temp = np.array([
+    [1,1],
+    [2,2],
+    [1,1]
+])
+
+target_perplexity=20
+distnace = neg_squared_euc_dists(temp)
+sigmas = find_optimal_sigmas(distnace, target_perplexity)
+
+print(sigmas)
+
+sys.exit()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def q_joint(Y):

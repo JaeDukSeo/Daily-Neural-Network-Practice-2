@@ -316,8 +316,8 @@ class TSNE_Layer():
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-number_of_example = 1000
-classes_to_use = [0,1,5,8]
+number_of_example = 4000
+classes_to_use = [0,1,2,3,4,5,6,7,8,9]
 train_batch, train_label = load_mnist('one/datasets/',digits_to_keep=classes_to_use,N=number_of_example)
 
 # simple normalize
@@ -438,13 +438,6 @@ tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
 Q = tsne_l.feedforward()
-
-def clip(x, vmax = 1-1e-20, vmin = 1e-20):
-    return tf.clip_by_value(x, clip_value_max=vmax, clip_value_min=vmin)
-
-cost = tf.reduce_sum(P * tf.log(clip(P)/clip(Q)  ))
-
-# auto_train = tf.train.AdamOptimizer(learning_rate = learning_rate).minimize(cost)
 grad,grad_update = tsne_l.backprop()
 
 # sess
