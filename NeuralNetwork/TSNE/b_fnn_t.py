@@ -200,7 +200,7 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2))
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -437,7 +437,7 @@ l2 = FNN(128,2,act=tf_atan,d_act=d_tf_atan)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
-x = tf.placeholder(shape=[number_of_example,784])
+x = tf.placeholder(shape=[number_of_example,784],dtype=tf.float64)
 
 layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
@@ -457,11 +457,11 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
     for iter in range(num_epoch):
-        sess_results = sess.run(grad_update,feed_dict={x:train_batch})
+        sess_results = sess.run(grad_update,feed_dict={x:train_batch.astype(np.float64)})
         print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0].sum(),end='\r')
         if iter % print_size == 0 : print('\n-----------------------------\n')
 
-    W = sess.run(layer2,feed_dict={x:train_batch})
+    W = sess.run(layer2,feed_dict={x:train_batch.astype(np.float64)})
     color_dict = {
         0:'red',
         1:'blue',
