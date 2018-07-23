@@ -10,6 +10,7 @@ from imgaug import augmenters as iaa
 import imgaug as ia
 from mpl_toolkits.mplot3d import Axes3D
 from skimage.color import rgba2rgb
+from load_data import load_mnist
 
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -256,7 +257,8 @@ class ICA_Layer():
 class TSNE_Layer():
 
     def __init__(self,inc,outc,P):
-        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float32,stddev=0.05))
+        # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
+        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float32,stddev=0.25))
         self.P = P
 
     def getw(self): return self.w   
@@ -289,6 +291,7 @@ class TSNE_Layer():
 
     def feedforward(self):
         self.Q,self.inv_distances = self.tf_q_tsne(self.w)
+        return self.Q
 
     def backprop(self):
         grad = self.tf_tsne_grad(self.P,self.Q,self.w,self.inv_distances)
@@ -301,36 +304,35 @@ class TSNE_Layer():
 # ================= LAYER CLASSES =================
 
 # data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+# x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 # x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 # y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
-train_batch = np.zeros((55000,28,28,1))
-test_batch = np.zeros((10000,28,28,1))
+# train_batch = np.zeros((55000,28,28,1))
+# test_batch = np.zeros((10000,28,28,1))
 
 # for x in range(len(x_data)):
 #     train_batch[x,:,:,:] = np.expand_dims(imresize(x_data[x,:,:,0],(28,28)),axis=3)
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-# simple normalize
-train_batch = train_batch/255.0
-test_batch = test_batch/255.0
+number_of_example = 1000
+classes_to_use = [0,1,5,8]
+train_batch, train_label = load_mnist('one/datasets/',digits_to_keep=classes_to_use,N=number_of_example)
 
-number_of_example = 1500
-train_batch = x_data[:number_of_example]
-train_label = train_label[:number_of_example]
-test_batch = y_data[:200]
-test_label = test_label[:200]
+# simple normalize
+# train_batch = train_batch/255.0
+# test_batch = test_batch/255.0
+
+# train_batch = x_data[:number_of_example]
+# train_label = train_label[:number_of_example]
+# test_batch = y_data[:200]
+# test_label = test_label[:200]
 
 # print out the data shape
 print(train_batch.shape)
 print(train_label.shape)
 print(train_batch.max(),train_batch.min())
-
-print(test_batch.shape)
-print(test_label.shape)
-print(test_batch.max(),test_batch.min())
 
 # ======= TSNE ======
 def neg_distance(X):
@@ -421,20 +423,22 @@ def p_joint(X, target_perplexity):
 # ======= TSNE ======
 
 # hyper
-perplexity_number = 20
+perplexity_number = 25
 reduced_dimension = 2
 print_size = 10
 
-num_epoch = 300
+num_epoch = 500
 learning_rate = 10
 
+# TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
 
 # class
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
-tsne_l.feedforward()
+Q = tsne_l.feedforward()
+cost = tf.reduce_sum(P * tf.log(P/Q))
 grad,grad_update = tsne_l.backprop()
 
 # sess
@@ -443,9 +447,8 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
     for iter in range(num_epoch):
-        sess_results = sess.run(grad_update)
-        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0].sum(),end='\r')
-
+        sess_results = sess.run([cost,grad_update])
+        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0],end='\r')
         if iter % print_size == 0 : print('\n-----------------------------\n')
 
     W = sess.run(tsne_l.getw())
@@ -464,7 +467,7 @@ with tf.Session() as sess:
 
     plt.figure()
     plt.suptitle(str(color_dict))
-    color_mapping = [color_dict[x] for x in np.argmax(train_label ,1) ]
+    color_mapping = [color_dict[x] for x in train_label ]
     plt.scatter(W[:,0],W[:,1],c=color_mapping)
     plt.legend()
     plt.axis()
