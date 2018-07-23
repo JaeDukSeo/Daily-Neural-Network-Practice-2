@@ -116,7 +116,8 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_poisson(shape=[k,k,inc,out],dtype=tf.float64,lam=0.05,seed=1))
+        # self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.act,self.d_act = act,d_act
 
@@ -200,7 +201,8 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_poisson(shape=[input_dim,hidden_dim],dtype=tf.float64,lam=0.05,seed=1))
+        # self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -323,8 +325,8 @@ x_data, train_label, test_batch, test_label = mnist.train.images, mnist.train.la
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-# 1. Prepare only one and only zero 200
-numer_images = 100
+# 1. Prepare only one and only zero  
+numer_images = 20
 only_0_index  = np.asarray(np.where(test_label == 0))[:,:numer_images]
 only_1_index  = np.asarray(np.where(test_label == 1))[:,:numer_images]
 only_2_index  = np.asarray(np.where(test_label == 2))[:,:numer_images]
@@ -467,21 +469,20 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 30
 reduced_dimension = 2
-print_size = 20
+print_size = 10000
 
-beta1,beta2,adam_e = 0.9,0.999,1e-8
-
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 number_of_example = train_batch.shape[0]
 num_epoch = 8000
-learning_rate = 0.008
+learning_rate = 0.009
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
 
 # class
-l0 = CNN(3,1,12,act=tf_elu,d_act=d_tf_elu)
-l1 = CNN(3,12,24,act=tf_elu,d_act=d_tf_elu)
-l2 = FNN(7*7*24,2,act=tf_elu,d_act=d_tf_elu)
+l0 = CNN(3,1,64,act=tf_elu,d_act=d_tf_elu)
+l1 = CNN(3,64,64,act=tf_elu,d_act=d_tf_elu)
+l2 = FNN(7*7*64,2,act=tf_elu,d_act=d_tf_elu)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
@@ -499,7 +500,7 @@ Q = tsne_l.feedforward(layer2)
 cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-10,1e10)/tf.clip_by_value(Q,1e-10,1e10) ))
 
 grad_l2,grad_l2_up = l2.backprop(tsne_l.backprop())
-grad_l1_input = tf_repeat(tf.reshape(grad_l2,[number_of_example,7,7,24]),[1,2,2,1])
+grad_l1_input = tf_repeat(tf.reshape(grad_l2,[number_of_example,7,7,64]),[1,2,2,1])
 grad_l1,grad_l1_up = l1.backprop(grad_l1_input)
 gradl0_input = tf_repeat(grad_l1,[1,2,2,1])
 grad_l0,grad_l0_up = l0.backprop(gradl0_input)
@@ -543,7 +544,7 @@ with tf.Session() as sess:
     W = sess.run(layer2,feed_dict = {x:train_batch.astype(np.float64)})
     fig = plt.figure(figsize=(8,8))
     plt.title(str(color_dict))
-    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
+    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=20)
     plt.show()
 
 
