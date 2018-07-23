@@ -304,8 +304,8 @@ class TSNE_Layer():
 # ================= LAYER CLASSES =================
 
 # data
-# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-# x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 # x_data = x_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 # y_data = y_data.reshape(-1, 28, 28, 1)  # 28x28x1 input img
 # train_batch = np.zeros((55000,28,28,1))
@@ -316,18 +316,18 @@ class TSNE_Layer():
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-number_of_example = 4000
-classes_to_use = [0,1,2,3,4,5,6,7,8,9]
-train_batch, train_label = load_mnist('one/datasets/',digits_to_keep=classes_to_use,N=number_of_example)
+number_of_example = 1000
+# classes_to_use = [0,1,2,3,4,5,6,7,8,9]
+# train_batch, train_label = load_mnist('one/datasets/',digits_to_keep=classes_to_use,N=number_of_example)
 
 # simple normalize
-# train_batch = train_batch/255.0
-# test_batch = test_batch/255.0
+train_batch = x_data/255.0
+test_batch = y_data/255.0
 
-# train_batch = x_data[:number_of_example]
-# train_label = train_label[:number_of_example]
-# test_batch = y_data[:200]
-# test_label = test_label[:200]
+train_batch = x_data[:number_of_example]
+train_label = train_label[:number_of_example]
+test_batch = y_data[:200]
+test_label = test_label[:200]
 
 # print out the data shape
 print(train_batch.shape)
@@ -446,7 +446,7 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
     for iter in range(num_epoch):
-        sess_results = sess.run([cost,grad_update])
+        sess_results = sess.run([grad_update])
         print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0],end='\r')
         if iter % print_size == 0 : print('\n-----------------------------\n')
 
@@ -466,7 +466,8 @@ with tf.Session() as sess:
 
     plt.figure()
     plt.suptitle(str(color_dict))
-    color_mapping = [color_dict[x] for x in train_label ]
+    # color_mapping = [color_dict[x] for x in train_label ]
+    color_mapping = [color_dict[x] for x in np.argmax(train_label,1) ]
     plt.scatter(W[:,0],W[:,1],c=color_mapping)
     plt.legend()
     plt.axis()
