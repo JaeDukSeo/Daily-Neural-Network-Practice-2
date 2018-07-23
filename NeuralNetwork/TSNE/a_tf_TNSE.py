@@ -258,7 +258,7 @@ class TSNE_Layer():
 
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
-        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=8))
+        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -464,13 +464,13 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 10
 reduced_dimension = 2
-print_size = 100
+print_size = 5
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 number_of_example = train_batch.shape[0]
 num_epoch = 10000
-learning_rate = 0.09
+learning_rate = 0.8
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
@@ -488,7 +488,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     images = []
-    fig = plt.figure(figsize=(5,5))
+    fig = plt.figure(figsize=(8,8))
     color_dict = {
         0:'red',
         1:'blue',
@@ -509,7 +509,7 @@ with tf.Session() as sess:
 
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
         if iter % print_size == 0 : 
-            img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='o', s=4, edgecolor='')
+            img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=8)
             images.append([img])
             print('\n-----------------------------\n')
 
