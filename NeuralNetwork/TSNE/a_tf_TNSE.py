@@ -457,7 +457,7 @@ def p_joint(X, target_perplexity):
 # ======= TSNE ======
 
 # hyper
-perplexity_number = 10
+perplexity_number = 30
 reduced_dimension = 2
 print_size = 20
 
@@ -465,7 +465,7 @@ beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 number_of_example = train_batch.shape[0]
 num_epoch = 20000
-learning_rate = 10.0
+learning_rate = 0.00003
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)

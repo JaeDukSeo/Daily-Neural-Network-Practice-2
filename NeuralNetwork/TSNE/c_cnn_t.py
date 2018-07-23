@@ -469,12 +469,12 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 30
 reduced_dimension = 2
-print_size = 10000
+print_size = 20
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 number_of_example = train_batch.shape[0]
 num_epoch = 20000
-learning_rate = 0.0008
+learning_rate = 0.00003
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
@@ -482,8 +482,8 @@ P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
 # class
 l0 = CNN(3,1,16,act=tf_elu,d_act=d_tf_elu)
 l1 = CNN(3,16,32,act=tf_elu,d_act=d_tf_elu)
-l2 = FNN(7*7*32,256,act=tf_elu,d_act=d_tf_elu)
-l3 = FNN(256,2,act=tf_elu,d_act=d_tf_elu)
+l2 = FNN(7*7*32,64,act=tf_elu,d_act=d_tf_elu)
+l3 = FNN(64,2,act=tf_elu,d_act=d_tf_elu)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph

@@ -465,7 +465,7 @@ def p_joint(X, target_perplexity):
 # ======= TSNE ======
 
 # hyper
-perplexity_number = 10
+perplexity_number = 30
 reduced_dimension = 2
 print_size = 20
 
