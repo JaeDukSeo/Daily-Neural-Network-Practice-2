@@ -292,8 +292,11 @@ class TSNE_Layer():
 
     def backprop(self):
         grad = self.tf_tsne_grad(self.P,self.Q,self.w,self.inv_distances)
-        grad_update = tf.assign(self.w,self.w-learning_rate * grad)
-        return grad,[grad_update]
+
+        update_w = []
+        update_w.append(tf.assign(self.w,self.w-learning_rate * grad))
+
+        return grad,update_w
 
 # ================= LAYER CLASSES =================
 
@@ -314,8 +317,9 @@ test_batch = np.zeros((10000,28,28,1))
 train_batch = train_batch/255.0
 test_batch = test_batch/255.0
 
-train_batch = x_data[:1000]
-train_label = train_label[:1000]
+number_of_example = 1500
+train_batch = x_data[:number_of_example]
+train_label = train_label[:number_of_example]
 test_batch = y_data[:200]
 test_label = test_label[:200]
 
@@ -419,6 +423,7 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 20
 reduced_dimension = 2
+print_size = 10
 
 num_epoch = 300
 learning_rate = 10
@@ -426,7 +431,7 @@ learning_rate = 10
 P = p_joint(train_batch,perplexity_number)
 
 # class
-tsne_l = TSNE_Layer(1000,reduced_dimension,P)
+tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
 tsne_l.feedforward()
@@ -439,7 +444,9 @@ with tf.Session() as sess:
 
     for iter in range(num_epoch):
         sess_results = sess.run(grad_update)
-        print('current iter: ',iter)
+        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0].sum(),end='\r')
+
+        if iter % print_size == 0 : print('\n-----------------------------\n')
 
     W = sess.run(tsne_l.getw())
     color_dict = {
