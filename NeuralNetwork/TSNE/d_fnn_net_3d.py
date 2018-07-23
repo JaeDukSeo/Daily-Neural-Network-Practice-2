@@ -259,10 +259,7 @@ class ICA_Layer():
 class TSNE_Layer():
 
     def __init__(self,inc,outc,P):
-        # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
-        # self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
-        # self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
-        self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
+        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
@@ -275,7 +272,7 @@ class TSNE_Layer():
 
     def tf_q_tsne(self,Y):
         distances = self.tf_neg_distance(Y)
-        inv_distances = tf.pow(1. + distances/2, -3/2)
+        inv_distances = tf.pow(1. - distances/2.0, -1.5)
         inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float64)) 
         return inv_distances / tf.reduce_sum(inv_distances), inv_distances
 
@@ -469,13 +466,13 @@ def p_joint(X, target_perplexity):
 # hyper
 perplexity_number = 30
 reduced_dimension = 3
-print_size = 20
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 number_of_example = train_batch.shape[0]
-num_epoch = 2000
-learning_rate = 0.00000001
+num_epoch = 20000
+print_size = 20
+learning_rate = 0.00003
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
@@ -495,7 +492,8 @@ layer1 = l1.feedforward(layer0)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
 Q = tsne_l.feedforward(layer3)
-cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-5,1e10)/tf.clip_by_value(Q,1e-5,1e10) ))
+
+cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-5,1e5)/tf.clip_by_value(Q,1e-5,1e5) ))
 
 grad_l3,grad_l3_up = l3.backprop(tsne_l.backprop())
 grad_l2,grad_l2_up = l2.backprop(grad_l3)
@@ -531,9 +529,8 @@ with tf.Session() as sess:
             images.append(tempW)
             print('\n-----------------------------\n')
 
-
-    images = np.asarray(images)
     # Attaching 3D axis to the figure
+    images = np.asarray(images)
     fig = plt.figure()
     ax = p3.Axes3D(fig)
     ax.scatter(images[0][:,0],images[0][:,1],images[0][:,2],c=color_mapping)
@@ -541,13 +538,12 @@ with tf.Session() as sess:
 
     fig = plt.figure()
     ax = p3.Axes3D(fig)
-    for current_data in images:
+    for current_data_index in range(len(images)):
+        current_data = images[current_data_index,:,:]
         ax.scatter(current_data[:,0],current_data[:,1],current_data[:,2],c=color_mapping,marker='^')
-        plt.draw()
-        plt.title(str(current_data))
-        plt.pause(0.001)
-        ax.clf()
-
+        plt.title("Current Iter : "+str(current_data_index))
+        plt.pause(0.01)
+        ax.cla()
     plt.close('all')
 
     # print the final output of the colors

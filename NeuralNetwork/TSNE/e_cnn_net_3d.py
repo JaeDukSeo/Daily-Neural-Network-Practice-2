@@ -273,7 +273,7 @@ class TSNE_Layer():
 
     def tf_q_tsne(self,Y):
         distances = self.tf_neg_distance(Y)
-        inv_distances = tf.pow(1. + distances/2, -3/2)
+        inv_distances = tf.pow(1. - distances, -1)
         inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float64)) 
         return inv_distances / tf.reduce_sum(inv_distances), inv_distances
 
