@@ -10,7 +10,6 @@ from imgaug import augmenters as iaa
 import imgaug as ia
 from mpl_toolkits.mplot3d import Axes3D
 from skimage.color import rgba2rgb
-from load_data import load_mnist
 from matplotlib.animation import ArtistAnimation
 
 old_v = tf.logging.get_verbosity()
@@ -259,8 +258,9 @@ class TSNE_Layer():
 
     def __init__(self,inc,outc,P):
         # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
-        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05))
+        self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=6))
         self.P = P
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
     def getw(self): return self.w   
 
@@ -298,7 +298,12 @@ class TSNE_Layer():
         grad = self.tf_tsne_grad(self.P,self.Q,self.w,self.inv_distances)
 
         update_w = []
-        update_w.append(tf.assign(self.w,self.w-learning_rate * grad))
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
 
         return grad,update_w
 
@@ -317,17 +322,18 @@ x_data, train_label, test_batch, test_label = mnist.train.images, mnist.train.la
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-# 1. Prepare only one and only zero
-only_0_index  = np.asarray(np.where(test_label == 0))[:,:100]
-only_1_index  = np.asarray(np.where(test_label == 1))[:,:100]
-only_2_index  = np.asarray(np.where(test_label == 2))[:,:100]
-only_3_index  = np.asarray(np.where(test_label == 3))[:,:100]
-only_4_index  = np.asarray(np.where(test_label == 4))[:,:100]
-only_5_index  = np.asarray(np.where(test_label == 5))[:,:100]
-only_6_index  = np.asarray(np.where(test_label == 6))[:,:100]
-only_7_index  = np.asarray(np.where(test_label == 7))[:,:100]
-only_8_index  = np.asarray(np.where(test_label == 8))[:,:100]
-only_9_index  = np.asarray(np.where(test_label == 9))[:,:100]
+# 1. Prepare only one and only zero 200
+numer_images = 100
+only_0_index  = np.asarray(np.where(test_label == 0))[:,:numer_images]
+only_1_index  = np.asarray(np.where(test_label == 1))[:,:numer_images]
+only_2_index  = np.asarray(np.where(test_label == 2))[:,:numer_images]
+only_3_index  = np.asarray(np.where(test_label == 3))[:,:numer_images]
+only_4_index  = np.asarray(np.where(test_label == 4))[:,:numer_images]
+only_5_index  = np.asarray(np.where(test_label == 5))[:,:numer_images]
+only_6_index  = np.asarray(np.where(test_label == 6))[:,:numer_images]
+only_7_index  = np.asarray(np.where(test_label == 7))[:,:numer_images]
+only_8_index  = np.asarray(np.where(test_label == 8))[:,:numer_images]
+only_9_index  = np.asarray(np.where(test_label == 9))[:,:numer_images]
 
 # # 1.5 prepare Label
 only_0_label  = test_label[only_0_index].T
@@ -377,9 +383,8 @@ def neg_distance(X):
 
 def softmax_max(X,diag=True):
     X_exp = np.exp(X - X.max(1).reshape([-1, 1]))
-    X_exp = X_exp + 1e-10
+    X_exp = X_exp + 1e-20
     if diag: np.fill_diagonal(X_exp, 0.)
-    # X_exp = X_exp + 1e-10
     return X_exp/X_exp.sum(1).reshape([-1, 1])
 
 def calc_prob_matrix(distances, sigmas=None):
@@ -398,7 +403,7 @@ def perplexity(distances, sigmas):
     perplexity = 2.0 ** entropy
     return perplexity
 
-def binary_search(distance_vec, target, max_iter=20000,tol=1e-13, lower=1e-10, upper=1e10):
+def binary_search(distance_vec, target, max_iter=10000,tol=1e-10, lower=1e-10, upper=1e10):
     """Perform a binary search over input values to eval_fn.
     # Arguments
         eval_fn: Function that we are optimising over.
@@ -458,13 +463,15 @@ def p_joint(X, target_perplexity):
 # ======= TSNE ======
 
 # hyper
-perplexity_number = 30
+perplexity_number =2
 reduced_dimension = 2
 print_size = 10
 
+beta1,beta2,adam_e = 0.9,0.999,1e-8
+
 number_of_example = train_batch.shape[0]
 num_epoch = 1000
-learning_rate = 10.0
+learning_rate = 0.09
 
 # TSNE - calculate perplexity
 P = p_joint(train_batch,perplexity_number)
@@ -474,6 +481,7 @@ tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph
 Q = tsne_l.feedforward()
+cost = -tf.reduce_sum(P * tf.log( tf.clip_by_value(P,1e-10,1e10)/tf.clip_by_value(Q,1e-10,1e10) ))
 grad,grad_update = tsne_l.backprop()
 
 # sess
@@ -497,18 +505,22 @@ with tf.Session() as sess:
     color_mapping = [color_dict[x] for x in train_label ]
 
     for iter in range(num_epoch):
-        sess_results = sess.run(grad_update)
-        W = sess.run(tsne_l.getw())
-
+        sess_results = sess.run([cost,grad_update,tsne_l.getw()])
+        W = sess_results[2]
         img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='o', s=4, edgecolor='')
         images.append([img])
 
-        print('current iter: ',iter, ' Current Grad Update Sum: ',sess_results[0].sum(),end='\r')
+        print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
         if iter % print_size == 0 : print('\n-----------------------------\n')
 
     ani = ArtistAnimation(fig, images,interval=10)
     ani.save("mlp_process.mp4")
     plt.close('all')
+
+    W = sess.run(tsne_l.getw())
+
+    plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='o', s=4, edgecolor='')
+    plt.show()
 
 
 # -- end code --

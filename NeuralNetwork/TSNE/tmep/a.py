@@ -13,7 +13,7 @@ from keras.callbacks import Callback
 from keras.utils import np_utils
 from keras.objectives import categorical_crossentropy
 from keras.datasets import cifar10, mnist
-
+from multiprocessing import Process, Queue, current_process, freeze_support
 import matplotlib.pyplot as plt
 from matplotlib.animation import ArtistAnimation
 
@@ -24,7 +24,7 @@ batch_size = 5000
 low_dim = 2
 nb_epoch = 100
 shuffle_interval = nb_epoch + 1
-n_jobs = 1
+n_jobs = 4
 perplexity = 30.0
 
 
@@ -81,6 +81,7 @@ def x2p(X):
 
     pool = mp.Pool(n_jobs)
     result = pool.map(x2p_job, generator())
+
     P = np.zeros([n, n])
     for i, thisP in result:
         P[i, idx[i]] = thisP
@@ -117,73 +118,74 @@ def KLdivergence(P, Y):
     C = K.sum(P * C)
     return C
 
+if __name__ == '__main__':
+    freeze_support()
+    print("load data")
+    # # cifar-10
+    # (X_train, y_train), (X_test, y_test) = cifar10.load_data()
+    # n, channel, row, col = X_train.shape
 
-print("load data")
-# # cifar-10
-# (X_train, y_train), (X_test, y_test) = cifar10.load_data()
-# n, channel, row, col = X_train.shape
+    # # mnist
+    (X_train, y_train), (X_test, y_test) = mnist.load_data()
+    n, row, col = X_train.shape
+    channel = 1
 
-# # mnist
-(X_train, y_train), (X_test, y_test) = mnist.load_data()
-n, row, col = X_train.shape
-channel = 1
+    X_train = X_train.reshape(-1, channel * row * col)
+    X_test = X_test.reshape(-1, channel * row * col)
+    X_train = X_train.astype('float32')
+    X_test = X_test.astype('float32')
+    X_train /= 255
+    X_test /= 255
+    print("X_train.shape:", X_train.shape)
+    print("X_test.shape:", X_test.shape)
 
-X_train = X_train.reshape(-1, channel * row * col)
-X_test = X_test.reshape(-1, channel * row * col)
-X_train = X_train.astype('float32')
-X_test = X_test.astype('float32')
-X_train /= 255
-X_test /= 255
-print("X_train.shape:", X_train.shape)
-print("X_test.shape:", X_test.shape)
-
-batch_num = int(n // batch_size)
-m = batch_num * batch_size
+    batch_num = int(n // batch_size)
+    m = batch_num * batch_size
 
 
-print("build model")
-model = Sequential()
-model.add(Dense(500, input_shape=(X_train.shape[1],)))
-model.add(Activation('relu'))
-model.add(Dense(500))
-model.add(Activation('relu'))
-model.add(Dense(2000))
-model.add(Activation('relu'))
-model.add(Dense(2))
-model.compile(loss=KLdivergence, optimizer="adam")
+    print("build model")
+    model = Sequential()
+    model.add(Dense(500, input_shape=(X_train.shape[1],)))
+    model.add(Activation('relu'))
+    model.add(Dense(500))
+    model.add(Activation('relu'))
+    model.add(Dense(2000))
+    model.add(Activation('relu'))
+    model.add(Dense(2))
+    model.compile(loss=KLdivergence, optimizer="adam")
 
-print("fit")
-images = []
-fig = plt.figure(figsize=(5, 5))
+    print("fit")
+    images = []
+    fig = plt.figure(figsize=(5, 5))
 
-for epoch in range(nb_epoch):
-    
-    # shuffle X_train and calculate P
-    if epoch % shuffle_interval == 0:
-        X = X_train[np.random.permutation(n)[:m]]
-        P = calculate_P(X)
+    for epoch in range(nb_epoch):
+        
+        # shuffle X_train and calculate P
+        if epoch % shuffle_interval == 0:
+            X = X_train[np.random.permutation(n)[:m]]
+            P = calculate_P(X)
 
-    # train
-    loss = 0
-    for i in range(0, n, batch_size):
-        loss += model.train_on_batch(X[i:i+batch_size], P[i:i+batch_size])
-    print("Epoch: {}/{}, loss: {}".format(epoch+1, nb_epoch, loss / batch_num))
+        # train
+        loss = 0
+        for i in range(0, n, batch_size):
+            loss += model.train_on_batch(X[i:i+batch_size], P[i:i+batch_size])
+        print("Epoch: {}/{}, loss: {}".format(epoch+1, nb_epoch, loss / batch_num))
 
-    # visualize training process
+        # visualize training process
+        pred = model.predict(X_test)
+        img = plt.scatter(pred[:, 0], pred[:, 1], c=y_test,marker='o', s=3, edgecolor='')
+        images.append([img])
+
+    ani = ArtistAnimation(fig, images, interval=100, repeat_delay=2000)
+    ani.save("mlp_process.mp4")
+
+    plt.clf()
+    fig = plt.figure(figsize=(5, 5))
     pred = model.predict(X_test)
-    img = plt.scatter(pred[:, 0], pred[:, 1], c=y_test,marker='o', s=3, edgecolor='')
-    images.append([img])
+    plt.scatter(pred[:, 0], pred[:, 1], c=y_test, marker='o', s=4, edgecolor='')
+    fig.tight_layout()
 
-ani = ArtistAnimation(fig, images, interval=100, repeat_delay=2000)
-ani.save("mlp_process.mp4")
-
-plt.clf()
-fig = plt.figure(figsize=(5, 5))
-pred = model.predict(X_test)
-plt.scatter(pred[:, 0], pred[:, 1], c=y_test, marker='o', s=4, edgecolor='')
-fig.tight_layout()
-
-plt.savefig("mlp_result.png")
+    plt.savefig("mlp_result.png")
 
 
 # -- end code --
