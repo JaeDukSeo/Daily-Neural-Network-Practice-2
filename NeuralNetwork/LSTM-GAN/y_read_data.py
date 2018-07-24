@@ -2,24 +2,32 @@ import pydicom as dicom
 import os
 import numpy,sys
 from matplotlib import pyplot, cm
-
+from collections import defaultdict
 # reading the dicom data
 PathDicom = "../../Dataset/LSTM_GAN/RIDER_PHANTOM_PET_CT/"
 lstFilesDCM = []  # create an empty list os.path.join(dirName,filename)
 
-pet_scan_images = []
-ct_scan_images = []
+pet_scan_images = defaultdict(list);pet_scan_images_count = 0
+ct_scan_images = defaultdict(list);ct_scan_images_count = 0
 for dirName, subdirList, fileList in os.walk(PathDicom):
     if not len(fileList) == 0:
+        
         if len(fileList) == 63:
+            temp = []
             for filename in fileList:
                 if ".dcm" in filename.lower():
-                    ct_scan_images.append(os.path.join(dirName,filename))
-        if len(fileList) == 47:
-            for filename in fileList:
-                if ".dcm" in filename.lower():
-                    pet_scan_images.append(os.path.join(dirName,filename))
+                    temp.append(os.path.join(dirName,filename))
+            ct_scan_images[ct_scan_images_count].append(temp)
+            ct_scan_images_count = ct_scan_images_count + 1
 
+        if len(fileList) == 47:
+            temp = []
+            for filename in fileList:
+                if ".dcm" in filename.lower():
+                    temp.append(os.path.join(dirName,filename))
+                    
+            pet_scan_images[pet_scan_images_count].append(temp)
+            pet_scan_images_count = pet_scan_images_count + 1
 
 print(len(ct_scan_images))
 print(len(pet_scan_images))
