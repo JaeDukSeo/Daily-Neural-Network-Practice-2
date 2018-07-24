@@ -5,17 +5,30 @@ from matplotlib import pyplot, cm
 
 # reading the dicom data
 PathDicom = "../../Dataset/LSTM_GAN/RIDER_PHANTOM_PET_CT/"
-lstFilesDCM = []  # create an empty list
+lstFilesDCM = []  # create an empty list os.path.join(dirName,filename)
 
+pet_scan_images = []
+ct_scan_images = []
 for dirName, subdirList, fileList in os.walk(PathDicom):
-    # print(dirName)
     if not len(fileList) == 0:
-        if len(fileList) == 63 or len(fileList) == 47:
-            print(len(fileList))
-        else:
-            print(dirName)
-            input()
-    print('----')
+        if len(fileList) == 63:
+            for filename in fileList:
+                if ".dcm" in filename.lower():
+                    ct_scan_images.append(os.path.join(dirName,filename))
+        if len(fileList) == 47:
+            for filename in fileList:
+                if ".dcm" in filename.lower():
+                    pet_scan_images.append(os.path.join(dirName,filename))
+
+
+print(len(ct_scan_images))
+print(len(pet_scan_images))
+
+for ii in range(len(pet_scan_images)):
+    print(ct_scan_images[ii])
+    print(pet_scan_images[ii])
+
+
 sys.exit()
 
 for dirName, subdirList, fileList in os.walk(PathDicom):
