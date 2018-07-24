@@ -24,10 +24,6 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
 print(len(ct_scan_images))
 print(len(pet_scan_images))
 
-for ii in range(len(pet_scan_images)):
-    print(ct_scan_images[ii])
-    print(pet_scan_images[ii])
-
 
 sys.exit()
 
