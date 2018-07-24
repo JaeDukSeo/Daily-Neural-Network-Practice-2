@@ -1,7 +1,7 @@
 import pydicom as dicom
 import os
-import numpy,sys
-from matplotlib import pyplot, cm
+import numpy as np,sys
+from matplotlib import pyplot as plt, cm
 from collections import defaultdict
 
 
@@ -21,7 +21,7 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
             for filename in fileList:
                 if ".dcm" in filename.lower():
                     temp.append(os.path.join(dirName,filename))
-            ct_scan_images[ct_scan_images_count].append(temp)
+            ct_scan_images[ct_scan_images_count] = temp
             ct_scan_images_count = ct_scan_images_count + 1
 
         if len(fileList) == 47:
@@ -30,10 +30,23 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
                 if ".dcm" in filename.lower():
                     temp.append(os.path.join(dirName,filename))
                     
-            pet_scan_images[pet_scan_images_count].append(temp)
+            pet_scan_images[pet_scan_images_count] = temp
             pet_scan_images_count = pet_scan_images_count + 1
 
 
+print(len(pet_scan_images))
+print(len(pet_scan_images[0]))
+
+for xx in pet_scan_images:
+    current_pet = pet_scan_images[xx]
+    for xxx in range(len(current_pet)):
+        curren_pet_image = dicom.read_file(current_pet[xxx]).pixel_array
+        plt.title(str(current_pet[xxx][-10:]))
+        plt.imshow(curren_pet_image,cmap='gray')
+        plt.pause(0.1)
+
+# read the dicom to numpy
+# ct_scan_numpys = np.zeros(20,)
 
 sys.exit()
 
