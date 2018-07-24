@@ -9,8 +9,10 @@ from skimage.transform import resize
 from imgaug import augmenters as iaa
 import imgaug as ia
 from mpl_toolkits.mplot3d import Axes3D
+import mpl_toolkits.mplot3d.axes3d as p3
 from skimage.color import rgba2rgb
 from matplotlib.animation import ArtistAnimation
+import matplotlib.animation as animation
 
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -479,7 +481,7 @@ P = p_joint(train_batch.reshape([number_of_example,-1]),perplexity_number)
 l0 = CNN(3,1,16,act=tf_elu,d_act=d_tf_elu)
 l1 = CNN(3,16,32,act=tf_elu,d_act=d_tf_elu)
 l2 = FNN(7*7*32,64,act=tf_elu,d_act=d_tf_elu)
-l3 = FNN(64,2,act=tf_elu,d_act=d_tf_elu)
+l3 = FNN(64,3,act=tf_elu,d_act=d_tf_elu)
 tsne_l = TSNE_Layer(number_of_example,reduced_dimension,P)
 
 # graph

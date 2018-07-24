@@ -257,9 +257,6 @@ class ICA_Layer():
 class TSNE_Layer():
     
     def __init__(self,inc,outc,P):
-        # self.w = tf.Variable(tf.random_uniform(shape=[inc,outc],dtype=tf.float32,minval=0,maxval=1.0))
-        # self.w = tf.Variable(tf.random_normal(shape=[inc,outc],dtype=tf.float64,stddev=0.05,seed=1))
-        # self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
         self.w = tf.Variable(tf.random_poisson(shape=[inc,outc],dtype=tf.float64,lam=0.05,seed=1))
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
@@ -281,13 +278,10 @@ class TSNE_Layer():
         pq_diff = P - Q
         pq_expanded = tf.expand_dims(pq_diff, 2)
         y_diffs = tf.expand_dims(W, 1) - tf.expand_dims(W, 0)
-
         # Expand our inv_distances matrix so can multiply by y_diffs
         distances_expanded = tf.expand_dims(inv, 2)
-
         # Multiply this by inverse distances matrix
         y_diffs_wt = y_diffs * distances_expanded
-
         # Multiply then sum over j's and
         grad = 4. * tf.reduce_sum(pq_expanded * y_diffs_wt,1)
         return grad
