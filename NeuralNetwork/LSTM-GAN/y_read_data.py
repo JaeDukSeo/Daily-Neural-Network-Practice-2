@@ -3,10 +3,14 @@ import os
 import numpy,sys
 from matplotlib import pyplot, cm
 from collections import defaultdict
-# reading the dicom data
+
+
+
+
+
+# read the pet data as well as the CT dicom images
 PathDicom = "../../Dataset/LSTM_GAN/RIDER_PHANTOM_PET_CT/"
 lstFilesDCM = []  # create an empty list os.path.join(dirName,filename)
-
 pet_scan_images = defaultdict(list);pet_scan_images_count = 0
 ct_scan_images = defaultdict(list);ct_scan_images_count = 0
 for dirName, subdirList, fileList in os.walk(PathDicom):
@@ -29,8 +33,6 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
             pet_scan_images[pet_scan_images_count].append(temp)
             pet_scan_images_count = pet_scan_images_count + 1
 
-print(len(ct_scan_images))
-print(len(pet_scan_images))
 
 
 sys.exit()
