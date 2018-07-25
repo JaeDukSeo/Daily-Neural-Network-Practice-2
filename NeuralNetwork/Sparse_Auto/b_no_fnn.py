@@ -333,10 +333,9 @@ el2 = CNN(3,16,32)
 el3 = CNN(3,32,64)
 el4 = CNN(3,64,64)
 
-reduce_dim = 16*3*4
-sparse_layer = Sparse_Filter_Layer(8*8*64,1*1*reduce_dim)
+sparse_layer = Sparse_Filter_Layer(8*8*64,8*8*64)
 
-dl0 = CNN_Trans(3,32,3)
+dl0 = CNN_Trans(3,32,64)
 dl1 = CNN_Trans(3,32,32)
 fl1 = CNN(3,32,32)
 
@@ -348,7 +347,7 @@ fl3 = CNN(3,8,1)
 
 # hyper
 num_epoch = 501
-learning_rate = 0.00001
+learning_rate = 0.0008
 batch_size = 10
 print_size = 10
 
@@ -369,12 +368,11 @@ elayer3 = el3.feedforward(elayer3_input)
 elayer4_input = tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer4 = el4.feedforward(elayer4_input)
 
-sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
-sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
+# sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
+# sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.reshape(sparse_layer,[batch_size,8,8,3])
-# dlayer0_input = tf.tile(dlayer0_input,[1,4,4,1])
-dlayer0 = dl0.feedforward(dlayer0_input,stride=1)
+# dlayer0_input = tf.reshape(sparse_layer,[batch_size,8,8,64])
+dlayer0 = dl0.feedforward(elayer4,stride=1)
 
 dlayer1 = dl1.feedforward(dlayer0,stride=2)
 flayer1 = fl1.feedforward(dlayer1)
@@ -386,8 +384,8 @@ dlayer3 = dl3.feedforward(flayer2,stride=2)
 flayer3 = fl3.feedforward(dlayer3)
 
 cost0 = tf.reduce_mean(tf.square(flayer3-y))
-cost1 = sparse_cost
-total_cost = cost0 + cost1
+# cost1 = sparse_cost
+total_cost = cost0 
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
