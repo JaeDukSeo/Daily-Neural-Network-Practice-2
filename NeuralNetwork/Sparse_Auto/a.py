@@ -266,8 +266,8 @@ class Sparse_Filter_Layer():
 
     def feedforward(self,input):
         self.sparse_layer  = tf.matmul(input,self.w)
-        second = tf.nn.sigmoid(self.sparse_layer )
-        # second = self.soft_abs(self.sparse_layer )
+        # second = tf.nn.elu(self.sparse_layer )
+        second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
         self.cost_update = tf.reduce_mean(four)
@@ -301,10 +301,10 @@ for file_index in range(len(image_list)):
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:85]
-train_label = train_labels[:85]
-test_batch = train_images[85:]
-test_label = train_labels[85:]
+train_batch = train_images[:90]
+train_label = train_labels[:90]
+test_batch = train_images[90:]
+test_label = train_labels[90:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -329,29 +329,29 @@ print(test_label.min())
 #     plt.cla()
 
 # class
-el1 = CNN(3,3,4)
-el2 = CNN(3,4,4)
-el3 = CNN(3,4,4)
-el4 = CNN(3,4,4)
+el1 = CNN(3,3,8)
+el2 = CNN(3,8,8)
+el3 = CNN(3,8,8)
+el4 = CNN(3,8,8)
 
-reduce_dim = 16*3
-sparse_layer = Sparse_Filter_Layer(8*8*4,1*1*reduce_dim)
+reduce_dim = 4*3
+sparse_layer = Sparse_Filter_Layer(8*8*8,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,4,3)
-dl1 = CNN_Trans(3,4,4)
-fl1 = CNN(3,4,4)
+dl0 = CNN_Trans(5,16,3)
+dl1 = CNN_Trans(3,16,24)
+fl1 = CNN(3,16,16)
 
-dl2 = CNN_Trans(3,4,4)
-fl2 = CNN(3,4,4)
+dl2 = CNN_Trans(5,16,24)
+fl2 = CNN(3,16,16)
 
-dl3 = CNN_Trans(3,4,4)
-fl3 = CNN(3,4,1)
+dl3 = CNN_Trans(3,16,24)
+fl3 = CNN(3,16,1)
 
 # hyper
 num_epoch = 3001
-learning_rate = 0.0008
-batch_size = 5
-print_size = 500
+learning_rate = 0.007
+batch_size = 10
+print_size = 100
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -373,17 +373,17 @@ elayer4 = el4.feedforward(elayer4_input)
 sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
 sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.reshape(sparse_layer,[batch_size,4,4,3])
-# dlayer0_input = tf.tile(dlayer0_input,[1,4,4,1])
+dlayer0_input = tf.reshape(sparse_layer,[batch_size,2,2,3])
+dlayer0_input = tf.tile(dlayer0_input,[1,2,2,1])
 dlayer0 = dl0.feedforward(dlayer0_input,stride=2)
 
-dlayer1 = dl1.feedforward(dlayer0,stride=2)
+dlayer1 = dl1.feedforward(tf.concat([dlayer0,elayer4_input],3),stride=2)
 flayer1 = fl1.feedforward(dlayer1)
 
-dlayer2 = dl2.feedforward(flayer1,stride=2)
+dlayer2 = dl2.feedforward(tf.concat([flayer1,elayer3_input],3),stride=2)
 flayer2 = fl2.feedforward(dlayer2)
 
-dlayer3 = dl3.feedforward(flayer2,stride=2)
+dlayer3 = dl3.feedforward(tf.concat([dlayer2,elayer2_input],3),stride=2)
 flayer3 = fl3.feedforward(dlayer3)
 
 cost0 = tf.reduce_mean(tf.square(flayer3-y))
