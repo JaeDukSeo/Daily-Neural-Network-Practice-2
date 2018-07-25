@@ -282,9 +282,9 @@ print(len(train_images))
 print(len(train_labels))
 
 for xx in range(len(train_images)):
-    plt.imshow(train_images[xx].astype(int))
-    plt.show()
-    plt.imshow(np.squeeze(train_labels[xx]).astype(int))
+    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+    ax1.imshow(train_images[xx].astype(int))
+    ax2.imshow(np.squeeze(train_labels[xx]).astype(int))
     plt.show()
 
 # # Normalize data from 0 to 1 per each channel
