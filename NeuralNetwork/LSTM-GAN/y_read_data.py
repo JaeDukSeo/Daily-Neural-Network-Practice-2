@@ -3,13 +3,12 @@ import os
 import numpy as np,sys
 from matplotlib import pyplot as plt, cm
 from collections import defaultdict
-
 from scipy import ndimage
 from PIL import Image, ImageSequence
 
 
 # read the pet data as well as the CT dicom images
-PathDicom = "../../Dataset/LSTM_GAN//"
+PathDicom = "../../Dataset/LSTM_GAN/"
 lstFilesDCM = []  # create an empty list
 for dirName, subdirList, fileList in os.walk(PathDicom):
     for filename in fileList:
@@ -18,7 +17,7 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
 
 all_data = []
 for x in range(len(lstFilesDCM)):
-    img  = Image.open(lstFilesDCM[x])
+    img = Image.open(lstFilesDCM[x])
     frames = np.array([np.array(frame.copy().convert('RGB').getdata(),dtype=np.uint8).reshape(frame.size[1],frame.size[0],3) for frame in ImageSequence.Iterator(img)])
     all_data.append(frames)
     print(frames.shape) 
@@ -32,8 +31,7 @@ for x in range(len(lstFilesDCM)):
 
 all_data = np.asarray(all_data)
 print(all_data.shape) 
-
-np.savez('gif.npz', all_data)
+np.save('gif.npy', all_data)
 
 sys.exit()
 
