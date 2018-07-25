@@ -266,11 +266,12 @@ class Sparse_Filter_Layer():
 
     def feedforward(self,input):
         self.sparse_layer  = tf.matmul(input,self.w)
-        second = self.soft_abs(self.sparse_layer )
+        second = tf.nn.elu(self.sparse_layer )
+        # second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
         self.cost_update = tf.reduce_mean(four)
-        return self.sparse_layer,self.cost_update
+        return self.sparse_layer  ,self.cost_update
 
 # ================= LAYER CLASSES =================
 
@@ -289,7 +290,7 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
         if  ".png" in filename.lower() :  # check whether the file's DICOM \PedMasks
             mask_list.append(os.path.join(dirName,filename))
 
-image_resize_px = 64    
+image_resize_px = 128    
 train_images = np.zeros(shape=(170,image_resize_px,image_resize_px,3))
 train_labels = np.zeros(shape=(170,image_resize_px,image_resize_px,1))
 
@@ -300,10 +301,10 @@ for file_index in range(len(image_list)):
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:100]
-train_label = train_labels[:100]
-test_batch = train_images[100:]
-test_label = train_labels[100:]
+train_batch = train_images[:120]
+train_label = train_labels[:120]
+test_batch = train_images[120:]
+test_label = train_labels[120:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -328,29 +329,29 @@ print(test_label.min())
 #     plt.cla()
 
 # class
-el1 = CNN(3,3,16)
-el2 = CNN(3,16,32)
-el3 = CNN(3,32,64)
-el4 = CNN(3,64,64)
+el1 = CNN(3,3,8)
+el2 = CNN(3,8,8)
+el3 = CNN(3,8,8)
+el4 = CNN(3,8,8)
 
-reduce_dim = 16*3*4
-sparse_layer = Sparse_Filter_Layer(8*8*64,1*1*reduce_dim)
+reduce_dim = 16*3*8
+sparse_layer = Sparse_Filter_Layer(16*16*8,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,32,3)
-dl1 = CNN_Trans(3,32,32)
-fl1 = CNN(3,32,32)
+dl0 = CNN_Trans(3,8,3)
+dl1 = CNN_Trans(3,8,8)
+fl1 = CNN(3,8,8)
 
-dl2 = CNN_Trans(3,32,32)
-fl2 = CNN(3,32,16)
+dl2 = CNN_Trans(3,8,8)
+fl2 = CNN(3,8,8)
 
-dl3 = CNN_Trans(3,8,16)
+dl3 = CNN_Trans(3,8,8)
 fl3 = CNN(3,8,1)
 
 # hyper
-num_epoch = 501
-learning_rate = 0.00001
-batch_size = 10
-print_size = 10
+num_epoch = 1001
+learning_rate = 0.0008
+batch_size = 20
+print_size = 100
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -372,7 +373,7 @@ elayer4 = el4.feedforward(elayer4_input)
 sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
 sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.reshape(sparse_layer,[batch_size,8,8,3])
+dlayer0_input = tf.reshape(sparse_layer,[batch_size,16,16,3])
 # dlayer0_input = tf.tile(dlayer0_input,[1,4,4,1])
 dlayer0 = dl0.feedforward(dlayer0_input,stride=1)
 
