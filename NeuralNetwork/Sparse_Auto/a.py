@@ -290,7 +290,7 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
         if  ".png" in filename.lower() :  # check whether the file's DICOM \PedMasks
             mask_list.append(os.path.join(dirName,filename))
 
-image_resize_px = 128    
+image_resize_px = 64    
 train_images = np.zeros(shape=(170,image_resize_px,image_resize_px,3))
 train_labels = np.zeros(shape=(170,image_resize_px,image_resize_px,1))
 
@@ -329,23 +329,23 @@ print(test_label.min())
 #     plt.cla()
 
 # class
-el1 = CNN(3,3,8)
-el2 = CNN(3,8,8)
-el3 = CNN(3,8,8)
-el4 = CNN(3,8,8)
+el1 = CNN(3,3,4)
+el2 = CNN(3,4,4)
+el3 = CNN(3,4,4)
+el4 = CNN(3,4,4)
 
-reduce_dim = 16*3*8
-sparse_layer = Sparse_Filter_Layer(16*16*8,1*1*reduce_dim)
+reduce_dim = 16*3
+sparse_layer = Sparse_Filter_Layer(8*8*4,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,8,3)
-dl1 = CNN_Trans(3,8,8)
-fl1 = CNN(3,8,8)
+dl0 = CNN_Trans(3,4,3)
+dl1 = CNN_Trans(3,4,4)
+fl1 = CNN(3,4,4)
 
-dl2 = CNN_Trans(3,8,8)
-fl2 = CNN(3,8,8)
+dl2 = CNN_Trans(3,4,4)
+fl2 = CNN(3,4,4)
 
-dl3 = CNN_Trans(3,8,8)
-fl3 = CNN(3,8,1)
+dl3 = CNN_Trans(3,4,4)
+fl3 = CNN(3,4,1)
 
 # hyper
 num_epoch = 1001
@@ -373,9 +373,9 @@ elayer4 = el4.feedforward(elayer4_input)
 sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
 sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.reshape(sparse_layer,[batch_size,16,16,3])
+dlayer0_input = tf.reshape(sparse_layer,[batch_size,4,4,3])
 # dlayer0_input = tf.tile(dlayer0_input,[1,4,4,1])
-dlayer0 = dl0.feedforward(dlayer0_input,stride=1)
+dlayer0 = dl0.feedforward(dlayer0_input,stride=2)
 
 dlayer1 = dl1.feedforward(dlayer0,stride=2)
 flayer1 = fl1.feedforward(dlayer1)
