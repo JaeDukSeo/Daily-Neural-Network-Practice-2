@@ -256,7 +256,7 @@ class ICA_Layer():
 class Sparse_Filter_Layer():
     
     def __init__(self,outc,changec):
-        self.w = tf.Variable(tf.truncated_normal([outc,changec],stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_normal([outc,changec],stddev=0.5,seed=2,dtype=tf.float64))
         self.epsilon = 1e-8
 
     def getw(self): return self.w
@@ -328,25 +328,26 @@ print(test_label.min())
 #     plt.cla()
 
 # class
-el1 = CNN(3,3,32)
-el2 = CNN(3,32,64)
-el3 = CNN(3,64,128)
-el4 = CNN(3,128,256)
+el1 = CNN(3,3,16)
+el2 = CNN(3,16,32)
+el3 = CNN(3,32,64)
+el4 = CNN(3,64,64)
 
-sparse_layer = Sparse_Filter_Layer(256,128)
+sparse_layer = Sparse_Filter_Layer(8*8*64,8*8*64//4)
 
-dl0 = CNN_Trans(3,64,128)
-dl1 = CNN_Trans(3,32,64)
-dl2 = CNN_Trans(3,16,32)
-dl3 = CNN_Trans(3,8,16)
-
+dl0 = CNN_Trans(3,32,64)
+dl1 = CNN_Trans(3,32,32)
 fl1 = CNN(3,32,32)
-fl2 = CNN(3,16,16)
+
+dl2 = CNN_Trans(3,32,32)
+fl2 = CNN(3,32,16)
+
+dl3 = CNN_Trans(3,8,16)
 fl3 = CNN(3,8,1)
 
 # hyper
-num_epoch = 101
-learning_rate = 0.003
+num_epoch = 501
+learning_rate = 0.001
 batch_size = 20
 print_size = 2
 
@@ -367,11 +368,11 @@ elayer3 = el3.feedforward(elayer3_input)
 elayer4_input = tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer4 = el4.feedforward(elayer4_input)
 
-sparse_layer_input = tf.reduce_mean(elayer4,[1,2])
+sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
 sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.tile(tf.reshape(sparse_layer,[batch_size,1,1,128]),[1,image_resize_px//8,image_resize_px//8,1])
-dlayer0 = dl0.feedforward(dlayer0_input)
+dlayer0_input = tf.reshape(sparse_layer,[batch_size,4,4,64])
+dlayer0 = dl0.feedforward(dlayer0_input,stride=2)
 
 dlayer1 = dl1.feedforward(dlayer0,stride=2)
 flayer1 = fl1.feedforward(dlayer1)
@@ -402,7 +403,8 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        train_batch,train_label,test_batch,test_label = shuffle(train_batch,train_label,test_batch,test_label)
+        train_batch,train_label = shuffle(train_batch,train_label)
+        test_batch,test_label = shuffle(test_batch,test_label)
 
         # train for batch
         current_batch = train_batch
@@ -418,36 +420,62 @@ with tf.Session() as sess:
             print("--------------")
 
             # get one image from train batch and show results
-            test_example = train_batch
-            sess_results = sess.run([flayer3],feed_dict={x:test_example})
-            sess_results = sess_results[0][0,:,:,:]
-            test_example = test_example[0,:,:,:]
+            sess_results = sess.run(flayer3,feed_dict={x:train_batch})
+            test_change_image = train_batch[0,:,:,:]
+            test_change_gt = train_label[0,:,:,:]
+            test_change_predict = sess_results[0,:,:,:]
+            test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
-            plt.figure(1, figsize=(18,9))
+            f, axarr = plt.subplots(2, 3,figsize=(30,20))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
-            plt.subplot(121)
-            plt.axis('off')
-            plt.imshow(np.squeeze(test_example),cmap='gray')
-            plt.subplot(122)
-            plt.axis('off')
-            plt.imshow(np.squeeze(sess_results),cmap='gray')
+            axarr[0, 0].axis('off')
+            axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
+
+            axarr[0, 1].axis('off')
+            axarr[0, 1].imshow(np.squeeze(test_change_gt),cmap='gray')
+
+            axarr[0, 2].axis('off')
+            axarr[0, 2].imshow(np.squeeze(test_change_predict),cmap='gray')
+
+            axarr[1, 0].axis('off')
+            axarr[1, 0].imshow(np.squeeze(test_change_image),cmap='gray')
+
+            axarr[1, 1].axis('off')
+            axarr[1, 1].imshow(test_change_gt*np.squeeze(test_change_image),cmap='gray')
+
+            axarr[1, 2].axis('off')
+            axarr[1, 2].imshow(test_change_predict*np.squeeze(test_change_image),cmap='gray')
+
             plt.savefig('train_change/'+str(iter)+"_train_results.png",bbox_inches='tight')
             plt.close('all')
 
             # get one image from test batch and show results
-            test_example = test_batch[:batch_size]
-            sess_results = sess.run([flayer3],feed_dict={x:test_example})
-            sess_results = sess_results[0][0,:,:,:]
-            test_example = test_example[0,:,:,:]
+            sess_results = sess.run(flayer3,feed_dict={x:test_batch[:batch_size]})
+            test_change_image = test_batch[:batch_size][0,:,:,:]
+            test_change_gt = test_label[0,:,:,:]
+            test_change_predict = sess_results[0,:,:,:]
+            test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
-            plt.figure(1, figsize=(18,9))
+            f, axarr = plt.subplots(2, 3,figsize=(30,20))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
-            plt.subplot(121)
-            plt.axis('off')
-            plt.imshow(np.squeeze(test_example),cmap='gray')
-            plt.subplot(122)
-            plt.axis('off')
-            plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
+            axarr[0, 0].axis('off')
+            axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
+
+            axarr[0, 1].axis('off')
+            axarr[0, 1].imshow(np.squeeze(test_change_gt),cmap='gray')
+
+            axarr[0, 2].axis('off')
+            axarr[0, 2].imshow(np.squeeze(test_change_predict),cmap='gray')
+
+            axarr[1, 0].axis('off')
+            axarr[1, 0].imshow(np.squeeze(test_change_image),cmap='gray')
+
+            axarr[1, 1].axis('off')
+            axarr[1, 1].imshow(test_change_gt*np.squeeze(test_change_image),cmap='gray')
+
+            axarr[1, 2].axis('off')
+            axarr[1, 2].imshow(test_change_predict*np.squeeze(test_change_image),cmap='gray')
+
             plt.savefig('test_change/'+str(iter)+"_test_results.png",bbox_inches='tight')
             plt.close('all')
 
