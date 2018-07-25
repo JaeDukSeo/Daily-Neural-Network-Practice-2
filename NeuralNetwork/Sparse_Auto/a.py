@@ -269,7 +269,7 @@ class Sparse_Filter_Layer():
         second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
-        self.cost_update = tf.reduce_sum(four)
+        self.cost_update = tf.reduce_mean(four)
         return self.sparse_layer,self.cost_update
 
 # ================= LAYER CLASSES =================
@@ -300,10 +300,10 @@ for file_index in range(len(image_list)):
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:20]
-train_label = train_labels[:20]
-test_batch = train_images[20:]
-test_label = train_labels[20:]
+train_batch = train_images[:100]
+train_label = train_labels[:100]
+test_batch = train_images[100:]
+test_label = train_labels[100:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -333,9 +333,9 @@ el2 = CNN(3,16,32)
 el3 = CNN(3,32,64)
 el4 = CNN(3,64,64)
 
-sparse_layer = Sparse_Filter_Layer(8*8*64,8*8*64//4)
+sparse_layer = Sparse_Filter_Layer(8*8*64,4*4*64//8)
 
-dl0 = CNN_Trans(3,32,64)
+dl0 = CNN_Trans(3,32,64//8)
 dl1 = CNN_Trans(3,32,32)
 fl1 = CNN(3,32,32)
 
@@ -347,9 +347,9 @@ fl3 = CNN(3,8,1)
 
 # hyper
 num_epoch = 501
-learning_rate = 0.001
-batch_size = 20
-print_size = 2
+learning_rate = 0.0008
+batch_size = 10
+print_size = 10
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
@@ -371,7 +371,7 @@ elayer4 = el4.feedforward(elayer4_input)
 sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
 sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.reshape(sparse_layer,[batch_size,4,4,64])
+dlayer0_input = tf.reshape(sparse_layer,[batch_size,4,4,16])
 dlayer0 = dl0.feedforward(dlayer0_input,stride=2)
 
 dlayer1 = dl1.feedforward(dlayer0,stride=2)
@@ -407,11 +407,12 @@ with tf.Session() as sess:
         test_batch,test_label = shuffle(test_batch,test_label)
 
         # train for batch
-        current_batch = train_batch
-        current_batch_label = train_label
-        sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch,y:current_batch_label})
-        print("Current Iter : ",iter ,' Current cost: ', sess_result[0],end='\r')
-        train_cota = train_cota + sess_result[0]
+        for batch_size_index in range(0,len(train_batch),batch_size):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
+            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch,y:current_batch_label})
+            print("Current Iter : ",iter ,' Current cost: ', sess_result[0],end='\r')
+            train_cota = train_cota + sess_result[0]
 
         # if it is print size print the cost and Sample Image
         if iter % print_size==0:
@@ -420,13 +421,13 @@ with tf.Session() as sess:
             print("--------------")
 
             # get one image from train batch and show results
-            sess_results = sess.run(flayer3,feed_dict={x:train_batch})
+            sess_results = sess.run(flayer3,feed_dict={x:train_batch[:batch_size]})
             test_change_image = train_batch[0,:,:,:]
             test_change_gt = train_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
             test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
-            f, axarr = plt.subplots(2, 3,figsize=(30,20))
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
             axarr[0, 0].axis('off')
             axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
@@ -456,7 +457,7 @@ with tf.Session() as sess:
             test_change_predict = sess_results[0,:,:,:]
             test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
-            f, axarr = plt.subplots(2, 3,figsize=(30,20))
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
             axarr[0, 0].axis('off')
             axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
