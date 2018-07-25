@@ -115,7 +115,7 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -155,7 +155,7 @@ class CNN():
 class CNN_Trans():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2))
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -199,7 +199,7 @@ class CNN_Trans():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2))
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -253,6 +253,25 @@ class ICA_Layer():
 
         return grad_pass,update_w  
 
+class Sparse_Filter_Layer():
+    
+    def __init__(self,outc,changec):
+        self.w = tf.Variable(tf.truncated_normal([outc,changec],stddev=0.05,seed=2,dtype=tf.float64))
+        self.epsilon = 1e-8
+
+    def getw(self): return self.w
+
+    def soft_abs(self,value):
+        return tf.sqrt(value ** 2 + self.epsilon)
+
+    def feedforward(self,input):
+        self.sparse_layer  = tf.matmul(input,self.w)
+        second = self.soft_abs(self.sparse_layer )
+        third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
+        four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
+        self.cost_update = tf.reduce_sum(four)
+        return self.sparse_layer,self.cost_update
+
 # ================= LAYER CLASSES =================
 
 # data
@@ -270,139 +289,103 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
         if  ".png" in filename.lower() :  # check whether the file's DICOM \PedMasks
             mask_list.append(os.path.join(dirName,filename))
 
-image_resize_px = 128
+image_resize_px = 64    
 train_images = np.zeros(shape=(170,image_resize_px,image_resize_px,3))
 train_labels = np.zeros(shape=(170,image_resize_px,image_resize_px,1))
 
 for file_index in range(len(image_list)):
     train_images[file_index,:,:]   = imresize(imread(image_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
-    train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) * 255.0
+    train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
 
-print(len(train_images))
-print(len(train_labels))
+train_images = train_images/255.0
+train_labels = train_labels/255.0
 
-for xx in range(len(train_images)):
-    f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
-    ax1.imshow(train_images[xx].astype(int))
-    ax2.imshow(np.squeeze(train_labels[xx]).astype(int))
-    plt.show()
+train_batch = train_images[:20]
+train_label = train_labels[:20]
+test_batch = train_images[20:]
+test_label = train_labels[20:]
 
-# # Normalize data from 0 to 1 per each channel
-# train_batch[:,:,:,0]  = (train_batch[:,:,:,0] - train_batch[:,:,:,0].min(axis=0)) / (train_batch[:,:,:,0].max(axis=0) - train_batch[:,:,:,0].min(axis=0))
-# train_batch[:,:,:,1]  = (train_batch[:,:,:,1] - train_batch[:,:,:,1].min(axis=0)) / (train_batch[:,:,:,1].max(axis=0) - train_batch[:,:,:,1].min(axis=0))
-# train_batch[:,:,:,2]  = (train_batch[:,:,:,2] - train_batch[:,:,:,2].min(axis=0)) / (train_batch[:,:,:,2].max(axis=0) - train_batch[:,:,:,2].min(axis=0))
+# print out the data shape
+print(train_batch.shape)
+print(train_batch.max())
+print(train_batch.min())
+print(train_label.shape)
+print(train_label.max())
+print(train_label.min())
 
-# test_batch[:,:,:,0]  = (test_batch[:,:,:,0] - test_batch[:,:,:,0].min(axis=0)) / (test_batch[:,:,:,0].max(axis=0) - test_batch[:,:,:,0].min(axis=0))
-# test_batch[:,:,:,1]  = (test_batch[:,:,:,1] - test_batch[:,:,:,1].min(axis=0)) / (test_batch[:,:,:,1].max(axis=0) - test_batch[:,:,:,1].min(axis=0))
-# test_batch[:,:,:,2]  = (test_batch[:,:,:,2] - test_batch[:,:,:,2].min(axis=0)) / (test_batch[:,:,:,2].max(axis=0) - test_batch[:,:,:,2].min(axis=0))
+print(test_batch.shape)
+print(test_batch.max())
+print(test_batch.min())
+print(test_label.shape)
+print(test_label.max())
+print(test_label.min())
 
-# # print out the data shape
-# print(train_batch.shape)
-# print(train_label.shape)
-# print(test_batch.shape)
-# print(test_label.shape)
-
-sys.exit()
+# f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
+# for xx in range(len(train_images)):
+#     ax1.imshow(train_images[xx])
+#     ax2.imshow(np.squeeze(train_labels[xx]))
+#     plt.pause(0.5)
+#     plt.cla()
 
 # class
-el1 = CNN(3,1,16)
-el2 = CNN(3,16,32)
-el3 = CNN(3,32,64)
-el4 = FNN(7*7*64,256,act=tf_atan,d_act=d_tf_atan)
+el1 = CNN(3,3,32)
+el2 = CNN(3,32,64)
+el3 = CNN(3,64,128)
+el4 = CNN(3,128,256)
 
-ica_l0 = FNN(256,3,act=tf_atan,d_act=d_tf_atan)
-ica_l1 = ICA_Layer(3)
+sparse_layer = Sparse_Filter_Layer(256,128)
 
-dl0 = FNN(256,7*7*128,act=tf_iden,d_act=d_tf_iden)
-dl1 = CNN_Trans(3,64,128)
-dl2 = CNN_Trans(3,32,64)
-dl3 = CNN_Trans(3,16,32)
+dl0 = CNN_Trans(3,64,128)
+dl1 = CNN_Trans(3,32,64)
+dl2 = CNN_Trans(3,16,32)
+dl3 = CNN_Trans(3,8,16)
 
 fl1 = CNN(3,32,32)
-fl2 = CNN(3,16,1,act=tf_sigmoid,d_act=d_tf_sigmoid)
+fl2 = CNN(3,16,16)
+fl3 = CNN(3,8,1)
 
 # hyper
 num_epoch = 101
-learning_rate = 0.0001
-batch_size = 200
-print_size = num_epoch
+learning_rate = 0.003
+batch_size = 20
+print_size = 2
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # graph
-x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float32)
+x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
+y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf.float64)
 
 elayer1 = el1.feedforward(x)
+
 elayer2_input = tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input)
 
 elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer3 = el3.feedforward(elayer3_input)
 
-elayer4_input = tf.reshape(elayer3,[batch_size,-1])
+elayer4_input = tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer4 = el4.feedforward(elayer4_input)
 
-ica_layer0 = ica_l0.feedforward(elayer4)
+sparse_layer_input = tf.reduce_mean(elayer4,[1,2])
+sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
 
-ica_layer1_temp = []
-for _ in range(int(num_epoch*3)):
-    ica_layer1 = ica_l1.feedforward(ica_layer0)
-    grad_ica1,grad_ica_up1 = ica_l1.backprop()
-    ica_layer1_temp.append(grad_ica_up1)
+dlayer0_input = tf.tile(tf.reshape(sparse_layer,[batch_size,1,1,128]),[1,image_resize_px//8,image_resize_px//8,1])
+dlayer0 = dl0.feedforward(dlayer0_input)
 
-dlayer0 = dl0.feedforward(elayer4)
-dlayer1_input = tf.reshape(dlayer0,[batch_size,7,7,128])
+dlayer1 = dl1.feedforward(dlayer0,stride=2)
+flayer1 = fl1.feedforward(dlayer1)
 
-dlayer1 = dl1.feedforward(dlayer1_input,stride=2)
+dlayer2 = dl2.feedforward(flayer1,stride=2)
+flayer2 = fl2.feedforward(dlayer2)
 
-dlayer2 = dl2.feedforward(dlayer1,stride=2)
-flayer1 = fl1.feedforward(dlayer2,stride=2)
+dlayer3 = dl3.feedforward(flayer2,stride=2)
+flayer3 = fl3.feedforward(dlayer3)
 
-dlayer3 = dl3.feedforward(flayer1,stride=2)
-flayer2 = fl2.feedforward(dlayer3)
-
-cost0 = tf.reduce_mean(tf.square(flayer2-x)*0.5)
-total_cost = cost0
-
-# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
-
-grad_fl2,grad_fl2_up = fl2.backprop(flayer2-x)
-grad_dl3,grad_dl3_up = dl3.backprop(grad_fl2,stride=2)
-
-grad_fl1,grad_fl1_up = fl1.backprop(grad_dl3,stride=2)
-grad_dl2,grad_dl2_up = dl2.backprop(grad_fl1,stride=2)
-
-grad_dl1,grad_dl1_up = dl1.backprop(grad_dl2,stride=2)
-
-grad_d0_input = tf.reshape(grad_dl1,[batch_size,-1])
-grad_dl0,grad_dl0_up = dl0.backprop(grad_d0_input)
-
-# grad_ica1,grad_ica_up1 = ica_l1.backprop()
-grad_ica0,grad_ica_up0 = ica_l0.backprop(grad_ica1)
-
-grad_el4,grad_el4_up = el4.backprop(grad_dl0+grad_ica0)
-grad_el3_input = tf.reshape(grad_el4,[batch_size,7,7,64])
-
-grad_el3,grad_el3_up = el3.backprop(grad_el3_input)
-grad_el2_input = tf_repeat(grad_el3,[1,2,2,1])
-
-grad_el2,grad_el2_up = el2.backprop(grad_el2_input)
-grad_el1_input = tf_repeat(grad_el2,[1,2,2,1])
-
-grad_el1,grad_el1_up = el1.backprop(grad_el1_input)
-
-grad_update0 = grad_fl2_up + grad_dl3_up + \
-              grad_fl1_up + grad_dl2_up + \
-              grad_dl1_up + grad_dl0_up + \
-              grad_el4_up + grad_el3_up + \
-              grad_el2_up + grad_el1_up 
-
-grad_update1 = grad_fl2_up + grad_dl3_up + \
-              grad_fl1_up + grad_dl2_up + \
-              ica_layer1_temp + grad_ica_up0 + \
-              grad_dl1_up + grad_dl0_up + \
-              grad_el4_up + grad_el3_up + \
-              grad_el2_up + grad_el1_up 
+cost0 = tf.reduce_mean(tf.square(flayer3-y))
+cost1 = sparse_cost
+total_cost = cost0 + cost1
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
 with tf.Session() as sess:
@@ -419,17 +402,14 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        if iter > num_epoch//3:
-            sess_aim = [total_cost,grad_update1]
-        else:
-            sess_aim = [total_cost,grad_update0]
+        train_batch,train_label,test_batch,test_label = shuffle(train_batch,train_label,test_batch,test_label)
 
         # train for batch
-        for batch_size_index in range(0,len(train_batch),batch_size):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run(sess_aim,feed_dict={x:current_batch})
-            print("Current Iter : ",iter ," current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
-            train_cota = train_cota + sess_result[0]
+        current_batch = train_batch
+        current_batch_label = train_label
+        sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch,y:current_batch_label})
+        print("Current Iter : ",iter ,' Current cost: ', sess_result[0],end='\r')
+        train_cota = train_cota + sess_result[0]
 
         # if it is print size print the cost and Sample Image
         if iter % print_size==0:
@@ -438,8 +418,8 @@ with tf.Session() as sess:
             print("--------------")
 
             # get one image from train batch and show results
-            test_example = train_batch[:batch_size,:,:,:]
-            sess_results = sess.run([flayer2],feed_dict={x:test_example})
+            test_example = train_batch
+            sess_results = sess.run([flayer3],feed_dict={x:test_example})
             sess_results = sess_results[0][0,:,:,:]
             test_example = test_example[0,:,:,:]
 
@@ -450,13 +430,13 @@ with tf.Session() as sess:
             plt.imshow(np.squeeze(test_example),cmap='gray')
             plt.subplot(122)
             plt.axis('off')
-            plt.imshow(np.squeeze(sess_results).astype(np.float32),cmap='gray')
+            plt.imshow(np.squeeze(sess_results),cmap='gray')
             plt.savefig('train_change/'+str(iter)+"_train_results.png",bbox_inches='tight')
             plt.close('all')
 
             # get one image from test batch and show results
-            test_example = test_batch[:batch_size,:,:,:]
-            sess_results = sess.run([flayer2],feed_dict={x:test_example})
+            test_example = test_batch[:batch_size]
+            sess_results = sess.run([flayer3],feed_dict={x:test_example})
             sess_results = sess_results[0][0,:,:,:]
             test_example = test_example[0,:,:,:]
 
