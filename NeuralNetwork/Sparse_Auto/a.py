@@ -298,7 +298,7 @@ for file_index in range(len(image_list)):
     train_images[file_index,:,:]   = imresize(imread(image_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
     train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
 
-train_labels = (train_labels>0.0) * 255.0
+train_labels = (train_labels>10.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
@@ -332,14 +332,14 @@ print(test_label.min())
 # class
 el1 = CNN(3,3,8)
 el2 = CNN(3,8,8)
-el3 = CNN(3,8,16)
-el4 = CNN(3,16,32)
+el3 = CNN(3,8,8)
+el4 = CNN(3,8,8)
 
 reduce_dim = 4*3
-sparse_layer = Sparse_Filter_Layer(8*8*32,1*1*reduce_dim)
+sparse_layer = Sparse_Filter_Layer(8*8*8,1*1*reduce_dim)
 
 dl0 = CNN_Trans(5,4,3)
-dl1 = CNN_Trans(3,4,20)
+dl1 = CNN_Trans(3,4,12)
 fl1 = CNN(3,4,4)
 
 dl2 = CNN_Trans(5,4,12)
@@ -352,7 +352,7 @@ fl3 = CNN(3,4,1)
 num_epoch = 5001
 learning_rate = 0.0005
 batch_size = 10
-print_size = 200
+print_size = 100
 
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
