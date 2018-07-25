@@ -336,14 +336,14 @@ el2 = CNN(3,8,8)
 el3 = CNN(3,8,8)
 el4 = CNN(3,8,8)
 
-reduce_dim = 4*3
+reduce_dim = 1
 sparse_layer = Sparse_Filter_Layer(12*12*8,1*1*reduce_dim)
 
-dl0 = CNN_Trans(5,3,3)
+dl0 = CNN_Trans(7,3,1)
 dl1 = CNN_Trans(3,3,11)
 fl1 = CNN(3,3,3)
 
-dl2 = CNN_Trans(5,3,11)
+dl2 = CNN_Trans(3,3,11)
 fl2 = CNN(3,3,3)
 
 dl3 = CNN_Trans(3,3,11)
@@ -351,7 +351,9 @@ fl3 = CNN(3,3,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
-learning_rate = 0.00088
+# learning_rate = 0.0007
+learning_rate = 0.003
+# learning_rate = 0.0003 
 batch_size = 5
 print_size = 100
 
@@ -373,10 +375,25 @@ elayer4_input = tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding
 elayer4 = el4.feedforward(elayer4_input)
 
 sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
-sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value1,sparse_cost1 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value2,sparse_cost2 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value3,sparse_cost3 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.reshape(sparse_layer,[batch_size,2,2,3])
-dlayer0_input = tf.tile(dlayer0_input,[1,2,2,1])
+# sparse_layer_value5,sparse_cost5 = sparse_layer.feedforward(sparse_layer_input)
+# sparse_layer_value6,sparse_cost6 = sparse_layer.feedforward(sparse_layer_input)
+# sparse_layer_value7,sparse_cost7 = sparse_layer.feedforward(sparse_layer_input)
+# sparse_layer_value8,sparse_cost8 = sparse_layer.feedforward(sparse_layer_input)
+# sparse_layer_value9,sparse_cost9 = sparse_layer.feedforward(sparse_layer_input)
+
+
+sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4
+# sparse_layer_value2 = sparse_layer_value5 + sparse_layer_value6 + sparse_layer_value7 +sparse_layer_value8+sparse_layer_value9
+# sparse_layer_value = sparse_layer_value/tf.constant(5.0,dtype=tf.float64)
+
+dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,1,1,1])
+dlayer0_input = tf.tile(dlayer0_input,[1,4,4,1])
 dlayer0 = dl0.feedforward(dlayer0_input,stride=3)
 
 dlayer1 = dl1.feedforward(tf.concat([dlayer0,elayer4_input],3),stride=2)
@@ -385,11 +402,12 @@ flayer1 = fl1.feedforward(dlayer1)
 dlayer2 = dl2.feedforward(tf.concat([flayer1,elayer3_input],3),stride=2)
 flayer2 = fl2.feedforward(dlayer2)
 
-dlayer3 = dl3.feedforward(tf.concat([dlayer2,elayer2_input],3),stride=2)
+dlayer3 = dl3.feedforward(tf.concat([flayer2,elayer2_input],3),stride=2)
 flayer3 = fl3.feedforward(dlayer3)
 
 cost0 = tf.reduce_mean(tf.square(flayer3-y))
-cost1 = sparse_cost
+cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,sparse_cost3,sparse_cost4])
+# sparse_cost5,sparse_cost6,sparse_cost7,sparse_cost8,sparse_cost9])
 total_cost = cost0 + cost1
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
@@ -430,7 +448,7 @@ with tf.Session() as sess:
             test_change_image = train_batch[0,:,:,:]
             test_change_gt = train_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
-            test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
+            # test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
@@ -460,7 +478,7 @@ with tf.Session() as sess:
             test_change_image = test_batch[:batch_size][0,:,:,:]
             test_change_gt = test_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
-            test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
+            # test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
@@ -507,7 +525,8 @@ with tf.Session() as sess:
         for xx in range(len(sess_results)):
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
 
-            test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
+            # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
+            test_change_predict = sess_results[xx]
 
             plt.suptitle('Final Train Images : ' + str(xx) ,fontsize=20)
             axarr[0, 0].axis('off')
@@ -539,7 +558,8 @@ with tf.Session() as sess:
         for xx in range(len(sess_results)):
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
         
-            test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
+            # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
+            test_change_predict = sess_results[xx]
 
             plt.suptitle('Final Test Images : ' + str(xx) ,fontsize=20)
             axarr[0, 0].axis('off')
