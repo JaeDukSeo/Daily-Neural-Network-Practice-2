@@ -332,29 +332,29 @@ print(test_label.min())
 
 # class
 el1 = CNN(3,3,4)
-el2 = CNN(3,4,8)
-el3 = CNN(3,8,16)
-el4 = CNN(3,16,32)
+el2 = CNN(3,4,16)
+el3 = CNN(3,16,16)
+el4 = CNN(3,16,16)
 
-reduce_dim = 9
-sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
+reduce_dim = 4
+sparse_layer = Sparse_Filter_Layer(6*6*16,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,4,1)
-dl1 = CNN_Trans(3,4,4)
-fl1 = CNN(3,4,4)
+dl0 = CNN_Trans(5,5,1)
+dl1 = CNN_Trans(3,5,5)
+fl1 = CNN(3,5,4)
 
-dl2 = CNN_Trans(3,4,20)
-fl2 = CNN(3,4,4)
+# dl2 = CNN_Trans(5,5,20)
+fl2 = CNN(3,20,4)
 
-dl3 = CNN_Trans(3,4,12)
-fl3 = CNN(3,4,4)
+# dl3 = CNN_Trans(3,5,20)
+fl3 = CNN(3,20,4)
 
-dl4 = CNN_Trans(3,4,8)
-fl4 = CNN(3,4,1,act=tf_sigmoid)
+# dl4 = CNN_Trans(3,5,8)
+fl4 = CNN(3,8,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
-learning_rate = 0.0007
+learning_rate = 0.0009
 batch_size = 1
 print_size = 100
 
@@ -380,14 +380,15 @@ sparse_layer_value1,sparse_cost1 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value2,sparse_cost2 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value3,sparse_cost3 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value5,sparse_cost5 = sparse_layer.feedforward(sparse_layer_input)
 
-sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4
-dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,3,3,1])
-# dlayer0_input = tf.image.resize_images(dlayer0_input, [3, 3],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4+sparse_layer_value5
+dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,2,2,1])
+# dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 # dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input,stride=3) # 3 3
+dlayer0 = dl0.feedforward(dlayer0_input,stride=2) # 3 3
 
-dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
 dlayer1 = dl1.feedforward(dlayer01) # 6 6
 flayer1 = fl1.feedforward(dlayer1)
@@ -395,23 +396,23 @@ flayer1 = fl1.feedforward(dlayer1)
 flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer11 = tf.cast(flayer11,dtype=tf.float64)
 
-dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
-flayer2 = fl2.feedforward(dlayer2)
+# dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
+flayer2 = fl2.feedforward(tf.concat([flayer11,elayer3],3))
 
 flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
 
-dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
-flayer3 = fl3.feedforward(dlayer3)
+# dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
+flayer3 = fl3.feedforward(tf.concat([flayer21,elayer2],3))
 
-flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
 
-dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
-flayer5 = fl4.feedforward(dlayer4)
+# dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
+flayer5 = fl4.feedforward(tf.concat([flayer31,elayer1],3))
 
 cost0 = tf.reduce_mean(tf.square(flayer5-y))
-cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,sparse_cost3,sparse_cost4])
+cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,sparse_cost3,sparse_cost4,sparse_cost5])
 
 total_cost = cost0 + cost1
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
