@@ -257,7 +257,7 @@ class Sparse_Filter_Layer():
     
     def __init__(self,outc,changec):
         self.w = tf.Variable(tf.truncated_normal([outc,changec],stddev=0.5,seed=2,dtype=tf.float64))
-        self.epsilon = 1e-10
+        self.epsilon = 1e-20
 
     def getw(self): return self.w
 
@@ -266,11 +266,12 @@ class Sparse_Filter_Layer():
 
     def feedforward(self,input):
         self.sparse_layer  = tf.matmul(input,self.w)
+        # second = tf.nn.elu(self.sparse_layer)
         second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
         self.cost_update = tf.reduce_mean(four)
-        return self.sparse_layer,self.cost_update
+        return self.sparse_layer ,self.cost_update
 
 # ================= LAYER CLASSES =================
 
@@ -289,7 +290,7 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
         if  ".png" in filename.lower() :  # check whether the file's DICOM \PedMasks
             mask_list.append(os.path.join(dirName,filename))
 
-image_resize_px = 64    
+image_resize_px = 96    
 train_images = np.zeros(shape=(170,image_resize_px,image_resize_px,3))
 train_labels = np.zeros(shape=(170,image_resize_px,image_resize_px,1))
 
@@ -297,13 +298,14 @@ for file_index in range(len(image_list)):
     train_images[file_index,:,:]   = imresize(imread(image_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
     train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
 
+train_labels = (train_labels>25.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:100]
-train_label = train_labels[:100]
-test_batch = train_images[100:]
-test_label = train_labels[100:]
+train_batch = train_images[:85]
+train_label = train_labels[:85]
+test_batch = train_images[85:]
+test_label = train_labels[85:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -320,38 +322,33 @@ print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
 
-# f, (ax1, ax2) = plt.subplots(1, 2, sharey=True)
-# for xx in range(len(train_images)):
-#     ax1.imshow(train_images[xx])
-#     ax2.imshow(np.squeeze(train_labels[xx]))
-#     plt.pause(0.5)
-#     plt.cla()
-
 # class
-el1 = CNN(3,3,16)
-el2 = CNN(3,16,32)
-el3 = CNN(3,32,64)
-el4 = CNN(3,64,64)
+el1 = CNN(3,3,8)
+el2 = CNN(3,8,8)
+el3 = CNN(3,8,8)
+el4 = CNN(3,8,8)
 
-sparse_layer = Sparse_Filter_Layer(8*8*64,8*8*64)
+reduce_dim = 9
+sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,32,64)
-dl1 = CNN_Trans(3,32,32)
-fl1 = CNN(3,32,32)
+dl0 = CNN_Trans(3,4,1)
+dl1 = CNN_Trans(3,4,4)
+fl1 = CNN(3,4,4)
 
-dl2 = CNN_Trans(3,32,32)
-fl2 = CNN(3,32,16)
+dl2 = CNN_Trans(3,4,12)
+fl2 = CNN(3,4,4)
 
-dl3 = CNN_Trans(3,8,16)
-fl3 = CNN(3,8,1)
+dl3 = CNN_Trans(3,4,12)
+fl3 = CNN(3,4,4)
+
+dl4 = CNN_Trans(3,4,12)
+fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 501
-learning_rate = 0.0008
-batch_size = 10
-print_size = 10
-
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+num_epoch = 1201
+learning_rate = 0.0006
+batch_size = 5
+print_size = 100
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -359,33 +356,55 @@ y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf
 
 elayer1 = el1.feedforward(x)
 
-elayer2_input = tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input)
 
-elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer3_input = tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer3 = el3.feedforward(elayer3_input)
 
-elayer4_input = tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer4 = el4.feedforward(elayer4_input)
 
-# sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
-# sparse_layer,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
+sparse_input = tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 
-# dlayer0_input = tf.reshape(sparse_layer,[batch_size,8,8,64])
-dlayer0 = dl0.feedforward(elayer4,stride=1)
+sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value1,sparse_cost1 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value2,sparse_cost2 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value3,sparse_cost3 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value5,sparse_cost5 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4+sparse_layer_value5
 
-dlayer1 = dl1.feedforward(dlayer0,stride=2)
+dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,3,3,1])
+dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
+dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
+
+dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
+dlayer1 = dl1.feedforward(dlayer01) # 6 6
 flayer1 = fl1.feedforward(dlayer1)
 
-dlayer2 = dl2.feedforward(flayer1,stride=2)
+flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+flayer11 = tf.cast(flayer11,dtype=tf.float64)
+dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
 flayer2 = fl2.feedforward(dlayer2)
 
-dlayer3 = dl3.feedforward(flayer2,stride=2)
+flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+flayer21 = tf.cast(flayer21,dtype=tf.float64)
+dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
 flayer3 = fl3.feedforward(dlayer3)
 
-cost0 = tf.reduce_mean(tf.square(flayer3-y))
-# cost1 = sparse_cost
-total_cost = cost0 
+flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+flayer31 = tf.cast(flayer31,dtype=tf.float64)
+dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
+flayer5 = fl4.feedforward(dlayer4)
+
+cost0 = tf.reduce_mean(tf.square(flayer5-y))
+cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,sparse_cost3,sparse_cost4,sparse_cost5])
+
+total_cost = cost0 + cost1
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
@@ -421,11 +440,10 @@ with tf.Session() as sess:
             print("--------------")
 
             # get one image from train batch and show results
-            sess_results = sess.run(flayer3,feed_dict={x:train_batch[:batch_size]})
+            sess_results = sess.run(flayer5,feed_dict={x:train_batch[:batch_size]})
             test_change_image = train_batch[0,:,:,:]
             test_change_gt = train_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
-            test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
@@ -451,11 +469,10 @@ with tf.Session() as sess:
             plt.close('all')
 
             # get one image from test batch and show results
-            sess_results = sess.run(flayer3,feed_dict={x:test_batch[:batch_size]})
+            sess_results = sess.run(flayer5,feed_dict={x:test_batch[:batch_size]})
             test_change_image = test_batch[:batch_size][0,:,:,:]
             test_change_gt = test_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
-            test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
@@ -494,72 +511,69 @@ with tf.Session() as sess:
     plt.savefig("viz/Case Train.png")
     plt.close('all')
 
-    # train image final show
-    final_train = sess.run([flayer2,ica_layer1],feed_dict={x:train_batch[:batch_size,:,:,:]}) 
-    final_train_ica = final_train[1]
-    final_train = final_train[0]
-    for current_image_index in range(batch_size//100):
-        plt.figure(1, figsize=(18,9))
-        plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
-        plt.subplot(121)
-        plt.axis('off')
-        plt.imshow(np.squeeze(train_batch[current_image_index]))
-        plt.subplot(122)
-        plt.axis('off')
-        plt.imshow(np.squeeze(final_train[current_image_index]).astype(np.float32))
-        plt.savefig('final_train/'+str(current_image_index)+"_train_results.png",bbox_inches='tight',fontsize=20)
-        plt.close('all')
+    # final all train images
+    for batch_size_index in range(0,len(train_batch),batch_size):
+        current_batch = train_batch[batch_size_index:batch_size_index+batch_size]    
+        current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
+        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
+        for xx in range(len(sess_results)):
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
+
+            test_change_predict = sess_results[xx]
+
+            plt.suptitle('Final Train Images : ' + str(xx) ,fontsize=20)
+            axarr[0, 0].axis('off')
+            axarr[0, 0].imshow(np.squeeze(current_batch[xx]),cmap='gray')
+
+            axarr[0, 1].axis('off')
+            axarr[0, 1].imshow(np.squeeze(current_batch_label[xx]),cmap='gray')
+
+            axarr[0, 2].axis('off')
+            axarr[0, 2].imshow(np.squeeze(test_change_predict),cmap='gray')
+
+            axarr[1, 0].axis('off')
+            axarr[1, 0].imshow(np.squeeze(current_batch[xx]),cmap='gray')
+
+            axarr[1, 1].axis('off')
+            axarr[1, 1].imshow(current_batch_label[xx]*np.squeeze(current_batch[xx]),cmap='gray')
+
+            axarr[1, 2].axis('off')
+            axarr[1, 2].imshow(test_change_predict*np.squeeze(current_batch[xx]),cmap='gray')
+
+            plt.savefig('final_train/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
+            plt.close('all')
+
+
+    for batch_size_index in range(0,len(test_batch),batch_size):
+        current_batch = test_batch[batch_size_index:batch_size_index+batch_size]    
+        current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
+        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
+        for xx in range(len(sess_results)):
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
         
-    # test image final show
-    final_test = sess.run([flayer2,ica_layer1],feed_dict={x:test_batch[:batch_size,:,:,:]}) 
-    final_test_ica = final_test[1]
-    final_test = final_test[0]
-    for current_image_index in range(batch_size//100):
-        plt.figure(1, figsize=(18,9))
-        plt.suptitle('Original Image (left) Generated Image (right) image num : ' + str(iter))
-        plt.subplot(121)
-        plt.axis('off')
-        plt.imshow(np.squeeze(test_batch[current_image_index]))
-        plt.subplot(122)
-        plt.axis('off')
-        plt.imshow(np.squeeze(final_test[current_image_index]).astype(np.float32))
-        plt.savefig('final_test/'+str(current_image_index)+"_test_results.png",bbox_inches='tight',fontsize=20)
-        plt.close('all')
+            test_change_predict = sess_results[xx]
 
-    # plot 3D 
-    color_dict = {
-        0:'red',
-        1:'blue',
-        2:'green',
-        3:'yellow',
-        4:'purple',
-        5:'grey',
-        6:'black',
-        7:'white',
-        8:'pink',
-        9:'skyblue',
-    }
+            plt.suptitle('Final Test Images : ' + str(xx) ,fontsize=20)
+            axarr[0, 0].axis('off')
+            axarr[0, 0].imshow(np.squeeze(current_batch[xx]),cmap='gray')
 
-    plt.close('all')
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+            axarr[0, 1].axis('off')
+            axarr[0, 1].imshow(np.squeeze(current_batch_label[xx]),cmap='gray')
+
+            axarr[0, 2].axis('off')
+            axarr[0, 2].imshow(np.squeeze(test_change_predict),cmap='gray')
+
+            axarr[1, 0].axis('off')
+            axarr[1, 0].imshow(np.squeeze(current_batch[xx]),cmap='gray')
+
+            axarr[1, 1].axis('off')
+            axarr[1, 1].imshow(current_batch_label[xx]*np.squeeze(current_batch[xx]),cmap='gray')
+
+            axarr[1, 2].axis('off')
+            axarr[1, 2].imshow(test_change_predict*np.squeeze(current_batch[xx]),cmap='gray')
+
+            plt.savefig('final_test/'+str(batch_size_index)+"_"+str(xx)+"_test_results.png",bbox_inches='tight')
+            plt.close('all')
 
 
-    color_mapping = [color_dict[x] for x in np.argmax(train_label[:batch_size],1) ]
-    ax.scatter(final_train_ica[:,0], final_train_ica[:,1],final_train_ica[:,2],c=color_mapping,label=str(color_dict))
-
-    color_mapping = [color_dict[x] for x in np.argmax(test_label[:batch_size],1) ]
-    ax.scatter(final_test_ica[:,0], final_test_ica[:,1],final_test_ica[:,2],c=color_mapping)
-
-    ax.set_xlabel('X Label')
-    ax.set_ylabel('Y Label')
-    ax.set_zlabel('Z Label')
-
-    # ax.set_xticklabels([])
-    # ax.set_yticklabels([])
-    # ax.set_zticklabels([])
-
-    ax.legend()
-    ax.grid(True)
-    plt.show()
 # -- end code --
