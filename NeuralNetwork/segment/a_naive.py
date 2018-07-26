@@ -23,7 +23,7 @@ def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(t
 
 def tf_tanh(x): return tf.nn.tanh(x)
 def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
-
+    
 def tf_sigmoid(x): return tf.nn.sigmoid(x) 
 def d_tf_sigmoid(x): return tf_sigmoid(x) * (1.0-tf_sigmoid(x))
 

@@ -337,7 +337,8 @@ el3 = CNN(3,8,16)
 el4 = CNN(3,16,32)
 
 reduce_dim = 4
-sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
+# sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
+fully_0 = FNN(6*6*32,reduce_dim,act=tf_elu,d_act=d_tf_elu)
 
 dl0 = CNN_Trans(3,4,1)
 dl1 = CNN_Trans(3,4,4)
@@ -375,14 +376,9 @@ elayer4 = el4.feedforward(elayer4_input)
 
 sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
-sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
-sparse_layer_value1,sparse_cost1 = sparse_layer.feedforward(sparse_layer_input)
-sparse_layer_value2,sparse_cost2 = sparse_layer.feedforward(sparse_layer_input)
-sparse_layer_value3,sparse_cost3 = sparse_layer.feedforward(sparse_layer_input)
-sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
+fully_connected_layer = fully_0.feedforward(sparse_layer_input)
 
-sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4
-dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,2,2,1])
+dlayer0_input = tf.reshape(fully_connected_layer,[batch_size,2,2,1])
 dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
 dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
@@ -411,9 +407,8 @@ dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
 flayer5 = fl4.feedforward(dlayer4)
 
 cost0 = tf.reduce_mean(tf.square(flayer5-y))
-cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,sparse_cost3,sparse_cost4])
 
-total_cost = cost0 + cost1
+total_cost = cost0 
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
