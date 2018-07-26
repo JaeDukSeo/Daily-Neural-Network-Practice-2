@@ -376,19 +376,19 @@ sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value5,sparse_cost5 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4+sparse_layer_value5
 
-dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,8,8,1])
-# dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-# dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input,stride=1) # 3 3
+dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,5,5,1])
+dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
+dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) 
 
 dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
-dlayer1 = dl1.feedforward(dlayer01) # 6 6
+dlayer1 = dl1.feedforward(dlayer01) 
 flayer1 = fl1.feedforward(dlayer1)
 
 flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer11 = tf.cast(flayer11,dtype=tf.float64)
-dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
+dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) 
 flayer2 = fl2.feedforward(dlayer2)
 
 flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
@@ -399,7 +399,7 @@ flayer3 = fl3.feedforward(dlayer3)
 flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
 dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
-flayer5 = fl4.feedforward(dlayer4)
+flayer4 = fl4.feedforward(dlayer4)
 
 cost0 = tf.reduce_mean(tf.square(flayer5-y))
 cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,sparse_cost3,sparse_cost4,sparse_cost5])
@@ -440,7 +440,7 @@ with tf.Session() as sess:
             print("--------------")
 
             # get one image from train batch and show results
-            sess_results = sess.run(flayer5,feed_dict={x:train_batch[:batch_size]})
+            sess_results = sess.run(flayer4,feed_dict={x:train_batch[:batch_size]})
             test_change_image = train_batch[0,:,:,:]
             test_change_gt = train_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
@@ -469,7 +469,7 @@ with tf.Session() as sess:
             plt.close('all')
 
             # get one image from test batch and show results
-            sess_results = sess.run(flayer5,feed_dict={x:test_batch[:batch_size]})
+            sess_results = sess.run(flayer4,feed_dict={x:test_batch[:batch_size]})
             test_change_image = test_batch[:batch_size][0,:,:,:]
             test_change_gt = test_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
@@ -515,7 +515,7 @@ with tf.Session() as sess:
     for batch_size_index in range(0,len(train_batch),batch_size):
         current_batch = train_batch[batch_size_index:batch_size_index+batch_size]    
         current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
+        sess_results = sess.run(flayer4,feed_dict={x:current_batch})
         for xx in range(len(sess_results)):
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
 
@@ -547,7 +547,7 @@ with tf.Session() as sess:
     for batch_size_index in range(0,len(test_batch),batch_size):
         current_batch = test_batch[batch_size_index:batch_size_index+batch_size]    
         current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
-        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
+        sess_results = sess.run(flayer4,feed_dict={x:current_batch})
         for xx in range(len(sess_results)):
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
         
