@@ -303,10 +303,10 @@ train_labels = (train_labels>25.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:85]
-train_label = train_labels[:85]
-test_batch = train_images[85:]
-test_label = train_labels[85:]
+train_batch = train_images[:84]
+train_label = train_labels[:84]
+test_batch = train_images[84:]
+test_label = train_labels[84:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -336,11 +336,11 @@ el2 = CNN(3,4,8)
 el3 = CNN(3,8,16)
 el4 = CNN(3,16,32)
 
-reduce_dim = 2
+reduce_dim = 9
 sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
 
-dl0 = CNN_Trans(7,4,2)
-dl1 = CNN_Trans(5,4,4)
+dl0 = CNN_Trans(3,4,1)
+dl1 = CNN_Trans(3,4,4)
 fl1 = CNN(3,4,4)
 
 dl2 = CNN_Trans(3,4,20)
@@ -355,7 +355,7 @@ fl4 = CNN(3,4,1,act=tf_sigmoid)
 # hyper
 num_epoch = 1201
 learning_rate = 0.0007
-batch_size = 5
+batch_size = 1
 print_size = 100
 
 # graph
@@ -367,14 +367,14 @@ elayer1 = el1.feedforward(x)
 elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input)
 
-elayer3_input = tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer3 = el3.feedforward(elayer3_input)
 
 elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer4 = el4.feedforward(elayer4_input)
 
-elayer4_input = tf.nn.max_pool(elayer4_input,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
-sparse_layer_input = tf.reshape(elayer4_input,[batch_size,-1])
+sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value1,sparse_cost1 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value2,sparse_cost2 = sparse_layer.feedforward(sparse_layer_input)
@@ -382,10 +382,10 @@ sparse_layer_value3,sparse_cost3 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
 
 sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4
-dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,1,1,2])
-dlayer0_input = tf.image.resize_images(dlayer0_input, [3, 3],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input2,stride=2) # 3 3
+dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,3,3,1])
+# dlayer0_input = tf.image.resize_images(dlayer0_input, [3, 3],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+# dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
+dlayer0 = dl0.feedforward(dlayer0_input,stride=3) # 3 3
 
 dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
