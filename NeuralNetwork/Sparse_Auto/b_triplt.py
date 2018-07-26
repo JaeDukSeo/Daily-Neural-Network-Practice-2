@@ -331,34 +331,32 @@ print(test_label.min())
 #     plt.cla()
 
 # class
-el1 = CNN(3,3,8)
-el2 = CNN(3,8,8)
-el3 = CNN(3,8,8)
-el4 = CNN(3,8,8)
+el1 = CNN(3,3,4)
+el2 = CNN(3,4,8)
+el3 = CNN(3,8,16)
+el4 = CNN(3,16,32)
 
-reduce_dim = 1
-sparse_layer = Sparse_Filter_Layer(12*12*8,1*1*reduce_dim)
+reduce_dim = 2
+sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
 
-dl0 = CNN_Trans(7,4,1)
+dl0 = CNN_Trans(7,4,2)
 dl1 = CNN_Trans(5,4,4)
 fl1 = CNN(3,4,4)
 
-dl2 = CNN_Trans(3,4,12)
+dl2 = CNN_Trans(3,4,20)
 fl2 = CNN(3,4,4)
 
 dl3 = CNN_Trans(3,4,12)
 fl3 = CNN(3,4,4)
 
-dl4 = CNN_Trans(3,4,12)
+dl4 = CNN_Trans(3,4,8)
 fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
-learning_rate = 0.0009
+learning_rate = 0.0007
 batch_size = 5
 print_size = 100
-
-beta1,beta2,adam_e = 0.9,0.9,1e-8
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -369,36 +367,29 @@ elayer1 = el1.feedforward(x)
 elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input)
 
-elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer3_input = tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer3 = el3.feedforward(elayer3_input)
 
 elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer4 = el4.feedforward(elayer4_input)
 
-sparse_layer_input = tf.reshape(elayer4,[batch_size,-1])
+elayer4_input = tf.nn.max_pool(elayer4_input,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+sparse_layer_input = tf.reshape(elayer4_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value1,sparse_cost1 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value2,sparse_cost2 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value3,sparse_cost3 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
 
-# sparse_layer_value5,sparse_cost5 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value6,sparse_cost6 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value7,sparse_cost7 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value8,sparse_cost8 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value9,sparse_cost9 = sparse_layer.feedforward(sparse_layer_input)
-
 sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4
-# sparse_layer_value2 = sparse_layer_value5 + sparse_layer_value6 + sparse_layer_value7 +sparse_layer_value8+sparse_layer_value9
-# sparse_layer_value = sparse_layer_value/tf.constant(5.0,dtype=tf.float64)
-dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,1,1,1],)
-dlayer0_input = tf.image.resize_images(dlayer0_input, [2, 2],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-dlayer0_input = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input,stride=3) # 3 3
+dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,1,1,2])
+dlayer0_input = tf.image.resize_images(dlayer0_input, [3, 3],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
+dlayer0 = dl0.feedforward(dlayer0_input2,stride=2) # 3 3
 
-dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=True)
+dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
-dlayer1 = dl1.feedforward(dlayer01,stride=2) # 6 6
+dlayer1 = dl1.feedforward(dlayer01) # 6 6
 flayer1 = fl1.feedforward(dlayer1)
 
 flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
@@ -407,13 +398,13 @@ flayer11 = tf.cast(flayer11,dtype=tf.float64)
 dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
 flayer2 = fl2.feedforward(dlayer2)
 
-flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=True)
+flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
 
 dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
 flayer3 = fl3.feedforward(dlayer3)
 
-flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=True)
+flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
 
 dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
@@ -421,7 +412,6 @@ flayer5 = fl4.feedforward(dlayer4)
 
 cost0 = tf.reduce_mean(tf.square(flayer5-y))
 cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,sparse_cost3,sparse_cost4])
-# sparse_cost5,sparse_cost6,sparse_cost7,sparse_cost8,sparse_cost9])
 
 total_cost = cost0 + cost1
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
@@ -463,7 +453,6 @@ with tf.Session() as sess:
             test_change_image = train_batch[0,:,:,:]
             test_change_gt = train_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
-            # test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
@@ -493,7 +482,6 @@ with tf.Session() as sess:
             test_change_image = test_batch[:batch_size][0,:,:,:]
             test_change_gt = test_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
-            # test_change_predict = (test_change_predict-test_change_predict.min())/(test_change_predict.max()-test_change_predict.min())
 
             f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
