@@ -328,7 +328,7 @@ el2 = CNN(3,8,8)
 el3 = CNN(3,8,8)
 el4 = CNN(3,8,8)
 
-reduce_dim = 9
+reduce_dim = 64
 sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
 
 dl0 = CNN_Trans(5,6,1)
@@ -376,10 +376,10 @@ sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value5,sparse_cost5 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4+sparse_layer_value5
 
-dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,3,3,1])
-dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
+dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,8,8,1])
+# dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+# dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
+dlayer0 = dl0.feedforward(dlayer0_input,stride=1) # 3 3
 
 dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
@@ -391,12 +391,12 @@ flayer11 = tf.cast(flayer11,dtype=tf.float64)
 dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
 flayer2 = fl2.feedforward(dlayer2)
 
-flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
 dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
 flayer3 = fl3.feedforward(dlayer3)
 
-flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
 dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
 flayer5 = fl4.feedforward(dlayer4)
