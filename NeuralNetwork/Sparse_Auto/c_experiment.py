@@ -323,26 +323,26 @@ print(test_label.max())
 print(test_label.min())
 
 # class
-el1 = CNN(3,3,8)
-el2 = CNN(3,8,8)
-el3 = CNN(3,8,8)
-el4 = CNN(3,8,8)
+el1 = CNN(3,3,11)
+el2 = CNN(3,11,11)
+el3 = CNN(3,11,11)
+el4 = CNN(3,11,11)
 
-reduce_dim = 64
-sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
+reduce_dim = 25
+sparse_layer = Sparse_Filter_Layer(6*6*11,1*1*reduce_dim)
 
-dl0 = CNN_Trans(5,6,1)
-dl1 = CNN_Trans(3,6,6)
-fl1 = CNN(3,6,6)
+dl0 = CNN_Trans(5,9,1,act=tf_sigmoid)
+dl1 = CNN_Trans(3,9,9)
+fl1 = CNN(1,9,9,act=tf_sigmoid)
 
-dl2 = CNN_Trans(3,6,14)
-fl2 = CNN(3,6,6)
+dl2 = CNN_Trans(5,9,20)
+fl2 = CNN(1,9,9,act=tf_sigmoid)
 
-dl3 = CNN_Trans(3,6,14)
-fl3 = CNN(3,6,6)
+dl3 = CNN_Trans(3,9,20)
+fl3 = CNN(1,9,9,act=tf_sigmoid)
 
-dl4 = CNN_Trans(3,6,14)
-fl4 = CNN(3,6,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,4,20)
+fl4 = CNN(1,4,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
@@ -374,9 +374,9 @@ sparse_layer_value2,sparse_cost2 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value3,sparse_cost3 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value5,sparse_cost5 = sparse_layer.feedforward(sparse_layer_input)
-sparse_layer_value1 = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4+sparse_layer_value5
+sparse_layer_value = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 +sparse_layer_value3+sparse_layer_value4+sparse_layer_value5
 
-dlayer0_input = tf.reshape(sparse_layer_value1,[batch_size,5,5,1])
+dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,5,5,1])
 dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
 dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) 
@@ -401,7 +401,7 @@ flayer31 = tf.cast(flayer31,dtype=tf.float64)
 dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
 flayer4 = fl4.feedforward(dlayer4)
 
-cost0 = tf.reduce_mean(tf.square(flayer5-y))
+cost0 = tf.reduce_mean(tf.square(flayer4-y))
 cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,sparse_cost3,sparse_cost4,sparse_cost5])
 
 total_cost = cost0 + cost1
