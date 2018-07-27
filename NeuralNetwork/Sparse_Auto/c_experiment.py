@@ -323,30 +323,30 @@ print(test_label.max())
 print(test_label.min())
 
 # class
-el1 = CNN(3,3,11)
-el2 = CNN(3,11,11)
-el3 = CNN(3,11,11)
-el4 = CNN(3,11,11)
+el1 = CNN(3,3,16)
+el2 = CNN(3,16,16)
+el3 = CNN(3,16,16)
+el4 = CNN(3,16,32)
 
 reduce_dim = 25
-sparse_layer = Sparse_Filter_Layer(6*6*11,1*1*reduce_dim)
+sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
 
-dl0 = CNN_Trans(5,9,1,act=tf_sigmoid)
-dl1 = CNN_Trans(3,9,9)
-fl1 = CNN(1,9,9,act=tf_sigmoid)
+dl0 = CNN_Trans(5,8,1)
+dl1 = CNN_Trans(3,8,32)
+fl1 = CNN(1,8,8)
 
-dl2 = CNN_Trans(5,9,20)
-fl2 = CNN(1,9,9,act=tf_sigmoid)
+dl2 = CNN_Trans(5,9,32)
+fl2 = CNN(3,8,8,act=tf_sigmoid)
 
-dl3 = CNN_Trans(3,9,20)
-fl3 = CNN(1,9,9,act=tf_sigmoid)
+dl3 = CNN_Trans(3,9,32)
+fl3 = CNN(1,8,8)
 
-dl4 = CNN_Trans(3,4,20)
-fl4 = CNN(1,4,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,3,32)
+fl4 = CNN(3,3,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
-learning_rate = 0.0008
+learning_rate = 0.0006
 batch_size = 10
 print_size = 100
 
