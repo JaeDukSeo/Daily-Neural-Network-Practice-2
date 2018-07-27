@@ -116,7 +116,6 @@ class CNN():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
-        self.b = tf.Variable(tf.random_normal([out],stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -124,7 +123,7 @@ class CNN():
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
-        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) +self.b
+        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
         self.layerA = self.act(self.layer)
         return self.layerA 
 
@@ -157,7 +156,6 @@ class CNN_Trans():
     
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
-        self.b = tf.Variable(tf.random_normal([inc],stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -168,7 +166,7 @@ class CNN_Trans():
         output_shape2 = self.input.shape[2].value * stride
         self.layer  = tf.nn.conv2d_transpose(
             input,self.w,output_shape=[batch_size,output_shape2,output_shape2,self.w.shape[2].value],
-            strides=[1,stride,stride,1],padding=padding) +self.b
+            strides=[1,stride,stride,1],padding=padding) 
         self.layerA = self.act(self.layer)
         return self.layerA 
 
@@ -273,6 +271,7 @@ class Sparse_Filter_Layer():
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
         self.cost_update = tf.reduce_mean(four)
         return self.sparse_layer ,self.cost_update
+
 # ================= LAYER CLASSES =================
 
 # data
@@ -291,9 +290,10 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
             mask_list.append(os.path.join(dirName,filename))
 
 image_resize_px = 96    
-train_images = np.zeros(shape=(160,image_resize_px,image_resize_px,3))
-train_labels = np.zeros(shape=(160,image_resize_px,image_resize_px,1))
-for file_index in range(160):
+train_images = np.zeros(shape=(170,image_resize_px,image_resize_px,3))
+train_labels = np.zeros(shape=(170,image_resize_px,image_resize_px,1))
+
+for file_index in range(len(image_list)):
     train_images[file_index,:,:]   = imresize(imread(image_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
     train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
 
@@ -302,13 +302,12 @@ train_labels = (train_labels>25.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:80]
-train_label = train_labels[:80]
-test_batch = train_images[80:]
-test_label = train_labels[80:]
+train_batch = train_images[:81]
+train_label = train_labels[:81]
+test_batch = train_images[87:]
+test_label = train_labels[87:]
 
 # print out the data shape
-print('--------------------------------')
 print(train_batch.shape)
 print(train_batch.max())
 print(train_batch.min())
@@ -322,18 +321,17 @@ print(test_batch.min())
 print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
-print('--------------------------------')
 
 # class
 el1 = CNN(3,3,4)
 el2 = CNN(3,4,8)
 el3 = CNN(3,8,16)
-el4 = CNN(3,16,32)
+el4 = CNN(3,16,8)
 
-reduce_dim = 2*2*1
-sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
+reduce_dim = 36
+sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
 
-dl0 = CNN_Trans(5,4,1)
+dl0 = CNN_Trans(3,4,1)
 dl1 = CNN_Trans(3,4,4)
 fl1 = CNN(3,4,4)
 
@@ -347,9 +345,9 @@ dl4 = CNN_Trans(3,4,8)
 fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 1201
-learning_rate = 0.0008
-batch_size = 2
+num_epoch = 800
+learning_rate = 0.0005
+batch_size = 3
 print_size = 50
 
 # graph
@@ -369,34 +367,15 @@ elayer4 = el4.feedforward(elayer4_input)
 
 sparse_input = tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
-
-# ==== SPARSE FILTERING ======== NEAREST_NEIGHBOR
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
-sparse_layer_value1,sparse_cost1 = sparse_layer.feedforward(sparse_layer_input)
-sparse_layer_value2,sparse_cost2 = sparse_layer.feedforward(sparse_layer_input)
 
-# sparse_layer_value3,sparse_cost3 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value4,sparse_cost4 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value5,sparse_cost5 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value = sparse_layer_value0
+dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,6,6,1])
+# dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+# dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
+dlayer0 = dl0.feedforward(dlayer0_input,stride=1) # 3 3
 
-# sparse_layer_value6,sparse_cost6 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value7,sparse_cost7 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value8,sparse_cost8 = sparse_layer.feedforward(sparse_layer_input)
-
-# sparse_layer_value9,sparse_cost9 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value10,sparse_cost10 = sparse_layer.feedforward(sparse_layer_input)
-# sparse_layer_value11,sparse_cost11 = sparse_layer.feedforward(sparse_layer_input)
-
-sparse_layer_value =  sparse_layer_value0  * sparse_layer_value1 * sparse_layer_value2 
-                    #   sparse_layer_value3 + sparse_layer_value4 + sparse_layer_value5 * \
-                    #   sparse_layer_value6 + sparse_layer_value7 + sparse_layer_value8 * \
-                    #   sparse_layer_value9 + sparse_layer_value10+ sparse_layer_value11
-# ==== SPARSE FILTERING ========
-
-ddlayer0_input = tf.reshape(sparse_layer_value,[batch_size,2,2,1])
-dlayer0 = dl0.feedforward(ddlayer0_input,stride=2) # 3 3
-
-dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
 dlayer1 = dl1.feedforward(dlayer01) # 6 6
 flayer1 = fl1.feedforward(dlayer1)
@@ -406,7 +385,7 @@ flayer11 = tf.cast(flayer11,dtype=tf.float64)
 dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3)) # 8 8
 flayer2 = fl2.feedforward(dlayer2)
 
-flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
 dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
 flayer3 = fl3.feedforward(dlayer3)
@@ -414,17 +393,16 @@ flayer3 = fl3.feedforward(dlayer3)
 flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
 dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3))
-flayer4 = fl4.feedforward(dlayer4)
+flayer5 = fl4.feedforward(dlayer4)
 
-cost0 = tf.reduce_mean(tf.square(flayer4-y))
-cost1 = tf.reduce_mean([sparse_cost0,sparse_cost1 ,sparse_cost2,
-                        # sparse_cost3 ,sparse_cost4 ,sparse_cost5,
-                        # sparse_cost6 ,sparse_cost7 ,sparse_cost8,
-                        # sparse_cost9 ,sparse_cost10,sparse_cost11,
-                        ])
+cost0 = tf.reduce_sum(tf.square(flayer5-y))
+cost1 = sparse_cost0
+cost2 = -tf.reduce_sum(y * tf.log(1e-10 + flayer5)+ (1-y) * tf.log(1e-10 + 1 - flayer5))
 
-total_cost = cost0 + cost1
-auto_train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost)
+total_cost1= cost1
+total_cost2= cost0+ cost1 + cost2
+auto_train1 = tf.train.RMSPropOptimizer(learning_rate=0.00003).minimize(cost1)
+auto_train2 = tf.train.RMSPropOptimizer(learning_rate=0.0001).minimize(cost0+ cost1 + cost2)
 
 # sess
 with tf.Session() as sess:
@@ -441,14 +419,21 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        # train_batch,train_label = shuffle(train_batch,train_label)
+        if iter > num_epoch//num_epoch//(3/4):
+            which_opt = auto_train2
+            which_cost = total_cost2
+        else:
+            which_opt = auto_train1            
+            which_cost = total_cost1
+
+        train_batch,train_label = shuffle(train_batch,train_label)
         test_batch,test_label = shuffle(test_batch,test_label)
 
         # train for batch
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch,y:current_batch_label})
+            sess_result = sess.run([which_cost,which_opt],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter ,' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
@@ -458,13 +443,15 @@ with tf.Session() as sess:
             print('Current Iter: ',iter,' Accumulated Train cost : ', train_cota/(len(train_batch)/(batch_size)),end='\n')
             print("--------------")
 
+        if iter % print_size==0 and iter > num_epoch//(3/4):
+
             # get one image from train batch and show results
-            sess_results = sess.run(flayer4,feed_dict={x:train_batch[:batch_size]})
+            sess_results = sess.run(flayer5,feed_dict={x:train_batch[:batch_size]})
             test_change_image = train_batch[0,:,:,:]
             test_change_gt = train_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
 
-            f, axarr = plt.subplots(2, 3,figsize=(15,10))
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
             axarr[0, 0].axis('off')
             axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
@@ -488,12 +475,12 @@ with tf.Session() as sess:
             plt.close('all')
 
             # get one image from test batch and show results
-            sess_results = sess.run(flayer4,feed_dict={x:test_batch[:batch_size]})
+            sess_results = sess.run(flayer5,feed_dict={x:test_batch[:batch_size]})
             test_change_image = test_batch[:batch_size][0,:,:,:]
             test_change_gt = test_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
 
-            f, axarr = plt.subplots(2, 3,figsize=(15,10))
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
             plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
             axarr[0, 0].axis('off')
             axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
@@ -534,9 +521,9 @@ with tf.Session() as sess:
     for batch_size_index in range(0,len(train_batch),batch_size):
         current_batch = train_batch[batch_size_index:batch_size_index+batch_size]    
         current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-        sess_results = sess.run(flayer4,feed_dict={x:current_batch})
+        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
         for xx in range(len(sess_results)):
-            f, axarr = plt.subplots(2, 3,figsize=(15,10))
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
 
             # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
             test_change_predict = sess_results[xx]
@@ -567,9 +554,9 @@ with tf.Session() as sess:
     for batch_size_index in range(0,len(test_batch),batch_size):
         current_batch = test_batch[batch_size_index:batch_size_index+batch_size]    
         current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
-        sess_results = sess.run(flayer4,feed_dict={x:current_batch})
+        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
         for xx in range(len(sess_results)):
-            f, axarr = plt.subplots(2, 3,figsize=(15,10))
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
         
             # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
             test_change_predict = sess_results[xx]
