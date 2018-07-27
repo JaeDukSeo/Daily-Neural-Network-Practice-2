@@ -325,31 +325,26 @@ print(test_label.min())
 print('--------------------------------')
 
 # class
-el1 = CNN(3,3,8)
-el2 = CNN(3,8,16)
-el3 = CNN(3,16,32)
-el4 = CNN(3,32,64,act=tf_atan)
+el1 = CNN(3,3,4)
+el2 = CNN(3,4,8)
+el3 = CNN(3,8,16)
+el4 = CNN(3,16,32)
 
-reduce_dim = 12
-sparse_layer = Sparse_Filter_Layer(6*6*64,1*1*reduce_dim)
+reduce_dim = 2*2*3
+sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
 
-dl = CNN_Trans(3,8,3)
-fl = CNN(1,8,8)
+dl0 = CNN_Trans(3,4,3)
+dl1 = CNN_Trans(3,4,4)
+fl1 = CNN(3,4,4)
 
-dl0 = CNN_Trans(3,16,8)
-fl0 = CNN(1,16,16)
+dl2 = CNN_Trans(3,4,20)
+fl2 = CNN(3,4,4)
 
-dl1 = CNN_Trans(3,32,16)
-fl1 = CNN(1,32,32)
+dl3 = CNN_Trans(3,4,12)
+fl3 = CNN(3,4,4)
 
-dl2 = CNN_Trans(3,32,64)
-fl2 = CNN(1,32,16)
-
-dl3 = CNN_Trans(3,16,32)
-fl3 = CNN(1,16,8)
-
-dl4 = CNN_Trans(3,8,16)
-fl4 = CNN(1,8,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,4,8)
+fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
@@ -398,36 +393,30 @@ sparse_layer_value = sparse_layer_value0 * sparse_layer_value1 * sparse_layer_va
                       sparse_layer_value9 * sparse_layer_value10* sparse_layer_value11
 # ==== SPARSE FILTERING ========
 
-dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,2,2,3])
-dlayer0_input = tf.image.resize_images(dlayer0_input, [3, 3],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-dlayer0_input = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer = dl.feedforward(dlayer0_input)
-flayer = fl.feedforward(dlayer)
+ddlayer0_input = tf.reshape(sparse_layer_value,[batch_size,2,2,3])
+dlayer0_input = tf.image.resize_images(ddlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
+dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
 
-dlayer000 = tf.image.resize_images(flayer, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-dlayer000 = tf.cast(dlayer000,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer000)
-flayer0 = fl0.feedforward(dlayer0)
-
-dlayer01 = tf.image.resize_images(flayer0, [12, 12],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
-dlayer1 = dl1.feedforward(dlayer01)
+dlayer1 = dl1.feedforward(dlayer01) # 6 6
 flayer1 = fl1.feedforward(dlayer1)
 
 flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer11 = tf.cast(flayer11,dtype=tf.float64)
-dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) 
+dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3)) # 8 8
 flayer2 = fl2.feedforward(dlayer2)
 
 flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
-dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3),stride=2)
+dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
 flayer3 = fl3.feedforward(dlayer3)
 
-flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
-dlayer4 = dl4.feedforward(tf.concat([flayer3,elayer1],3),stride=1)
-flayer4 = fl4.feedforward(dlayer4)
+dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3))
+flayer5 = fl4.feedforward(dlayer4)
 
 cost0 = tf.reduce_mean(tf.square(flayer4-y))
 cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,
