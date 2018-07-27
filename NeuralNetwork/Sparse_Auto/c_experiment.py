@@ -266,8 +266,8 @@ class Sparse_Filter_Layer():
 
     def feedforward(self,input):
         self.sparse_layer  = tf.matmul(input,self.w)
-        # second = tf.nn.elu(self.sparse_layer)
-        second = self.soft_abs(self.sparse_layer )
+        second = tf.nn.elu(self.sparse_layer)
+        # second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
         self.cost_update = tf.reduce_mean(four)
@@ -297,14 +297,15 @@ for file_index in range(len(image_list)):
     train_images[file_index,:,:]   = imresize(imread(image_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
     train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
 
+train_images,train_labels = shuffle(train_images,train_labels)
 train_labels = (train_labels>25.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:40]
-train_label = train_labels[:40]
-test_batch = train_images[40:]
-test_label = train_labels[40:]
+train_batch = train_images[:60]
+train_label = train_labels[:60]
+test_batch = train_images[60:]
+test_label = train_labels[60:]
 
 # print out the data shape
 print('--------------------------------')
@@ -324,25 +325,25 @@ print(test_label.min())
 print('--------------------------------')
 
 # class
-el1 = CNN(3,3,4)
-el2 = CNN(3,4,8)
-el3 = CNN(3,8,16)
-el4 = CNN(3,16,32)
+el1 = CNN(3,3,8)
+el2 = CNN(3,8,16)
+el3 = CNN(3,16,32)
+el4 = CNN(3,32,12)
 
 reduce_dim = 9
-sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
+sparse_layer = Sparse_Filter_Layer(6*6*12,1*1*reduce_dim)
 
 dl0 = CNN_Trans(3,4,1)
 dl1 = CNN_Trans(3,4,4)
 fl1 = CNN(3,4,4)
 
-dl2 = CNN_Trans(3,4,20)
+dl2 = CNN_Trans(3,4,36)
 fl2 = CNN(3,4,4)
 
-dl3 = CNN_Trans(3,4,12)
+dl3 = CNN_Trans(3,4,20)
 fl3 = CNN(3,4,4)
 
-dl4 = CNN_Trans(3,4,8)
+dl4 = CNN_Trans(3,4,12)
 fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
