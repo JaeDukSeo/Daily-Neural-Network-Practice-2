@@ -348,9 +348,9 @@ dl4 = CNN_Trans(3,4,8)
 fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 1201
-learning_rate = 0.0009
-batch_size = 5
+num_epoch = 1001
+learning_rate = 0.0008
+batch_size = 10
 print_size = 100
 
 # graph
@@ -413,7 +413,6 @@ cost1 = tf.reduce_mean([sparse_cost0 ,sparse_cost1 ,sparse_cost2,
                         sparse_cost3 ,sparse_cost4 ,sparse_cost5])
 
 total_cost = cost0 + cost1
-# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 auto_train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
