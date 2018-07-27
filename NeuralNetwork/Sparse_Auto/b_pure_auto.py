@@ -291,10 +291,9 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
             mask_list.append(os.path.join(dirName,filename))
 
 image_resize_px = 96    
-train_images = np.zeros(shape=(170,image_resize_px,image_resize_px,3))
-train_labels = np.zeros(shape=(170,image_resize_px,image_resize_px,1))
-
-for file_index in range(len(image_list)):
+train_images = np.zeros(shape=(160,image_resize_px,image_resize_px,3))
+train_labels = np.zeros(shape=(160,image_resize_px,image_resize_px,1))
+for file_index in range(160):
     train_images[file_index,:,:]   = imresize(imread(image_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
     train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
 
@@ -303,10 +302,10 @@ train_labels = (train_labels>25.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:60]
-train_label = train_labels[:60]
-test_batch = train_images[60:]
-test_label = train_labels[60:]
+train_batch = train_images[:80]
+train_label = train_labels[:80]
+test_batch = train_images[80:]
+test_label = train_labels[80:]
 
 # print out the data shape
 print('--------------------------------')
