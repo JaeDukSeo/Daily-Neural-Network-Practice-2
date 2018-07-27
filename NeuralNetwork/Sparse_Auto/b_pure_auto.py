@@ -38,7 +38,7 @@ def tf_iden(x): return x
 def d_tf_iden(x): return 1.0
 
 def tf_softmax(x): return tf.nn.softmax(x)
-def tf_soft(x): return tf.sqrt(value ** 2 + 1e-10)
+def tf_soft(x): return tf.sqrt(x ** 2 + 1e-10)
 # ======= Activation Function  ==========
 
 # ====== miscellaneous =====
@@ -355,7 +355,7 @@ fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
-learning_rate = 0.0008
+learning_rate = 0.0003
 batch_size = 2
 print_size = 100
 

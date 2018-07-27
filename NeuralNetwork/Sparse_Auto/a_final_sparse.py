@@ -266,7 +266,6 @@ class Sparse_Filter_Layer():
 
     def feedforward(self,input):
         self.sparse_layer  = tf.matmul(input,self.w)
-        # second = tf.nn.elu(self.sparse_layer)
         second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
@@ -302,10 +301,10 @@ train_labels = (train_labels>25.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:60]
-train_label = train_labels[:60]
-test_batch = train_images[60:]
-test_label = train_labels[60:]
+train_batch = train_images[:10]
+train_label = train_labels[:10]
+test_batch = train_images[10:]
+test_label = train_labels[10:]
 
 # print out the data shape
 print('--------------------------------')
@@ -325,37 +324,37 @@ print(test_label.min())
 print('--------------------------------')
 
 # class
-el1 = CNN(3,3,4)
-el2 = CNN(3,4,8)
-el3 = CNN(3,8,16)
-el4 = CNN(3,16,32)
+el1 = CNN(3,3,8)
+el2 = CNN(3,8,16)
+el3 = CNN(3,16,32)
+el4 = CNN(3,32,12)
 
-reduce_dim = 16
-sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
+reduce_dim = 36
+sparse_layer = Sparse_Filter_Layer(6*6*12,1*1*reduce_dim)
 
-dl = CNN_Trans(3,6,1)
-fl = CNN(3,6,6)
+dl = CNN_Trans(3,10,1)
+fl = CNN(1,10,8)
 
-dl0 = CNN_Trans(3,6,6)
-fl0 = CNN(3,6,6)
+dl0 = CNN_Trans(3,10,8)
+fl0 = CNN(3,10,8)
 
-dl1 = CNN_Trans(3,6,6)
-fl1 = CNN(3,6,8)
+dl1 = CNN_Trans(3,10,8)
+fl1 = CNN(1,10,8)
 
-dl2 = CNN_Trans(3,10,24)
-fl2 = CNN(3,10,12)
+dl2 = CNN_Trans(3,10,40)
+fl2 = CNN(3,10,8)
 
-dl3 = CNN_Trans(3,14,20)
-fl3 = CNN(3,14,14)
+dl3 = CNN_Trans(3,10,24)
+fl3 = CNN(1,10,8)
 
-dl4 = CNN_Trans(3,4,18)
+dl4 = CNN_Trans(3,4,16)
 fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 1201
-learning_rate = 0.0008
-batch_size = 2
-print_size = 100
+num_epoch = 2201
+learning_rate = 0.0003
+batch_size = 5
+print_size = 200
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -392,19 +391,19 @@ sparse_layer_value9,sparse_cost9 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value10,sparse_cost10 = sparse_layer.feedforward(sparse_layer_input)
 sparse_layer_value11,sparse_cost11 = sparse_layer.feedforward(sparse_layer_input)
 
-sparse_layer_value = sparse_layer_value0 + sparse_layer_value1 + sparse_layer_value2 + \
-                      sparse_layer_value3 + sparse_layer_value4 + sparse_layer_value5 + \
-                      sparse_layer_value6 + sparse_layer_value7 + sparse_layer_value8 + \
-                      sparse_layer_value9 + sparse_layer_value10+ sparse_layer_value11
+sparse_layer_value = sparse_layer_value0 * sparse_layer_value1 * sparse_layer_value2 * \
+                      sparse_layer_value3 * sparse_layer_value4 * sparse_layer_value5 * \
+                      sparse_layer_value6 * sparse_layer_value7 * sparse_layer_value8 * \
+                      sparse_layer_value9 * sparse_layer_value10* sparse_layer_value11
 # ==== SPARSE FILTERING ========
 
-dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,4,4,1])
+dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,6,6,1])
 dlayer = dl.feedforward(dlayer0_input)
 flayer = fl.feedforward(dlayer)
 
-dlayer0_input = tf.image.resize_images(flayer, [6, 6],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
-dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input2)
+# dlayer0_input = tf.image.resize_images(flayer, [6, 6],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+# dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
+dlayer0 = dl0.feedforward(flayer)
 flayer0 = fl0.feedforward(dlayer0)
 
 dlayer01 = tf.image.resize_images(flayer0, [12, 12],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
@@ -452,7 +451,7 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        train_batch,train_label = shuffle(train_batch,train_label)
+        # train_batch,train_label = shuffle(train_batch,train_label)
         test_batch,test_label = shuffle(test_batch,test_label)
 
         # train for batch
