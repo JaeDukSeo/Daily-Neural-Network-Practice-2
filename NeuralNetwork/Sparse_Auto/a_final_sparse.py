@@ -302,10 +302,10 @@ train_labels = (train_labels>25.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:81]
-train_label = train_labels[:81]
-test_batch = train_images[87:]
-test_label = train_labels[87:]
+train_batch = train_images[:85]
+train_label = train_labels[:85]
+test_batch = train_images[85:]
+test_label = train_labels[85:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -323,45 +323,43 @@ print(test_label.max())
 print(test_label.min())
 
 # class
-el1 = CNN(3,3,4)
-el2 = CNN(3,4,8)
-el3 = CNN(3,8,16)
-el4 = CNN(3,16,8)
+el1 = CNN(3,3,8)
+el2 = CNN(3,8,16)
+el3 = CNN(3,16,32)
+el4 = CNN(3,32,64)
 
-reduce_dim = 36
-sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
+reduce_dim = 3
+sparse_layer = Sparse_Filter_Layer(6*6*64,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,4,1)
-dl1 = CNN_Trans(3,4,4)
-fl1 = CNN(3,4,4)
+dl0 = CNN_Trans(3,8,3)
+dl1 = CNN_Trans(3,16,8)
+fl1 = CNN(1,16,32)
 
-dl2 = CNN_Trans(3,4,20)
-fl2 = CNN(3,4,4)
+dl2 = CNN_Trans(3,32,64)
+fl2 = CNN(3,32,16)
 
-dl3 = CNN_Trans(3,4,12)
-fl3 = CNN(3,4,4)
+dl3 = CNN_Trans(3,16,32)
+fl3 = CNN(1,16,8)
 
-dl4 = CNN_Trans(3,4,8)
-fl4 = CNN(3,4,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,8,16)
+fl4 = CNN(3,8,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 800
-learning_rate = 0.0005
-batch_size = 3
-print_size = 50
+num_epoch = 3001
+num_to_change = 2500
+learning_rate = 0.0003
+batch_size = 5
+print_size = 20
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
 y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf.float64)
 
 elayer1 = el1.feedforward(x)
-
 elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input)
-
 elayer3_input = tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer3 = el3.feedforward(elayer3_input)
-
 elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer4 = el4.feedforward(elayer4_input)
 
@@ -370,10 +368,10 @@ sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 
 sparse_layer_value = sparse_layer_value0
-dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,6,6,1])
-# dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-# dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input,stride=1) # 3 3
+dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,1,1,3])
+dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
+dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
 
 dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
@@ -397,12 +395,12 @@ flayer5 = fl4.feedforward(dlayer4)
 
 cost0 = tf.reduce_sum(tf.square(flayer5-y))
 cost1 = sparse_cost0
-cost2 = -tf.reduce_sum(y * tf.log(1e-10 + flayer5)+ (1-y) * tf.log(1e-10 + 1 - flayer5))
+cost2 = -tf.reduce_sum(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
 
 total_cost1= cost1
-total_cost2= cost0+ cost1 + cost2
-auto_train1 = tf.train.RMSPropOptimizer(learning_rate=0.00003).minimize(cost1)
-auto_train2 = tf.train.RMSPropOptimizer(learning_rate=0.0001).minimize(cost0+ cost1 + cost2)
+total_cost2= cost0 + cost2
+auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost1)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost0+ cost1 + cost2)
 
 # sess
 with tf.Session() as sess:
@@ -419,7 +417,7 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        if iter > num_epoch//num_epoch//(3/4):
+        if iter > num_to_change:
             which_opt = auto_train2
             which_cost = total_cost2
         else:
@@ -443,7 +441,7 @@ with tf.Session() as sess:
             print('Current Iter: ',iter,' Accumulated Train cost : ', train_cota/(len(train_batch)/(batch_size)),end='\n')
             print("--------------")
 
-        if iter % print_size==0 and iter > num_epoch//(3/4):
+        if iter % print_size==0 and iter > num_to_change:
 
             # get one image from train batch and show results
             sess_results = sess.run(flayer5,feed_dict={x:train_batch[:batch_size]})
