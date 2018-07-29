@@ -323,32 +323,32 @@ print(test_label.max())
 print(test_label.min())
 
 # class
-el1 = CNN(3,3,6)
-el2 = CNN(3,6,12)
-el3 = CNN(3,12,24)
-el4 = CNN(3,24,12)
+el1 = CNN(3,3,32)
+el2 = CNN(3,32,64)
+el3 = CNN(3,64,128)
+el4 = CNN(3,128,64)
 
-reduce_dim = 4
-sparse_layer = Sparse_Filter_Layer(6*6*12,1*1*reduce_dim)
+reduce_dim = 9
+sparse_layer = Sparse_Filter_Layer(6*6*64,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,6,1)
-dl1 = CNN_Trans(3,12,6)
-fl1 = CNN(3,12,24)
+dl0 = CNN_Trans(3,32,1)
+dl1 = CNN_Trans(3,64,32)
+fl1 = CNN(3,64,128)
 
-dl2 = CNN_Trans(3,24,48)
-fl2 = CNN(3,24,12)
+dl2 = CNN_Trans(3,128,256)
+fl2 = CNN(3,128,64)
 
-dl3 = CNN_Trans(3,12,24)
-fl3 = CNN(3,12,6)
+dl3 = CNN_Trans(3,64,128)
+fl3 = CNN(3,64,32)
 
-dl4 = CNN_Trans(3,3,12)
-fl4 = CNN(3,3,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,32,64)
+fl4 = CNN(3,32,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 3001
-num_to_change = 2800
+num_to_change = 2201
 learning_rate = 0.0001
-batch_size = 5
+batch_size = 17
 print_size = 20
 
 # graph
@@ -368,7 +368,7 @@ sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 
 sparse_layer_value = sparse_layer_value0
-dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,2,2,1])
+dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,3,3,1])
 dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
 dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
@@ -399,8 +399,8 @@ cost2 = -tf.reduce_sum(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - f
 
 total_cost1= cost1
 total_cost2= cost0 + cost2
-auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost0+ cost1 + cost2)
+auto_train1 = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(cost1)
+auto_train2 = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(cost0+ cost1 + cost2)
 
 # sess
 with tf.Session() as sess:
