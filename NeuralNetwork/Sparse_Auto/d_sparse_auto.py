@@ -204,6 +204,8 @@ class FNN():
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
+    def getw(self): return self.w
+
     def feedforward(self,input=None):
         self.input = input
         self.layer = tf.matmul(input,self.w)
@@ -257,7 +259,7 @@ class Sparse_Filter_Layer():
     
     def __init__(self,outc,changec):
         self.w = tf.Variable(tf.truncated_normal([outc,changec],stddev=0.5,seed=2,dtype=tf.float64))
-        self.epsilon = 1e-10
+        self.epsilon = 1e-20
 
     def getw(self): return self.w
 
@@ -266,13 +268,11 @@ class Sparse_Filter_Layer():
 
     def feedforward(self,input):
         self.sparse_layer  = tf.matmul(input,self.w)
-        second = tf.nn.elu(self.sparse_layer )
-        # second = self.soft_abs(self.sparse_layer )
+        second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
         self.cost_update = tf.reduce_mean(four)
         return self.sparse_layer ,self.cost_update
-
 # ================= LAYER CLASSES =================
 
 # data
@@ -324,31 +324,31 @@ print(test_label.max())
 print(test_label.min())
 
 # class
-el1 = CNN(3,3,4)
-el2 = CNN(3,4,8)
-el3 = CNN(3,8,16)
-el4 = CNN(3,16,32)
+el1 = CNN(3,3,6)
+el2 = CNN(3,6,10)
+el3 = CNN(3,10,18)
+el4 = CNN(3,18,24)
 
 reduce_dim = 4
-sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
+sparse_layer = Sparse_Filter_Layer(6*6*24,1*1*reduce_dim)
 
 dl0 = CNN_Trans(3,4,1)
 dl1 = CNN_Trans(3,8,4)
 fl1 = CNN(3,8,8)
 
-dl2 = CNN_Trans(3,8,24)
+dl2 = CNN_Trans(3,8,26)
 fl2 = CNN(3,8,8)
 
-dl3 = CNN_Trans(3,8,16)
+dl3 = CNN_Trans(3,8,18)
 fl3 = CNN(3,8,8)
 
-dl4 = CNN_Trans(3,3,12)
-fl4 = CNN(3,3,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,4,14)
+fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
 num_to_change = 800
-learning_rate = 0.00008
+learning_rate = 0.0001
 batch_size = 5
 print_size = 10
 
@@ -406,7 +406,7 @@ cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - 
 total_cost1= cost1
 total_cost2= cost2 + cost0 + cost1
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*15.0).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
