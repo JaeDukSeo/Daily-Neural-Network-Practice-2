@@ -324,73 +324,78 @@ print(test_label.max())
 print(test_label.min())
 
 # class
-el1 = CNN(3,3,8)
-el2 = CNN(3,8,16)
-el3 = CNN(3,16,32)
-el4 = CNN(3,32,8)
+el1 = CNN(3,3,4)
+el2 = CNN(3,4,8)
+el3 = CNN(3,8,16)
+el4 = CNN(3,16,32)
 
-reduce_dim = 9
-sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
+reduce_dim = 4
+sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,8,1)
-dl1 = CNN_Trans(3,16,8)
-fl1 = CNN(3,16,32)
+dl0 = CNN_Trans(3,4,1)
+dl1 = CNN_Trans(3,8,4)
+fl1 = CNN(3,8,8)
 
-dl2 = CNN_Trans(3,32,64)
-fl2 = CNN(3,32,16)
+dl2 = CNN_Trans(3,8,24)
+fl2 = CNN(3,8,8)
 
-dl3 = CNN_Trans(3,16,32)
-fl3 = CNN(3,16,8)
+dl3 = CNN_Trans(3,8,16)
+fl3 = CNN(3,8,8)
 
-dl4 = CNN_Trans(3,3,16)
-fl4 = CNN(3,3,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,6,12)
+fl4 = CNN(3,6,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 2001
+num_epoch = 1201
 num_to_change = 800
-learning_rate = 0.000008
+learning_rate = 0.0003
 batch_size = 5
-print_size = 100
+print_size = 10
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
 y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf.float64)
 
 elayer1 = el1.feedforward(x)
+
 elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer2 = el2.feedforward(elayer2_input)
-elayer3_input = tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+
+elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer3 = el3.feedforward(elayer3_input)
+
 elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 elayer4 = el4.feedforward(elayer4_input)
 
-sparse_input = tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 
-sparse_layer_value = sparse_layer_value0
-dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,3,3,1])
-dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=True)
+dlayer0_input = tf.reshape(sparse_layer_value0,[batch_size,2,2,1])
+dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
 dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
 
-dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BILINEAR,align_corners=True)
+dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
-dlayer1 = dl1.feedforward(dlayer01,stride=1) # 6 6
+dlayer1 = dl1.feedforward(dlayer01) # 6 6
 flayer1 = fl1.feedforward(dlayer1)
 
-flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=True)
+flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer11 = tf.cast(flayer11,dtype=tf.float64)
+
 dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
 flayer2 = fl2.feedforward(dlayer2)
 
-flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=True)
+flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
-dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3),stride=1)
+
+dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
 flayer3 = fl3.feedforward(dlayer3)
 
-flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BILINEAR,align_corners=True)
+flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
+
 dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
 flayer5 = fl4.feedforward(dlayer4)
 
@@ -401,7 +406,7 @@ cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - 
 total_cost1= cost1
 total_cost2= cost2 + cost0 + cost1
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*20.0).minimize(total_cost2)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
