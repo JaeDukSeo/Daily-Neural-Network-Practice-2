@@ -348,7 +348,7 @@ fl4 = CNN(3,32,1,act=tf_sigmoid)
 num_epoch = 3001
 num_to_change = 2201
 learning_rate = 0.0001
-batch_size = 17
+batch_size = 5
 print_size = 20
 
 # graph
@@ -373,7 +373,7 @@ dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.Res
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
 dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
 
-dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
 dlayer1 = dl1.feedforward(dlayer01,stride=1) # 6 6
 flayer1 = fl1.feedforward(dlayer1)
@@ -383,7 +383,7 @@ flayer11 = tf.cast(flayer11,dtype=tf.float64)
 dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
 flayer2 = fl2.feedforward(dlayer2)
 
-flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
 dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3),stride=1)
 flayer3 = fl3.feedforward(dlayer3)
@@ -393,14 +393,14 @@ flayer31 = tf.cast(flayer31,dtype=tf.float64)
 dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
 flayer5 = fl4.feedforward(dlayer4)
 
-cost0 = tf.reduce_sum(tf.square(flayer5-y))
+cost0 = tf.reduce_mean(tf.square(flayer5-y))
 cost1 = sparse_cost0
-cost2 = -tf.reduce_sum(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
+# cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
 
 total_cost1= cost1
-total_cost2= cost0 + cost2
-auto_train1 = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(cost1)
-auto_train2 = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(cost0+ cost1 + cost2)
+total_cost2= cost0 
+auto_train1 = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost1)
+auto_train2 = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
