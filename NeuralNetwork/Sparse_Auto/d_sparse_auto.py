@@ -358,22 +358,22 @@ y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf
 
 elayer1 = el1.feedforward(x)
 
-elayer2_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer2_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
 elayer2_input = tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer2_input_weight +\
 tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer2_input_weight)
 elayer2 = el2.feedforward(elayer2_input)
 
-elayer3_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer3_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
 elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer3_input_weight +\
 tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer3_input_weight)
 elayer3 = el3.feedforward(elayer3_input)
 
-elayer4_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer4_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
 elayer4_input = tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer4_input_weight +\
 tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer4_input_weight)
 elayer4 = el4.feedforward(elayer4_input)
 
-sparse_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+sparse_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
 sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * sparse_input_weight +\
 tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-sparse_input_weight)
 sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
