@@ -266,7 +266,8 @@ class Sparse_Filter_Layer():
 
     def feedforward(self,input):
         self.sparse_layer  = tf.matmul(input,self.w)
-        second = self.soft_abs(self.sparse_layer )
+        second = tf.nn.elu(self.sparse_layer )
+        # second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
         self.cost_update = tf.reduce_mean(four)
@@ -323,33 +324,33 @@ print(test_label.max())
 print(test_label.min())
 
 # class
-el1 = CNN(3,3,16)
-el2 = CNN(3,16,32)
-el3 = CNN(3,32,64)
-el4 = CNN(3,64,16)
+el1 = CNN(3,3,8)
+el2 = CNN(3,8,16)
+el3 = CNN(3,16,32)
+el4 = CNN(3,32,8)
 
-reduce_dim = 9
-sparse_layer = Sparse_Filter_Layer(6*6*16,1*1*reduce_dim)
+reduce_dim = 4
+sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,16,1)
-dl1 = CNN_Trans(3,32,16)
-fl1 = CNN(3,32,64)
+dl0 = CNN_Trans(3,8,1)
+dl1 = CNN_Trans(3,16,8)
+fl1 = CNN(3,16,32)
 
-dl2 = CNN_Trans(3,64,128)
-fl2 = CNN(3,64,32)
+dl2 = CNN_Trans(3,32,64)
+fl2 = CNN(3,32,16)
 
-dl3 = CNN_Trans(3,32,64)
-fl3 = CNN(3,32,16)
+dl3 = CNN_Trans(3,16,32)
+fl3 = CNN(3,16,8)
 
-dl4 = CNN_Trans(3,4,32)
-fl4 = CNN(3,4,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,3,16)
+fl4 = CNN(3,3,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 1501
-num_to_change = 1000
-learning_rate = 0.0005  
+num_epoch = 2001
+num_to_change = 800
+learning_rate = 0.000008
 batch_size = 5
-print_size = 20
+print_size = 100
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -368,7 +369,7 @@ sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 
 sparse_layer_value = sparse_layer_value0
-dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,3,3,1])
+dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,2,2,1])
 dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=True)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
 dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
@@ -399,8 +400,8 @@ cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - 
 
 total_cost1= cost1
 total_cost2= cost2 + cost0 + cost1
-auto_train1 = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost2)
+auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*20.0).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
