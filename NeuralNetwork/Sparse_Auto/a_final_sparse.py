@@ -348,7 +348,7 @@ fl4 = CNN(3,3,1,act=tf_sigmoid)
 # hyper
 num_epoch = 1201
 num_to_change = 800
-learning_rate = 0.0003
+learning_rate = 0.00008
 batch_size = 5
 print_size = 10
 
@@ -406,7 +406,7 @@ cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - 
 total_cost1= cost1
 total_cost2= cost2 + cost0 + cost1
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*8.0).minimize(total_cost2)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
