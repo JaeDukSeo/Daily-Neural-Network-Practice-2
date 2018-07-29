@@ -342,8 +342,8 @@ fl2 = CNN(3,8,8)
 dl3 = CNN_Trans(3,8,16)
 fl3 = CNN(3,8,8)
 
-dl4 = CNN_Trans(3,6,12)
-fl4 = CNN(3,6,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,3,12)
+fl4 = CNN(3,3,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
@@ -406,7 +406,7 @@ cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - 
 total_cost1= cost1
 total_cost2= cost2 + cost0 + cost1
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost2)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*8.0).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
@@ -455,8 +455,8 @@ with tf.Session() as sess:
             test_change_gt = train_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
 
-            f, axarr = plt.subplots(2, 3,figsize=(27,18))
-            plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
+            f, axarr = plt.subplots(2, 3,figsize=(30,20))
+            plt.suptitle('Current Iter' + str(iter),fontsize=20)
             axarr[0, 0].axis('off')
             axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
 
@@ -484,8 +484,8 @@ with tf.Session() as sess:
             test_change_gt = test_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
 
-            f, axarr = plt.subplots(2, 3,figsize=(27,18))
-            plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
+            f, axarr = plt.subplots(2, 3,figsize=(30,20))
+            plt.suptitle('Current Iter' + str(iter),fontsize=20)
             axarr[0, 0].axis('off')
             axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
 
