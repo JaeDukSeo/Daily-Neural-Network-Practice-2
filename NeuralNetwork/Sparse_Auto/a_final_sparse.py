@@ -329,7 +329,7 @@ el2 = CNN(3,8,16)
 el3 = CNN(3,16,32)
 el4 = CNN(3,32,8)
 
-reduce_dim = 4
+reduce_dim = 9
 sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
 
 dl0 = CNN_Trans(3,8,1)
@@ -369,7 +369,7 @@ sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 
 sparse_layer_value = sparse_layer_value0
-dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,2,2,1])
+dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,3,3,1])
 dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=True)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
 dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
