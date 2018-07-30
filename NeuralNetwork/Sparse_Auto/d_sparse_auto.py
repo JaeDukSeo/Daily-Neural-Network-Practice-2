@@ -324,30 +324,30 @@ print(test_label.max())
 print(test_label.min())
 
 # class
-el1 = CNN(3,3,6)
-el2 = CNN(3,6,10)
-el3 = CNN(3,10,18)
-el4 = CNN(3,18,24)
+el1 = CNN(3,3,8)
+el2 = CNN(3,8,16)
+el3 = CNN(3,16,32)
+el4 = CNN(3,32,32)
 
 reduce_dim = 4
-sparse_layer = Sparse_Filter_Layer(6*6*24,1*1*reduce_dim)
+sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,4,1)
-dl1 = CNN_Trans(3,8,4)
-fl1 = CNN(3,8,8)
+dl0 = CNN_Trans(3,8,1)
+dl1 = CNN_Trans(3,16,8)
+fl1 = CNN(3,16,32)
 
-dl2 = CNN_Trans(3,8,26)
-fl2 = CNN(3,8,8)
+dl2 = CNN_Trans(3,32,64)
+fl2 = CNN(3,32,16)
 
-dl3 = CNN_Trans(3,8,18)
-fl3 = CNN(3,8,8)
+dl3 = CNN_Trans(3,16,32)
+fl3 = CNN(3,16,8)
 
-dl4 = CNN_Trans(3,4,14)
-fl4 = CNN(3,4,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,6,16)
+fl4 = CNN(3,6,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
-num_to_change = 800
+num_to_change = 300
 learning_rate = 0.0001
 batch_size = 5
 print_size = 10
@@ -358,22 +358,22 @@ y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf
 
 elayer1 = el1.feedforward(x)
 
-elayer2_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
-elayer2_input = tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer2_input_weight +\
-tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer2_input_weight)
+elayer2_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer2_input_weight +\
+tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer2_input_weight)
 elayer2 = el2.feedforward(elayer2_input)
 
-elayer3_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
+elayer3_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
 elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer3_input_weight +\
 tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer3_input_weight)
 elayer3 = el3.feedforward(elayer3_input)
 
-elayer4_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
-elayer4_input = tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer4_input_weight +\
-tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer4_input_weight)
+elayer4_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer4_input_weight +\
+tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer4_input_weight)
 elayer4 = el4.feedforward(elayer4_input)
 
-sparse_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
+sparse_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
 sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * sparse_input_weight +\
 tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-sparse_input_weight)
 sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
@@ -414,7 +414,7 @@ cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - 
 total_cost1= cost1
 total_cost2= cost2 + cost0 + cost1
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*15.0).minimize(total_cost2)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
