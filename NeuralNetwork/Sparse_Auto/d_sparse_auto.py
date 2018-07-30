@@ -348,25 +348,25 @@ el4 = CNN(3,16,8)
 reduce_dim = 3*3*1
 sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,4,1)
-dl1 = CNN_Trans(3,4,4)
-fl1 = CNN(3,4,4)
+dl0 = CNN_Trans(1,3,1)
+dl1 = CNN_Trans(1,3,3)
+fl1 = CNN(1,3,3)
 
-dl2 = CNN_Trans(3,4,20)
-fl2 = CNN(3,4,4)
+dl2 = CNN_Trans(3,3,19)
+fl2 = CNN(3,3,3)
 
-dl3 = CNN_Trans(3,4,12)
-fl3 = CNN(3,4,4)
+dl3 = CNN_Trans(3,3,11)
+fl3 = CNN(3,3,3)
 
-dl4 = CNN_Trans(3,4,8)
-fl4 = CNN(3,4,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,3,7)
+fl4 = CNN(3,3,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 801
 num_to_change = 200 
 learning_rate = 0.0005
 batch_size = 5
-print_size = 50
+print_size = 10
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -410,12 +410,12 @@ flayer11 = tf.cast(flayer11,dtype=tf.float64)
 dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) 
 flayer2 = fl2.feedforward(dlayer2)
 
-flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
 dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
 flayer3 = fl3.feedforward(dlayer3)
 
-flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
 dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
 flayer5 = fl4.feedforward(dlayer4)
@@ -424,9 +424,9 @@ cost0 = tf.reduce_mean(tf.square(flayer5-y))
 cost1 = sparse_cost
 cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
 total_cost1= cost1
-total_cost2= cost2 + cost0 +cost1*1.5
+total_cost2= cost2 + cost0 +cost1*1.75
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*5.0).minimize(total_cost2)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
@@ -526,7 +526,6 @@ with tf.Session() as sess:
 
             plt.savefig('test_change/'+str(iter)+"_test_results.png",bbox_inches='tight')
             plt.close('all')
-
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 

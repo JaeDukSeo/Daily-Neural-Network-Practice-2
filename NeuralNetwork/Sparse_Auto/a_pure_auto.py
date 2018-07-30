@@ -38,6 +38,7 @@ def tf_iden(x): return x
 def d_tf_iden(x): return 1.0
 
 def tf_softmax(x): return tf.nn.softmax(x)
+def softabs(x): return tf.sqrt(x ** 2 + 1e-20)
 # ======= Activation Function  ==========
 
 # ====== miscellaneous =====
@@ -119,7 +120,7 @@ class CNN():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
-    def getw(self): return self.w
+    def getw(self): return [self.w]
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
@@ -159,7 +160,7 @@ class CNN_Trans():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
-    def getw(self): return self.w
+    def getw(self): return [self.w]
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
@@ -204,7 +205,7 @@ class FNN():
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
-    def getw(self): return self.w
+    def getw(self): return [self.w]
 
     def feedforward(self,input=None):
         self.input = input
@@ -346,27 +347,27 @@ el3 = CNN(3,8,16)
 el4 = CNN(3,16,8)
 
 reduce_dim = 3*3*1
-full_layer = FNN(6*6*32,1*1*reduce_dim)
+full_layer = FNN(6*6*8,1*1*reduce_dim,act=softabs,d_act=d_tf_atan)
 
-dl0 = CNN_Trans(3,2,1)
-dl1 = CNN_Trans(3,2,2)
-fl1 = CNN(3,2,2)
+dl0 = CNN_Trans(1,3,1)
+dl1 = CNN_Trans(1,3,3)
+fl1 = CNN(1,3,3)
 
-dl2 = CNN_Trans(3,2,18)
-fl2 = CNN(3,2,2)
+dl2 = CNN_Trans(3,3,19)
+fl2 = CNN(3,3,3)
 
-dl3 = CNN_Trans(3,2,10)
-fl3 = CNN(3,2,2)
+dl3 = CNN_Trans(3,3,11)
+fl3 = CNN(3,3,3)
 
-dl4 = CNN_Trans(3,2,6)
-fl4 = CNN(3,2,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,3,7)
+fl4 = CNN(3,3,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 801
 num_to_change = 200 
 learning_rate = 0.0005
 batch_size = 5
-print_size = 50
+print_size = 10
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -424,7 +425,7 @@ cost0 = tf.reduce_mean(tf.square(flayer5-y))
 cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
 
 total_cost= cost0+cost2
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost)
 
 # sess
 with tf.Session() as sess:
@@ -520,22 +521,8 @@ with tf.Session() as sess:
 
             plt.savefig('test_change/'+str(iter)+"_test_results.png",bbox_inches='tight')
             plt.close('all')
-
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
-
-    # final all train images
-    for batch_size_index in range(0,len(mall_data),batch_size):
-        current_batch = mall_data[batch_size_index:batch_size_index+batch_size]    
-        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
-        for xx in range(len(sess_results)):
-            test_change_predict = sess_results[xx]
-            plt.figure(figsize=(8, 8))    
-            plt.imshow(np.squeeze(current_batch[xx]),cmap='gray')
-            plt.imshow(np.squeeze(test_change_predict), cmap='hot', alpha=0.1)
-            plt.axis('off')
-            plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
-            plt.close('all')
 
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
@@ -622,9 +609,9 @@ with tf.Session() as sess:
             test_change_predict = sess_results[xx]
             plt.figure(figsize=(8, 8))    
             plt.imshow(np.squeeze(current_batch[xx]),cmap='gray')
-            plt.imshow(np.squeeze(test_change_predict), cmap='hot', alpha=0.1)
+            plt.imshow(np.squeeze(test_change_predict), cmap='hot', alpha=0.5)
             plt.axis('off')
-            plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
+            plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+".png",bbox_inches='tight')
             plt.close('all')
 
 
