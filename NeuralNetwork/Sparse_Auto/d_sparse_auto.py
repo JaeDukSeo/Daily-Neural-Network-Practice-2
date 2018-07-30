@@ -290,18 +290,30 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
         if  ".png" in filename.lower() :  # check whether the file's DICOM \PedMasks
             mask_list.append(os.path.join(dirName,filename))
 
-image_resize_px = 96    
+mall_data_list = []
+PathDicom = "../../Dataset/MallData/frames/"
+for dirName, subdirList, fileList in os.walk(PathDicom):
+    for filename in fileList:
+        if  ".jpg" in filename.lower() :  # check whether the file's DICOM \PedMasks
+            mall_data_list.append(os.path.join(dirName,filename))
+
+image_resize_px = 96  
 train_images = np.zeros(shape=(170,image_resize_px,image_resize_px,3))
 train_labels = np.zeros(shape=(170,image_resize_px,image_resize_px,1))
+mall_data = np.zeros(shape=(500,image_resize_px,image_resize_px,3))
+
+for file_index in range(len(mall_data)):
+    mall_data[file_index,:,:]   = imresize(imread(mall_data_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
 
 for file_index in range(len(image_list)):
     train_images[file_index,:,:]   = imresize(imread(image_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
     train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
 
 train_images,train_labels = shuffle(train_images,train_labels)
-train_labels = (train_labels>25.0) * 255.0
+train_labels = (train_labels>30.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
+mall_data = mall_data/255.0
 
 train_batch = train_images[:85]
 train_label = train_labels[:85]
@@ -323,34 +335,38 @@ print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
 
-# class
-el1 = CNN(3,3,8)
-el2 = CNN(3,8,16)
-el3 = CNN(3,16,32)
-el4 = CNN(3,32,32)
+print(mall_data.shape)
+print(mall_data.max())
+print(mall_data.min())
 
-reduce_dim = 3*3*3
+# class
+el1 = CNN(3,3,4)
+el2 = CNN(3,4,8)
+el3 = CNN(3,8,16)
+el4 = CNN(3,16,32)
+
+reduce_dim = 3*3*1
 sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,8,3)
-dl1 = CNN_Trans(3,16,8)
-fl1 = CNN(3,16,32)
+dl0 = CNN_Trans(3,3,1)
+dl1 = CNN_Trans(3,3,3)
+fl1 = CNN(3,3,3)
 
-dl2 = CNN_Trans(3,32,64)
-fl2 = CNN(3,32,16)
+dl2 = CNN_Trans(3,3,19)
+fl2 = CNN(3,3,3)
 
-dl3 = CNN_Trans(3,16,32)
-fl3 = CNN(3,16,8)
+dl3 = CNN_Trans(3,3,11)
+fl3 = CNN(3,3,3)
 
-dl4 = CNN_Trans(3,6,16)
-fl4 = CNN(3,6,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,3,7)
+fl4 = CNN(3,3,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 1001 
-num_to_change = 300
-learning_rate = 0.0005
+num_epoch = 1000
+num_to_change = 500
+learning_rate = 0.0001
 batch_size = 5
-print_size = 50
+print_size = 20
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -358,52 +374,49 @@ y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf
 
 elayer1 = el1.feedforward(x)
 
-elayer2_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
-elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer2_input_weight +\
+elayer2_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') *elayer2_input_weight +\
 tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer2_input_weight)
 elayer2 = el2.feedforward(elayer2_input)
 
-elayer3_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
-elayer3_input = tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer3_input_weight +\
-tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer3_input_weight)
+elayer3_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') *elayer3_input_weight +\
+tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer3_input_weight)
 elayer3 = el3.feedforward(elayer3_input)
 
-elayer4_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
-elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer4_input_weight +\
+elayer4_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')*elayer4_input_weight +\
 tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer4_input_weight)
 elayer4 = el4.feedforward(elayer4_input)
 
-sparse_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
-sparse_input = tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * sparse_input_weight +\
-tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-sparse_input_weight)
+sparse_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') *sparse_input_weight +\
+tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-sparse_input_weight)
 sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.reshape(sparse_layer_value0,[batch_size,3,3,3])
+dlayer0_input = tf.reshape(sparse_layer_value0,[batch_size,3,3,1])
 dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
+dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) 
 
 dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
-dlayer1 = dl1.feedforward(dlayer01) # 6 6
+dlayer1 = dl1.feedforward(dlayer01) 
 flayer1 = fl1.feedforward(dlayer1)
 
 flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer11 = tf.cast(flayer11,dtype=tf.float64)
-
-dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
+dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) 
 flayer2 = fl2.feedforward(dlayer2)
 
 flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
-
 dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
 flayer3 = fl3.feedforward(dlayer3)
 
 flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
-
 dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
 flayer5 = fl4.feedforward(dlayer4)
 
@@ -412,9 +425,9 @@ cost1 = sparse_cost0
 cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
 
 total_cost1= cost1
-total_cost2= cost2 + cost0 + cost1
+total_cost2= cost2 + cost0 +cost1*1.5
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost2)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
@@ -518,6 +531,22 @@ with tf.Session() as sess:
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 
+    # final all train images
+    for batch_size_index in range(0,len(train_batch),batch_size):
+        current_batch = mall_data[batch_size_index:batch_size_index+batch_size]    
+        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
+        for xx in range(len(sess_results)):
+
+            # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
+            test_change_predict = sess_results[xx]
+
+            plt.imshow(np.squeeze(current_batch[xx]),cmap='gray')
+            plt.imshow(np.squeeze(test_change_predict), cmap='jet', alpha=0.5)
+            plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
+            plt.close('all')
+
+
+
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
 
@@ -594,6 +623,8 @@ with tf.Session() as sess:
 
             plt.savefig('final_test/'+str(batch_size_index)+"_"+str(xx)+"_test_results.png",bbox_inches='tight')
             plt.close('all')
+
+
 
 
 # -- end code --
