@@ -258,7 +258,7 @@ class ICA_Layer():
 class Sparse_Filter_Layer():
     
     def __init__(self,outc,changec):
-        self.w = tf.Variable(tf.truncated_normal([outc,changec],stddev=0.05,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(tf.random_normal([outc,changec],stddev=1.0,seed=2,dtype=tf.float64))
         self.epsilon = 1e-20
 
     def getw(self): return self.w
@@ -346,11 +346,11 @@ dl4 = CNN_Trans(3,6,16)
 fl4 = CNN(3,6,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 1201
+num_epoch = 1001 
 num_to_change = 300
 learning_rate = 0.0005
 batch_size = 5
-print_size = 10
+print_size = 50
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -358,24 +358,24 @@ y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf
 
 elayer1 = el1.feedforward(x)
 
-elayer2_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer2_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
 elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer2_input_weight +\
 tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer2_input_weight)
 elayer2 = el2.feedforward(elayer2_input)
 
-elayer3_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
-elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer3_input_weight +\
-tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer3_input_weight)
+elayer3_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
+elayer3_input = tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer3_input_weight +\
+tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer3_input_weight)
 elayer3 = el3.feedforward(elayer3_input)
 
-elayer4_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer4_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
 elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer4_input_weight +\
 tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer4_input_weight)
 elayer4 = el4.feedforward(elayer4_input)
 
-sparse_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
-sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * sparse_input_weight +\
-tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-sparse_input_weight)
+sparse_input_weight = tf.Variable(tf.random_uniform([],minval=0.0,maxval=1.0,seed=2,dtype=tf.float64))
+sparse_input = tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * sparse_input_weight +\
+tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-sparse_input_weight)
 sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 

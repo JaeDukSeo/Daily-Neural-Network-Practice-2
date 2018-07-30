@@ -348,7 +348,7 @@ fl4 = CNN(3,6,1,act=tf_sigmoid)
 # hyper
 num_epoch = 1201
 num_to_change = 300
-learning_rate = 0.0001
+learning_rate = 0.0005
 batch_size = 5
 print_size = 10
 
