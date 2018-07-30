@@ -310,7 +310,7 @@ for file_index in range(len(image_list)):
     train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
 
 train_images,train_labels = shuffle(train_images,train_labels)
-train_labels = (train_labels>30.0) * 255.0
+train_labels = (train_labels>10.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 mall_data = mall_data/255.0
@@ -362,11 +362,11 @@ dl4 = CNN_Trans(3,2,6)
 fl4 = CNN(3,2,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 401
-num_to_change = 250
-learning_rate = 0.0001
+num_epoch = 801
+num_to_change = 200 
+learning_rate = 0.0005
 batch_size = 5
-print_size = 20
+print_size = 50
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -425,9 +425,9 @@ cost1 = sparse_cost0
 cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
 
 total_cost1= cost1
-total_cost2= cost2 + cost0 +cost1*2.5
+total_cost2= cost2 + cost0 +cost1*1.5
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
@@ -531,21 +531,18 @@ with tf.Session() as sess:
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 
-    # final all train images
-    for batch_size_index in range(0,len(train_batch),batch_size):
+    # segment for mall data
+    for batch_size_index in range(0,len(mall_data),batch_size):
         current_batch = mall_data[batch_size_index:batch_size_index+batch_size]    
         sess_results = sess.run(flayer5,feed_dict={x:current_batch})
         for xx in range(len(sess_results)):
-
             test_change_predict = sess_results[xx]
             plt.figure(figsize=(8, 8))    
             plt.imshow(np.squeeze(current_batch[xx]),cmap='gray')
-            plt.imshow(np.squeeze(test_change_predict), cmap='jet', alpha=0.05)
+            plt.imshow(np.squeeze(test_change_predict), cmap='hot', alpha=0.1)
             plt.axis('off')
             plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
             plt.close('all')
-
-
 
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
@@ -591,7 +588,7 @@ with tf.Session() as sess:
             plt.savefig('final_train/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
             plt.close('all')
 
-
+    # final all test images
     for batch_size_index in range(0,len(test_batch),batch_size):
         current_batch = test_batch[batch_size_index:batch_size_index+batch_size]    
         current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
@@ -624,6 +621,18 @@ with tf.Session() as sess:
             plt.savefig('final_test/'+str(batch_size_index)+"_"+str(xx)+"_test_results.png",bbox_inches='tight')
             plt.close('all')
 
+    # final all mall images
+    for batch_size_index in range(0,len(mall_data),batch_size):
+        current_batch = mall_data[batch_size_index:batch_size_index+batch_size]    
+        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
+        for xx in range(len(sess_results)):
+            test_change_predict = sess_results[xx]
+            plt.figure(figsize=(8, 8))    
+            plt.imshow(np.squeeze(current_batch[xx]),cmap='gray')
+            plt.imshow(np.squeeze(test_change_predict), cmap='hot', alpha=0.1)
+            plt.axis('off')
+            plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
+            plt.close('all')
 
 
 
