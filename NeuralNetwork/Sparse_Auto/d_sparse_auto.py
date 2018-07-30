@@ -348,18 +348,18 @@ el4 = CNN(3,16,8)
 reduce_dim = 3*3*1
 sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,2,1)
-dl1 = CNN_Trans(3,2,2)
-fl1 = CNN(3,2,2)
+dl0 = CNN_Trans(3,4,1)
+dl1 = CNN_Trans(3,4,4)
+fl1 = CNN(3,4,4)
 
-dl2 = CNN_Trans(3,2,18)
-fl2 = CNN(3,2,2)
+dl2 = CNN_Trans(3,4,20)
+fl2 = CNN(3,4,4)
 
-dl3 = CNN_Trans(3,2,10)
-fl3 = CNN(3,2,2)
+dl3 = CNN_Trans(3,4,12)
+fl3 = CNN(3,4,4)
 
-dl4 = CNN_Trans(3,2,6)
-fl4 = CNN(3,2,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,4,8)
+fl4 = CNN(3,4,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 801
@@ -393,9 +393,9 @@ sparse_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=t
 sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') *sparse_input_weight +\
 tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-sparse_input_weight)
 sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
-sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
+sparse_layer_value,sparse_cost = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.reshape(sparse_layer_value0,[batch_size,3,3,1])
+dlayer0_input = tf.reshape(sparse_layer_value,[batch_size,3,3,1])
 dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
 dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) 
@@ -421,13 +421,12 @@ dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
 flayer5 = fl4.feedforward(dlayer4)
 
 cost0 = tf.reduce_mean(tf.square(flayer5-y))
-cost1 = sparse_cost0
+cost1 = sparse_cost
 cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
-
 total_cost1= cost1
 total_cost2= cost2 + cost0 +cost1*1.5
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost2)
+auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*5.0).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
@@ -531,19 +530,6 @@ with tf.Session() as sess:
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 
-    # segment for mall data
-    for batch_size_index in range(0,len(mall_data),batch_size):
-        current_batch = mall_data[batch_size_index:batch_size_index+batch_size]    
-        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
-        for xx in range(len(sess_results)):
-            test_change_predict = sess_results[xx]
-            plt.figure(figsize=(8, 8))    
-            plt.imshow(np.squeeze(current_batch[xx]),cmap='gray')
-            plt.imshow(np.squeeze(test_change_predict), cmap='hot', alpha=0.1)
-            plt.axis('off')
-            plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
-            plt.close('all')
-
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
 
@@ -629,9 +615,9 @@ with tf.Session() as sess:
             test_change_predict = sess_results[xx]
             plt.figure(figsize=(8, 8))    
             plt.imshow(np.squeeze(current_batch[xx]),cmap='gray')
-            plt.imshow(np.squeeze(test_change_predict), cmap='hot', alpha=0.1)
+            plt.imshow(np.squeeze(test_change_predict), cmap='hot', alpha=0.5)
             plt.axis('off')
-            plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
+            plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+".png",bbox_inches='tight')
             plt.close('all')
 
 
