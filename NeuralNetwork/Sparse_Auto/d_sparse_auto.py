@@ -329,10 +329,10 @@ el2 = CNN(3,8,16)
 el3 = CNN(3,16,32)
 el4 = CNN(3,32,32)
 
-reduce_dim = 4
+reduce_dim = 3*3*3
 sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,8,1)
+dl0 = CNN_Trans(3,8,3)
 dl1 = CNN_Trans(3,16,8)
 fl1 = CNN(3,16,32)
 
@@ -379,7 +379,7 @@ tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0
 sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
 sparse_layer_value0,sparse_cost0 = sparse_layer.feedforward(sparse_layer_input)
 
-dlayer0_input = tf.reshape(sparse_layer_value0,[batch_size,2,2,1])
+dlayer0_input = tf.reshape(sparse_layer_value0,[batch_size,3,3,3])
 dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
 dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
@@ -414,7 +414,7 @@ cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - 
 total_cost1= cost1
 total_cost2= cost2 + cost0 + cost1
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
+auto_train2 = tf.train.RMSPropOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
 
 # sess
 with tf.Session() as sess:
