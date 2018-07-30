@@ -343,27 +343,27 @@ print(mall_data.min())
 el1 = CNN(3,3,4)
 el2 = CNN(3,4,8)
 el3 = CNN(3,8,16)
-el4 = CNN(3,16,32)
+el4 = CNN(3,16,8)
 
 reduce_dim = 3*3*1
-sparse_layer = Sparse_Filter_Layer(6*6*32,1*1*reduce_dim)
+sparse_layer = Sparse_Filter_Layer(6*6*8,1*1*reduce_dim)
 
-dl0 = CNN_Trans(3,3,1)
-dl1 = CNN_Trans(3,3,3)
-fl1 = CNN(3,3,3)
+dl0 = CNN_Trans(3,2,1)
+dl1 = CNN_Trans(3,2,2)
+fl1 = CNN(3,2,2)
 
-dl2 = CNN_Trans(3,3,19)
-fl2 = CNN(3,3,3)
+dl2 = CNN_Trans(3,2,18)
+fl2 = CNN(3,2,2)
 
-dl3 = CNN_Trans(3,3,11)
-fl3 = CNN(3,3,3)
+dl3 = CNN_Trans(3,2,10)
+fl3 = CNN(3,2,2)
 
-dl4 = CNN_Trans(3,3,7)
-fl4 = CNN(3,3,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,2,6)
+fl4 = CNN(3,2,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 1000
-num_to_change = 500
+num_epoch = 401
+num_to_change = 250
 learning_rate = 0.0001
 batch_size = 5
 print_size = 20
@@ -425,7 +425,7 @@ cost1 = sparse_cost0
 cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
 
 total_cost1= cost1
-total_cost2= cost2 + cost0 +cost1*1.5
+total_cost2= cost2 + cost0 +cost1*2.5
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
 auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
 
@@ -537,11 +537,11 @@ with tf.Session() as sess:
         sess_results = sess.run(flayer5,feed_dict={x:current_batch})
         for xx in range(len(sess_results)):
 
-            # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
             test_change_predict = sess_results[xx]
-
+            plt.figure(figsize=(8, 8))    
             plt.imshow(np.squeeze(current_batch[xx]),cmap='gray')
-            plt.imshow(np.squeeze(test_change_predict), cmap='jet', alpha=0.5)
+            plt.imshow(np.squeeze(test_change_predict), cmap='jet', alpha=0.05)
+            plt.axis('off')
             plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
             plt.close('all')
 
