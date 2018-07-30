@@ -425,7 +425,7 @@ cost0 = tf.reduce_mean(tf.square(flayer5-y))
 cost1 = sparse_cost
 cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
 total_cost1= cost1
-total_cost2= cost2 + cost0 +cost1*1.75
+total_cost2= cost2 + cost0 +cost1*1.2
 auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost1)
 auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost2)
 
