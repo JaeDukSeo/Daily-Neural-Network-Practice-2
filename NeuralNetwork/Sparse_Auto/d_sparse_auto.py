@@ -268,7 +268,8 @@ class Sparse_Filter_Layer():
 
     def feedforward(self,input):
         self.sparse_layer  = tf.matmul(input,self.w)
-        second = self.soft_abs(self.sparse_layer )
+        second = tf.nn.elu(self.sparse_layer )
+        # second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
         self.cost_update = tf.reduce_mean(four)
