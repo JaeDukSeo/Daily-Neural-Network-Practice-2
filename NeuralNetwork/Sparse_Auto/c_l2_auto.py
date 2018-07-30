@@ -38,7 +38,6 @@ def tf_iden(x): return x
 def d_tf_iden(x): return 1.0
 
 def tf_softmax(x): return tf.nn.softmax(x)
-def tf_soft(x): return tf.sqrt(x ** 2 + 1e-10)
 # ======= Activation Function  ==========
 
 # ====== miscellaneous =====
@@ -120,7 +119,7 @@ class CNN():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
-    def getw(self): return self.w
+    def getw(self): return [self.w]
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
@@ -160,7 +159,7 @@ class CNN_Trans():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
-    def getw(self): return self.w
+    def getw(self): return [self.w]
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
@@ -204,6 +203,8 @@ class FNN():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
+
+    def getw(self): return [self.w]
 
     def feedforward(self,input=None):
         self.input = input
@@ -257,8 +258,8 @@ class ICA_Layer():
 class Sparse_Filter_Layer():
     
     def __init__(self,outc,changec):
-        self.w = tf.Variable(tf.truncated_normal([outc,changec],stddev=0.5,seed=2,dtype=tf.float64))
-        self.epsilon = 1e-10
+        self.w = tf.Variable(tf.truncated_normal([outc,changec],stddev=0.05,seed=2,dtype=tf.float64))
+        self.epsilon = 1e-20
 
     def getw(self): return self.w
 
@@ -267,7 +268,6 @@ class Sparse_Filter_Layer():
 
     def feedforward(self,input):
         self.sparse_layer  = tf.matmul(input,self.w)
-        # second = tf.nn.elu(self.sparse_layer)
         second = self.soft_abs(self.sparse_layer )
         third  = tf.divide(second,tf.sqrt(tf.reduce_sum(second**2,axis=0)+self.epsilon))
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
@@ -291,9 +291,10 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
             mask_list.append(os.path.join(dirName,filename))
 
 image_resize_px = 96    
-train_images = np.zeros(shape=(160,image_resize_px,image_resize_px,3))
-train_labels = np.zeros(shape=(160,image_resize_px,image_resize_px,1))
-for file_index in range(160):
+train_images = np.zeros(shape=(170,image_resize_px,image_resize_px,3))
+train_labels = np.zeros(shape=(170,image_resize_px,image_resize_px,1))
+
+for file_index in range(len(image_list)):
     train_images[file_index,:,:]   = imresize(imread(image_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
     train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
 
@@ -302,13 +303,12 @@ train_labels = (train_labels>25.0) * 255.0
 train_images = train_images/255.0
 train_labels = train_labels/255.0
 
-train_batch = train_images[:80]
-train_label = train_labels[:80]
-test_batch = train_images[80:]
-test_label = train_labels[80:]
+train_batch = train_images[:85]
+train_label = train_labels[:85]
+test_batch = train_images[85:]
+test_label = train_labels[85:]
 
 # print out the data shape
-print('--------------------------------')
 print(train_batch.shape)
 print(train_batch.max())
 print(train_batch.min())
@@ -322,41 +322,35 @@ print(test_batch.min())
 print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
-print('--------------------------------')
 
 # class
-el1 = CNN(3,3,4)
-el2 = CNN(3,4,8)
-el3 = CNN(3,8,16)
-el4 = CNN(3,16,32)
+el1 = CNN(3,3,8)
+el2 = CNN(3,8,16)
+el3 = CNN(3,16,32)
+el4 = CNN(3,32,32)
 
-reduce_dim = 16
-# d_act really does not matter
-fully_layer = FNN(6*6*32,1*1*reduce_dim,act=tf_soft,d_act=d_tf_sigmoid)
+reduce_dim = 3*3*3
+full_layer = FNN(6*6*32,1*1*reduce_dim)
 
-dl = CNN_Trans(3,6,1)
-fl = CNN(3,6,6)
+dl0 = CNN_Trans(3,8,3)
+dl1 = CNN_Trans(3,16,8)
+fl1 = CNN(3,16,32)
 
-dl0 = CNN_Trans(3,6,6)
-fl0 = CNN(3,6,6)
+dl2 = CNN_Trans(3,32,64)
+fl2 = CNN(3,32,16)
 
-dl1 = CNN_Trans(3,6,6)
-fl1 = CNN(3,6,8)
+dl3 = CNN_Trans(3,16,32)
+fl3 = CNN(3,16,8)
 
-dl2 = CNN_Trans(3,10,24)
-fl2 = CNN(3,10,12)
-
-dl3 = CNN_Trans(3,14,20)
-fl3 = CNN(3,14,14)
-
-dl4 = CNN_Trans(3,4,18)
-fl4 = CNN(3,4,1,act=tf_sigmoid)
+dl4 = CNN_Trans(3,6,16)
+fl4 = CNN(3,6,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 1201
-learning_rate = 0.0003
-batch_size = 2
-print_size = 100
+num_to_change = 300
+learning_rate = 0.0001
+batch_size = 5
+print_size = 10
 
 # graph
 x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
@@ -364,51 +358,64 @@ y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf
 
 elayer1 = el1.feedforward(x)
 
-elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer2_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer2_input_weight +\
+tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer2_input_weight)
 elayer2 = el2.feedforward(elayer2_input)
 
-elayer3_input = tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer3_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer3_input_weight +\
+tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer3_input_weight)
 elayer3 = el3.feedforward(elayer3_input)
 
-elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+elayer4_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * elayer4_input_weight +\
+tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer4_input_weight)
 elayer4 = el4.feedforward(elayer4_input)
 
-sparse_input = tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
-sparse_layer_input = tf.reshape(sparse_input,[batch_size,-1])
-full_layer_output = fully_layer.feedforward(sparse_layer_input)
+sparse_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
+sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * sparse_input_weight +\
+tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-sparse_input_weight)
+fully_layer_input = tf.reshape(sparse_input,[batch_size,-1])
+fully_connected_layer = full_layer.feedforward(fully_layer_input)
 
-dlayer0_input = tf.reshape(full_layer_output,[batch_size,4,4,1])
-dlayer = dl.feedforward(dlayer0_input)
-flayer = fl.feedforward(dlayer)
-
-dlayer0_input = tf.image.resize_images(flayer, [6, 6],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+dlayer0_input = tf.reshape(fully_connected_layer,[batch_size,3,3,3])
+dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input2)
-flayer0 = fl0.feedforward(dlayer0)
+dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) # 3 3
 
-dlayer01 = tf.image.resize_images(flayer0, [12, 12],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
+dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
-dlayer1 = dl1.feedforward(dlayer01)
+dlayer1 = dl1.feedforward(dlayer01) # 6 6
 flayer1 = fl1.feedforward(dlayer1)
 
-flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
+flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer11 = tf.cast(flayer11,dtype=tf.float64)
-dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) 
+
+dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) # 8 8
 flayer2 = fl2.feedforward(dlayer2)
 
 flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
 flayer21 = tf.cast(flayer21,dtype=tf.float64)
-dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3),stride=2)
+
+dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
 flayer3 = fl3.feedforward(dlayer3)
 
 flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
 flayer31 = tf.cast(flayer31,dtype=tf.float64)
-dlayer4 = dl4.feedforward(tf.concat([flayer3,elayer1],3),stride=1)
-flayer4 = fl4.feedforward(dlayer4)
 
-cost0 = tf.reduce_mean(tf.square(flayer4-y))
-total_cost = cost0 
-auto_train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost)
+dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
+flayer5 = fl4.feedforward(dlayer4)
+
+cost0 = tf.reduce_mean(tf.square(flayer5-y))
+cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
+
+all_weigths = el1.getw() + el2.getw() + el3.getw() + el4.getw() + \
+              dl0.getw() + dl1.getw() + dl2.getw() + dl3.getw() + \
+              dl4.getw() + fl1.getw() + fl2.getw() + fl3.getw() + fl4.getw()
+regularizer = tf.nn.l2_loss(all_weigths)
+total_cost = cost2 + cost0 
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost2 + 0.01 * regularizer)
 
 # sess
 with tf.Session() as sess:
@@ -425,6 +432,9 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
+        which_opt = auto_train
+        which_cost = total_cost
+
         train_batch,train_label = shuffle(train_batch,train_label)
         test_batch,test_label = shuffle(test_batch,test_label)
 
@@ -432,7 +442,7 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch,y:current_batch_label})
+            sess_result = sess.run([which_cost,which_opt],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter ,' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
 
@@ -442,14 +452,16 @@ with tf.Session() as sess:
             print('Current Iter: ',iter,' Accumulated Train cost : ', train_cota/(len(train_batch)/(batch_size)),end='\n')
             print("--------------")
 
+        if iter % print_size==0 and iter > num_to_change:
+
             # get one image from train batch and show results
-            sess_results = sess.run(flayer4,feed_dict={x:train_batch[:batch_size]})
+            sess_results = sess.run(flayer5,feed_dict={x:train_batch[:batch_size]})
             test_change_image = train_batch[0,:,:,:]
             test_change_gt = train_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
 
-            f, axarr = plt.subplots(2, 3,figsize=(15,10))
-            plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
+            f, axarr = plt.subplots(2, 3,figsize=(30,20))
+            plt.suptitle('Current Iter' + str(iter),fontsize=20)
             axarr[0, 0].axis('off')
             axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
 
@@ -472,13 +484,13 @@ with tf.Session() as sess:
             plt.close('all')
 
             # get one image from test batch and show results
-            sess_results = sess.run(flayer4,feed_dict={x:test_batch[:batch_size]})
+            sess_results = sess.run(flayer5,feed_dict={x:test_batch[:batch_size]})
             test_change_image = test_batch[:batch_size][0,:,:,:]
             test_change_gt = test_label[0,:,:,:]
             test_change_predict = sess_results[0,:,:,:]
 
-            f, axarr = plt.subplots(2, 3,figsize=(15,10))
-            plt.suptitle('Original Image (left) Generated Image (right) Iter: ' + str(iter),fontsize=20)
+            f, axarr = plt.subplots(2, 3,figsize=(30,20))
+            plt.suptitle('Current Iter' + str(iter),fontsize=20)
             axarr[0, 0].axis('off')
             axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
 
@@ -518,9 +530,9 @@ with tf.Session() as sess:
     for batch_size_index in range(0,len(train_batch),batch_size):
         current_batch = train_batch[batch_size_index:batch_size_index+batch_size]    
         current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-        sess_results = sess.run(flayer4,feed_dict={x:current_batch})
+        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
         for xx in range(len(sess_results)):
-            f, axarr = plt.subplots(2, 3,figsize=(15,10))
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
 
             # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
             test_change_predict = sess_results[xx]
@@ -551,9 +563,9 @@ with tf.Session() as sess:
     for batch_size_index in range(0,len(test_batch),batch_size):
         current_batch = test_batch[batch_size_index:batch_size_index+batch_size]    
         current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
-        sess_results = sess.run(flayer4,feed_dict={x:current_batch})
+        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
         for xx in range(len(sess_results)):
-            f, axarr = plt.subplots(2, 3,figsize=(15,10))
+            f, axarr = plt.subplots(2, 3,figsize=(27,18))
         
             # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
             test_change_predict = sess_results[xx]
