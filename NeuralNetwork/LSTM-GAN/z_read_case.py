@@ -240,12 +240,20 @@ class Sparse_Filter_Layer():
 # ================= LAYER CLASSES =================
 
 # read the data
-test_data= np.load('./casea_conv/test_data.npy')
-test_label_gt= np.load('./casea_conv/test_label_gt.npy')
-test_label_pd= np.load('./casea_conv/test_label_pd.npy')
+test_data= np.squeeze(np.load('./casea_conv/test_data.npy'))[0]
+test_label_gt= np.squeeze(np.load('./casea_conv/test_label_gt.npy'))[0]
+test_label_pd= np.squeeze(np.load('./casea_conv/test_label_pd.npy'))[0]
 
 print(test_data.shape)
 print(test_label_gt.shape)
 print(test_label_pd.shape)
+
+f, (ax1, ax2,ax3) = plt.subplots(1, 3, sharey=True)
+for current_range in range(len(test_data)):
+    ax1.imshow(test_data[current_range],cmap='gray')
+    ax2.imshow(test_data[current_range],cmap='gray')
+    ax3.imshow(test_data[current_range],cmap='gray')
+    plt.pause(0.01)
+
 
 # -- end code --
