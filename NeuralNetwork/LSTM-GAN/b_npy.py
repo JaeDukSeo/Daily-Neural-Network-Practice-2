@@ -256,6 +256,7 @@ test_batch = all_brain_data[split_number:]
 test_label =all_mask_data[split_number:]
 
 # print out the data shape
+print('-----------------------')
 print(train_batch.shape)
 print(train_batch.max(axis=(1,2,3)).max())
 print(train_batch.min(axis=(1,2,3)).max())
@@ -269,6 +270,7 @@ print(test_batch.min(axis=(1,2,3)).max())
 print(test_label.shape)
 print(test_label.max(axis=(1,2,3)).max())
 print(test_label.min(axis=(1,2,3)).max())
+print('-----------------------')
 
 # class
 l0 = CNN_3D(3,3,3,1,3)
@@ -278,10 +280,10 @@ l3 = CNN_3D(3,3,3,6,3)
 l4 = CNN_3D(3,3,3,3,1)
 
 # hyper
-num_epoch = 801
+num_epoch = 10
 learning_rate = 0.0005
 batch_size = 2
-print_size = 10
+print_size = 1
 divide_size = 4
 
 # graph
@@ -295,8 +297,8 @@ layer3 = l3.feedforward(layer2)
 layer4 = l4.feedforward(layer3)
 
 cost1 = tf.reduce_mean(tf.square(layer4-y))
-cost2 = -tf.reduce_mean( y * tf.log(tf.clip_by_value(layer4,1e-9,1e9)) + (1.0-y)*tf.log(1.0-tf.clip_by_value(layer4,1e-9,1e9)) )
-total_cost = cost1 + cost2
+# cost2 = -tf.reduce_mean( y * tf.log(tf.clip_by_value(layer4,1e-5,1e9)) + (1.0-y)*tf.log(1.0-tf.clip_by_value(layer4,1e-9,1e9)) )
+total_cost = cost1 
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
@@ -324,18 +326,18 @@ with tf.Session() as sess:
                 current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
                 current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
                 sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
-                print("Current Iter : ",iter, ' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
+                print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
                 train_cota = train_cota + sess_result[0]
 
         # test for batch
         for batch_size_index in range(0,len(test_batch),batch_size):
-            current_batch = test_batch[batch_size_index:batch_size_index+batch_size][:,:96,:,:,:]
-            current_batch_label = test_label[batch_size_index:batch_size_index+batch_size][:,:96,:,:,:]
+            current_batch = test_batch[batch_size_index:batch_size_index+batch_size]
+            current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
             for divide_batch_index in range(0,192,divide_size):
                 current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
                 current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-                sess_result = sess.run([total_cost],feed_dict={x:current_batch,y:current_batch_label})
-                print("Current Iter : ",iter, ' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
+                sess_result = sess.run([total_cost],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
+                print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
                 test_cota = test_cota + sess_result[0]
             
         # if it is print size print the cost and Sample Image
@@ -362,6 +364,19 @@ with tf.Session() as sess:
     plt.savefig("viz/Case Train.png",bbox_inches='tight')
     plt.close('all')
 
+    # generate final output value for test
+    final_output = np.zeros_like(test_label)
+    for batch_size_index in range(0,len(test_batch),batch_size):
+        current_batch = test_batch[batch_size_index:batch_size_index+batch_size]
+        current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
+        for divide_batch_index in range(0,192,divide_size):
+            current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
+            sess_result = sess.run(layer4,feed_dict={x:current_batch_divide})
+            final_output[:,divide_batch_index:divide_batch_index+divide_size,:,:,:] = sess_result
+
+    np.save('test_data.npy',test_batch)
+    np.save('test_label_gt.npy',test_label)
+    np.save('test_label_pd.npy',final_output)
 
 
 
