@@ -281,10 +281,10 @@ l4 = CNN_3D(10,3,3,3,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 20
-learning_rate = 0.003
+learning_rate = 0.00008
 batch_size = 2
 print_size = 1
-divide_size = 4
+divide_size = 3
 
 # graph
 x = tf.placeholder(shape=(batch_size,divide_size,32,32,1),dtype=tf.float64)
