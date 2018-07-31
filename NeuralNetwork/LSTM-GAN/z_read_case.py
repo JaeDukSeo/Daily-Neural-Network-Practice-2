@@ -10,6 +10,7 @@ from imgaug import augmenters as iaa
 import nibabel as nib
 import imgaug as ia
 from scipy.ndimage import zoom
+import matplotlib.animation as animation
 
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -240,20 +241,26 @@ class Sparse_Filter_Layer():
 # ================= LAYER CLASSES =================
 
 # read the data
-test_data= np.squeeze(np.load('./casea_conv/test_data.npy'))[0]
-test_label_gt= np.squeeze(np.load('./casea_conv/test_label_gt.npy'))[0]
-test_label_pd= np.squeeze(np.load('./casea_conv/test_label_pd.npy'))[0]
+test_data= np.squeeze(np.load('./casea_conv/test_data.npy'))[1]
+test_label_gt= np.squeeze(np.load('./casea_conv/test_label_gt.npy'))[1]
+test_label_pd= np.squeeze(np.load('./casea_conv/test_label_pd.npy'))[1]
 
 print(test_data.shape)
 print(test_label_gt.shape)
 print(test_label_pd.shape)
 
-f, (ax1, ax2,ax3) = plt.subplots(1, 3, sharey=True)
+image = []
+f, (ax1, ax2,ax3) = plt.subplots(1, 3, sharey=True,figsize=(9,3))
 for current_range in range(len(test_data)):
-    ax1.imshow(test_data[current_range],cmap='gray')
-    ax2.imshow(test_data[current_range],cmap='gray')
-    ax3.imshow(test_data[current_range],cmap='gray')
-    plt.pause(0.01)
-
+    all_images = []
+    all_images.append(ax1.imshow(test_data[current_range],cmap='gray', animated=True))
+    # all_images.append(ax2.imshow(test_data[current_range],cmap='gray', animated=True))
+    all_images.append(ax2.imshow(test_label_gt[current_range],cmap='gray',alpha=1.0, animated=True))
+    # all_images.append(ax3.imshow(test_data[current_range],cmap='gray', animated=True))
+    all_images.append(ax3.imshow(test_label_pd[current_range],cmap='gray',alpha=1.0, animated=True))
+    image.append(all_images)
+ani = animation.ArtistAnimation(f, image, interval=50, blit=True,repeat_delay=1000)
+ani.save('dynamic_images.mp4')
+plt.show()
 
 # -- end code --

@@ -273,15 +273,15 @@ print(test_label.min(axis=(1,2,3)).max())
 print('-----------------------')
 
 # class
-l0 = CNN_3D(3,3,3,1,3)
-l1 = CNN_3D(3,3,3,3,6)
-l2 = CNN_3D(3,1,1,6,6)
-l3 = CNN_3D(3,3,3,6,3)
-l4 = CNN_3D(3,3,3,3,1,act=tf_sigmoid)
+l0 = CNN_3D(10,3,3,1,3)
+l1 = CNN_3D(10,3,3,3,6)
+l2 = CNN_3D(10,3,3,6,6)
+l3 = CNN_3D(10,3,3,6,3)
+l4 = CNN_3D(10,3,3,3,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 10
-learning_rate = 0.0005
+learning_rate = 0.01
 batch_size = 2
 print_size = 1
 divide_size = 4
