@@ -246,9 +246,9 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
     for filename in fileList:
         if ".nii.gz" in filename.lower() and not 'brain' in filename.lower():  # check whether the file's DICOM
             lstFilesDCM.append(os.path.join(dirName,filename))
-all_brain_data = np.zeros((20,192,64,64))
+all_brain_data = np.zeros((20,192,32,32))
 for current_brain in range(len(all_brain_data)):
-    all_brain_data[current_brain] = zoom(nib.load(lstFilesDCM[current_brain]).get_fdata().T ,(1, 0.25, 0.25))
+    all_brain_data[current_brain] = zoom(nib.load(lstFilesDCM[current_brain]).get_fdata().T ,(1, 1/8, 1/8))
 # all_brain_data = (all_brain_data-all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
                 # (all_brain_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) 
 
@@ -258,9 +258,9 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
     for filename in fileList:
         if ".nii.gz" in filename.lower() and  'brainmask' in filename.lower() :  # check whether the file's DICOM
             lstFilesDCM.append(os.path.join(dirName,filename))
-all_mask_data = np.zeros((20,192,64,64))
+all_mask_data = np.zeros((20,192,32,32))
 for current_brain in range(len(all_mask_data)):
-    all_mask_data[current_brain] = zoom(nib.load(lstFilesDCM[current_brain]).get_fdata().T ,(1, 0.25, 0.25))
+    all_mask_data[current_brain] = zoom(nib.load(lstFilesDCM[current_brain]).get_fdata().T ,(1, 1/8, 1/8))
 # all_mask_data = (all_mask_data-all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
 #                 (all_mask_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) 
 
@@ -268,6 +268,8 @@ all_brain_data = np.expand_dims(all_brain_data,-1)
 all_mask_data = np.expand_dims(all_mask_data,-1)
 np.save('all_brain_data.npy', all_brain_data) 
 np.save('all_mask_data.npy', all_mask_data) 
+
+sys.exit()
 
 split_number = 18
 train_batch = all_brain_data[:split_number]

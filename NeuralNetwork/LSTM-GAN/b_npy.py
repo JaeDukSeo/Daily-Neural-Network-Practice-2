@@ -280,15 +280,15 @@ l3 = CNN_3D(10,3,3,6,3)
 l4 = CNN_3D(10,3,3,3,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 10
-learning_rate = 0.01
+num_epoch = 20
+learning_rate = 0.003
 batch_size = 2
 print_size = 1
 divide_size = 4
 
 # graph
-x = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
-y = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
+x = tf.placeholder(shape=(batch_size,divide_size,32,32,1),dtype=tf.float64)
+y = tf.placeholder(shape=(batch_size,divide_size,32,32,1),dtype=tf.float64)
 
 layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
