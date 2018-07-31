@@ -107,14 +107,14 @@ class CNN_3D():
     
     def __init__(self,filter_depth,filter_height,filter_width,in_channels,out_channels,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([filter_depth,filter_height,filter_width,in_channels,out_channels],stddev=0.05,seed=2,dtype=tf.float64))
+        self.b = tf.Variable(tf.random_normal([out_channels],stddev=0.05,seed=2,dtype=tf.float64))
         self.act,self.d_act = act,d_act
     def getw(self): return [self.w]
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
-        self.layer  = tf.nn.conv3d(input,self.w,strides=[1,1,1,1,1],padding=padding)
+        self.layer  = tf.nn.conv3d(input,self.w,strides=[1,1,1,1,1],padding=padding) + self.b
         self.layerA = self.act(self.layer)
         return self.layerA 
-
 
 class CNN_Trans():
     
@@ -280,7 +280,7 @@ l3 = CNN_3D(10,3,3,6,3)
 l4 = CNN_3D(10,3,3,3,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 20
+num_epoch = 10 
 learning_rate = 0.00008
 batch_size = 2
 print_size = 1
