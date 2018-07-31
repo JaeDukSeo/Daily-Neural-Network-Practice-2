@@ -282,10 +282,11 @@ num_epoch = 801
 learning_rate = 0.0005
 batch_size = 2
 print_size = 10
+divide_size = 4
 
 # graph
-x = tf.placeholder(shape=(batch_size,192,64,64,1),dtype=tf.float64)
-y = tf.placeholder(shape=(batch_size,192,64,64,1),dtype=tf.float64)
+x = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
+y = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
 
 layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
@@ -294,7 +295,7 @@ layer3 = l3.feedforward(layer2)
 layer4 = l4.feedforward(layer3)
 
 cost1 = tf.reduce_mean(tf.square(layer4-y))
-cost2 = -tf.reduce_mean( y * tf.log(layer4 + 1e-20) + (1.0-y)*tf.log(1-layer4 + 1e-20) )
+cost2 = -tf.reduce_mean( y * tf.log(tf.clip_by_value(layer4,1e-9,1e9)) + (1.0-y)*tf.log(1.0-tf.clip_by_value(layer4,1e-9,1e9)) )
 total_cost = cost1 + cost2
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
@@ -319,18 +320,24 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch,y:current_batch_label})
-            print("Current Iter : ",iter ,' Current cost: ', sess_result[0],end='\r')
-            train_cota = train_cota + sess_result[0]
+            for divide_batch_index in range(0,192,divide_size):
+                current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
+                current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
+                sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
+                print("Current Iter : ",iter, ' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
+                train_cota = train_cota + sess_result[0]
 
         # test for batch
         for batch_size_index in range(0,len(test_batch),batch_size):
-            current_batch = test_batch[batch_size_index:batch_size_index+batch_size]
-            current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([total_cost],feed_dict={x:current_batch,y:current_batch_label})
-            print("Current Iter : ",iter ,' Current cost: ', sess_result[0],end='\r')
-            test_cota = test_cota + sess_result[0]
-
+            current_batch = test_batch[batch_size_index:batch_size_index+batch_size][:,:96,:,:,:]
+            current_batch_label = test_label[batch_size_index:batch_size_index+batch_size][:,:96,:,:,:]
+            for divide_batch_index in range(0,192,divide_size):
+                current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
+                current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
+                sess_result = sess.run([total_cost],feed_dict={x:current_batch,y:current_batch_label})
+                print("Current Iter : ",iter, ' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
+                test_cota = test_cota + sess_result[0]
+            
         # if it is print size print the cost and Sample Image
         if iter % print_size==0:
             print("\n--------------")   
