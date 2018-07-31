@@ -239,35 +239,15 @@ class Sparse_Filter_Layer():
         return self.sparse_layer ,self.cost_update
 # ================= LAYER CLASSES =================
 
-# data
-PathDicom = "../../Dataset/Neurofeedback_Skull_stripped/NFBS_Dataset/"
-lstFilesDCM = []  # create an empty list
-for dirName, subdirList, fileList in os.walk(PathDicom):
-    for filename in fileList:
-        if ".nii.gz" in filename.lower() and not 'brain' in filename.lower():  # check whether the file's DICOM
-            lstFilesDCM.append(os.path.join(dirName,filename))
-all_brain_data = np.zeros((20,192,64,64))
-for current_brain in range(len(all_brain_data)):
-    all_brain_data[current_brain] = zoom(nib.load(lstFilesDCM[current_brain]).get_fdata().T ,(1, 0.25, 0.25))
-# all_brain_data = (all_brain_data-all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
-                # (all_brain_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) 
+# read the data
+all_brain_data= np.load('all_brain_data.npy')
+all_mask_data = np.load('all_mask_data.npy')
 
-PathDicom = "../../Dataset/Neurofeedback_Skull_stripped/NFBS_Dataset/"
-lstFilesDCM = []  # create an empty list
-for dirName, subdirList, fileList in os.walk(PathDicom):
-    for filename in fileList:
-        if ".nii.gz" in filename.lower() and  'brainmask' in filename.lower() :  # check whether the file's DICOM
-            lstFilesDCM.append(os.path.join(dirName,filename))
-all_mask_data = np.zeros((20,192,64,64))
-for current_brain in range(len(all_mask_data)):
-    all_mask_data[current_brain] = zoom(nib.load(lstFilesDCM[current_brain]).get_fdata().T ,(1, 0.25, 0.25))
-# all_mask_data = (all_mask_data-all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
-#                 (all_mask_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) 
+all_brain_data = (all_brain_data-all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
+                (all_brain_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] +1e-10 ) 
 
-all_brain_data = np.expand_dims(all_brain_data,-1)
-all_mask_data = np.expand_dims(all_mask_data,-1)
-np.save('all_brain_data.npy', all_brain_data) 
-np.save('all_mask_data.npy', all_mask_data) 
+all_mask_data = (all_mask_data-all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
+                (all_mask_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] +1e-10 ) 
 
 split_number = 18
 train_batch = all_brain_data[:split_number]
@@ -289,7 +269,6 @@ print(test_batch.min(axis=(1,2,3)).max())
 print(test_label.shape)
 print(test_label.max(axis=(1,2,3)).max())
 print(test_label.min(axis=(1,2,3)).max())
-sys.exit()
 
 # class
 l0 = CNN_3D(3,3,3,1,3)
@@ -359,7 +338,6 @@ with tf.Session() as sess:
             print('Current Iter: ',iter,' Accumulated Test cost : ', test_cota/(len(train_batch)/(batch_size)),end='\n')
             print("--------------")
 
-        sys.exit()
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
         test_cot.append(test_cota/(len(test_batch)/(batch_size)))
         train_cota,train_acca = 0,0
