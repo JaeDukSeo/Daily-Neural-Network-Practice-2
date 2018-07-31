@@ -9,6 +9,7 @@ from skimage.transform import resize
 from imgaug import augmenters as iaa
 import nibabel as nib
 import imgaug as ia
+from scipy.ndimage import zoom
 
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -245,9 +246,9 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
     for filename in fileList:
         if ".nii.gz" in filename.lower() and not 'brain' in filename.lower():  # check whether the file's DICOM
             lstFilesDCM.append(os.path.join(dirName,filename))
-all_brain_data = np.zeros((20,192,256,256))
+all_brain_data = np.zeros((20,192,64,64))
 for current_brain in range(len(all_brain_data)):
-    all_brain_data[current_brain] = nib.load(lstFilesDCM[current_brain]).get_fdata().T 
+    all_brain_data[current_brain] = zoom(nib.load(lstFilesDCM[current_brain]).get_fdata().T ,(1, 0.25, 0.25))
 all_brain_data = all_brain_data/all_brain_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis]
 
 PathDicom = "../../Dataset/Neurofeedback_Skull_stripped/NFBS_Dataset/"
@@ -256,11 +257,10 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
     for filename in fileList:
         if ".nii.gz" in filename.lower() and  'brainmask' in filename.lower():  # check whether the file's DICOM
             lstFilesDCM.append(os.path.join(dirName,filename))
-all_mask_data = np.zeros((20,192,256,256))
+all_mask_data = np.zeros((20,192,64,64))
 for current_brain in range(len(all_mask_data)):
-    all_mask_data[current_brain] = nib.load(lstFilesDCM[current_brain]).get_fdata().T 
+    all_brain_data[current_brain] = zoom(nib.load(lstFilesDCM[current_brain]).get_fdata().T ,(1, 0.25, 0.25))
 all_mask_data = all_mask_data/all_mask_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis]
-
 
 all_brain_data = np.expand_dims(all_brain_data,-1)
 all_mask_data = np.expand_dims(all_mask_data,-1)
@@ -300,8 +300,8 @@ batch_size = 2
 print_size = 10
 
 # graph
-x = tf.placeholder(shape=(batch_size,192,256,256,1),dtype=tf.float64)
-y = tf.placeholder(shape=(batch_size,192,256,256,1),dtype=tf.float64)
+x = tf.placeholder(shape=(batch_size,192,64,64,1),dtype=tf.float64)
+y = tf.placeholder(shape=(batch_size,192,64,64,1),dtype=tf.float64)
 
 layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
