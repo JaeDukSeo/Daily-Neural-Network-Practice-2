@@ -273,11 +273,17 @@ print(test_label.min(axis=(1,2,3)).max())
 print('-----------------------')
 
 # class
-l0 = CNN_3D(3,3,3,1,3)
-l1 = CNN_3D(3,3,3,3,6)
-l2 = CNN_3D(3,1,1,6,6)
-l3 = CNN_3D(3,3,3,6,3)
-l4 = CNN_3D(3,3,3,3,1,act=tf_sigmoid)
+g0 = CNN_3D(3,3,3,1,3)
+g1 = CNN_3D(3,3,3,3,6)
+g2 = CNN_3D(3,1,1,6,6)
+g3 = CNN_3D(3,3,3,6,3)
+g4 = CNN_3D(3,3,3,3,1,act=tf_sigmoid)
+
+d0 = CNN_3D(3,3,3,1,3)
+d1 = CNN_3D(3,3,3,3,6)
+d2 = CNN_3D(3,1,1,6,6)
+d3 = CNN_3D(3,3,3,6,3)
+d4 = CNN_3D(3,3,3,3,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 10
@@ -290,16 +296,31 @@ divide_size = 4
 x = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
 y = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
 
-layer0 = l0.feedforward(x)
-layer1 = l1.feedforward(layer0)
-layer2 = l2.feedforward(layer1)
-layer3 = l3.feedforward(layer2)
-layer4 = l4.feedforward(layer3)
+layer0_g = g0.feedforward(x)
+layer1_g = g1.feedforward(layer0)
+layer2_g = g2.feedforward(layer1)
+layer3_g = g3.feedforward(layer2)
+layer4_g = g4.feedforward(layer3)
 
-cost1 = tf.reduce_mean(tf.square(layer4-y))
-cost2 = -tf.reduce_mean(y*tf.log(layer4+1e-10) + (1.0-y)*tf.log(1.0-layer4+1e-10))
-total_cost = cost1 + cost2
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
+true_d_1 = d0.feedforward(y)
+true_d_2 = d1.feedforward(true_d_1)
+true_d_3 = d2.feedforward(true_d_2)
+true_d_4 = d3.feedforward(true_d_3)
+true_d_f = d4.feedforward(true_d_4)
+
+fake_d_1 = d0.feedforward(layer4_g)
+fake_d_2 = d1.feedforward(fake_d_1)
+fake_d_3 = d2.feedforward(fake_d_2)
+fake_d_4 = d3.feedforward(fake_d_3)
+fake_d_f = d4.feedforward(fake_d_4)
+
+# ----- losses
+G_loss = -tf.reduce_mean(tf.log(fake_d_f+1e-10)) 
+D_loss = -tf.reduce_mean(tf.log(true_d_f+1e-10) + tf.log(1.0 - fake_d_f+1e-10))
+
+# --- training
+auto_d_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(D_loss)
+auto_g_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(G_loss)
 
 # sess
 with tf.Session() as sess:
