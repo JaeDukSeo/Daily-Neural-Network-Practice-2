@@ -25,3 +25,4 @@
 */viz/*.png
 *.pkl
 *.h5
+*.npy

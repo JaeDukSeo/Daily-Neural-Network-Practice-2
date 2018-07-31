@@ -277,18 +277,18 @@ test_label =all_mask_data[split_number:]
 
 # print out the data shape
 print(train_batch.shape)
-print(train_batch.max())
-print(train_batch.min())
+print(train_batch.max(axis=(1,2,3)))
+print(train_batch.min(axis=(1,2,3)))
 print(train_label.shape)
-print(train_label.max())
-print(train_label.min())
+print(train_label.max(axis=(1,2,3)))
+print(train_label.min(axis=(1,2,3)))
 
 print(test_batch.shape)
-print(test_batch.max())
-print(test_batch.min())
+print(test_batch.max(axis=(1,2,3)))
+print(test_batch.min(axis=(1,2,3)))
 print(test_label.shape)
-print(test_label.max())
-print(test_label.min())
+print(test_label.max(axis=(1,2,3)))
+print(test_label.min(axis=(1,2,3)))
 
 # class
 l0 = CNN_3D(3,3,3,1,3)
