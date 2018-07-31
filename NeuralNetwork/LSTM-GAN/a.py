@@ -261,6 +261,10 @@ for current_brain in range(len(all_mask_data)):
     all_mask_data[current_brain] = nib.load(lstFilesDCM[current_brain]).get_fdata().T 
 all_mask_data = all_mask_data/all_mask_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis]
 
+
+all_brain_data = np.expand_dims(all_brain_data,-1)
+all_mask_data = np.expand_dims(all_mask_data,-1)
+
 split_number = 18
 train_batch = all_brain_data[:split_number]
 train_label = all_mask_data[:split_number]
@@ -285,7 +289,7 @@ print(test_label.min())
 # class
 l0 = CNN_3D(3,3,3,1,3)
 l1 = CNN_3D(3,3,3,3,6)
-l2 = CNN_3D(3,3,3,6,6)
+l2 = CNN_3D(3,1,1,6,6)
 l3 = CNN_3D(3,3,3,6,3)
 l4 = CNN_3D(3,3,3,3,1)
 
@@ -310,13 +314,10 @@ cost2 = -tf.reduce_mean( y * tf.log(layer4 + 1e-20) + (1.0-y)*tf.log(1-layer4 + 
 total_cost = cost1 + cost2
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
-sys.exit()
-
 # sess
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-    saver = tf.train.Saver()
 
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
@@ -327,9 +328,6 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        which_opt = auto_train
-        which_cost = total_cost
-
         train_batch,train_label = shuffle(train_batch,train_label)
         test_batch,test_label = shuffle(test_batch,test_label)
 
@@ -337,167 +335,44 @@ with tf.Session() as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([which_cost,which_opt],feed_dict={x:current_batch,y:current_batch_label})
+            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch,y:current_batch_label})
             print("Current Iter : ",iter ,' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
+
+        # test for batch
+        for batch_size_index in range(0,len(test_batch),batch_size):
+            current_batch = test_batch[batch_size_index:batch_size_index+batch_size]
+            current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
+            sess_result = sess.run([total_cost],feed_dict={x:current_batch,y:current_batch_label})
+            print("Current Iter : ",iter ,' Current cost: ', sess_result[0],end='\r')
+            test_cota = test_cota + sess_result[0]
 
         # if it is print size print the cost and Sample Image
         if iter % print_size==0:
             print("\n--------------")   
             print('Current Iter: ',iter,' Accumulated Train cost : ', train_cota/(len(train_batch)/(batch_size)),end='\n')
+            print('Current Iter: ',iter,' Accumulated Test cost : ', test_cota/(len(train_batch)/(batch_size)),end='\n')
             print("--------------")
 
-        if iter % print_size==0 and iter > num_to_change:
-
-            # get one image from train batch and show results
-            sess_results = sess.run(flayer5,feed_dict={x:train_batch[:batch_size]})
-            test_change_image = train_batch[0,:,:,:]
-            test_change_gt = train_label[0,:,:,:]
-            test_change_predict = sess_results[0,:,:,:]
-
-            f, axarr = plt.subplots(2, 3,figsize=(30,20))
-            plt.suptitle('Current Iter' + str(iter),fontsize=20)
-            axarr[0, 0].axis('off')
-            axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
-
-            axarr[0, 1].axis('off')
-            axarr[0, 1].imshow(np.squeeze(test_change_gt),cmap='gray')
-
-            axarr[0, 2].axis('off')
-            axarr[0, 2].imshow(np.squeeze(test_change_predict),cmap='gray')
-
-            axarr[1, 0].axis('off')
-            axarr[1, 0].imshow(np.squeeze(test_change_image),cmap='gray')
-
-            axarr[1, 1].axis('off')
-            axarr[1, 1].imshow(test_change_gt*np.squeeze(test_change_image),cmap='gray')
-
-            axarr[1, 2].axis('off')
-            axarr[1, 2].imshow(test_change_predict*np.squeeze(test_change_image),cmap='gray')
-
-            plt.savefig('train_change/'+str(iter)+"_train_results.png",bbox_inches='tight')
-            plt.close('all')
-
-            # get one image from test batch and show results
-            sess_results = sess.run(flayer5,feed_dict={x:test_batch[:batch_size]})
-            test_change_image = test_batch[:batch_size][0,:,:,:]
-            test_change_gt = test_label[0,:,:,:]
-            test_change_predict = sess_results[0,:,:,:]
-
-            f, axarr = plt.subplots(2, 3,figsize=(30,20))
-            plt.suptitle('Current Iter' + str(iter),fontsize=20)
-            axarr[0, 0].axis('off')
-            axarr[0, 0].imshow(np.squeeze(test_change_image),cmap='gray')
-
-            axarr[0, 1].axis('off')
-            axarr[0, 1].imshow(np.squeeze(test_change_gt),cmap='gray')
-
-            axarr[0, 2].axis('off')
-            axarr[0, 2].imshow(np.squeeze(test_change_predict),cmap='gray')
-
-            axarr[1, 0].axis('off')
-            axarr[1, 0].imshow(np.squeeze(test_change_image),cmap='gray')
-
-            axarr[1, 1].axis('off')
-            axarr[1, 1].imshow(test_change_gt*np.squeeze(test_change_image),cmap='gray')
-
-            axarr[1, 2].axis('off')
-            axarr[1, 2].imshow(test_change_predict*np.squeeze(test_change_image),cmap='gray')
-
-            plt.savefig('test_change/'+str(iter)+"_test_results.png",bbox_inches='tight')
-            plt.close('all')
+        sys.exit()
         train_cot.append(train_cota/(len(train_batch)/(batch_size)))
+        test_cot.append(test_cota/(len(test_batch)/(batch_size)))
         train_cota,train_acca = 0,0
 
     # Normalize the cost of the training
     train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
+    test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
 
     # plot the training and testing graph
     plt.figure()
-    plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
     plt.legend()
-    plt.title("Train Average Accuracy / Cost Over Time")
-    plt.savefig("viz/Case Train.png")
+    plt.plot(range(len(train_cot)),train_cot,color='green',label='Train cost ovt')
+    plt.plot(range(len(train_cot)),train_cot,color='red',label='Test cost ovt')
+    plt.title("Average Accuracy / Cost Over Time")
+    plt.savefig("viz/Case Train.png",bbox_inches='tight')
     plt.close('all')
 
-    # final all train images
-    for batch_size_index in range(0,len(train_batch),batch_size):
-        current_batch = train_batch[batch_size_index:batch_size_index+batch_size]    
-        current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
-        for xx in range(len(sess_results)):
-            f, axarr = plt.subplots(2, 3,figsize=(27,18))
 
-            # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
-            test_change_predict = sess_results[xx]
-
-            plt.suptitle('Final Train Images : ' + str(xx) ,fontsize=20)
-            axarr[0, 0].axis('off')
-            axarr[0, 0].imshow(np.squeeze(current_batch[xx]),cmap='gray')
-
-            axarr[0, 1].axis('off')
-            axarr[0, 1].imshow(np.squeeze(current_batch_label[xx]),cmap='gray')
-
-            axarr[0, 2].axis('off')
-            axarr[0, 2].imshow(np.squeeze(test_change_predict),cmap='gray')
-
-            axarr[1, 0].axis('off')
-            axarr[1, 0].imshow(np.squeeze(current_batch[xx]),cmap='gray')
-
-            axarr[1, 1].axis('off')
-            axarr[1, 1].imshow(current_batch_label[xx]*np.squeeze(current_batch[xx]),cmap='gray')
-
-            axarr[1, 2].axis('off')
-            axarr[1, 2].imshow(test_change_predict*np.squeeze(current_batch[xx]),cmap='gray')
-
-            plt.savefig('final_train/'+str(batch_size_index)+"_"+str(xx)+"_train_results.png",bbox_inches='tight')
-            plt.close('all')
-
-    # final all test images
-    for batch_size_index in range(0,len(test_batch),batch_size):
-        current_batch = test_batch[batch_size_index:batch_size_index+batch_size]    
-        current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
-        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
-        for xx in range(len(sess_results)):
-            f, axarr = plt.subplots(2, 3,figsize=(27,18))
-        
-            # test_change_predict = (sess_results[xx]-sess_results[xx].min())/(sess_results[xx].max()-sess_results[xx].min())
-            test_change_predict = sess_results[xx]
-
-            plt.suptitle('Final Test Images : ' + str(xx) ,fontsize=20)
-            axarr[0, 0].axis('off')
-            axarr[0, 0].imshow(np.squeeze(current_batch[xx]),cmap='gray')
-
-            axarr[0, 1].axis('off')
-            axarr[0, 1].imshow(np.squeeze(current_batch_label[xx]),cmap='gray')
-
-            axarr[0, 2].axis('off')
-            axarr[0, 2].imshow(np.squeeze(test_change_predict),cmap='gray')
-
-            axarr[1, 0].axis('off')
-            axarr[1, 0].imshow(np.squeeze(current_batch[xx]),cmap='gray')
-
-            axarr[1, 1].axis('off')
-            axarr[1, 1].imshow(current_batch_label[xx]*np.squeeze(current_batch[xx]),cmap='gray')
-
-            axarr[1, 2].axis('off')
-            axarr[1, 2].imshow(test_change_predict*np.squeeze(current_batch[xx]),cmap='gray')
-
-            plt.savefig('final_test/'+str(batch_size_index)+"_"+str(xx)+"_test_results.png",bbox_inches='tight')
-            plt.close('all')
-
-    # final all mall images
-    for batch_size_index in range(0,len(mall_data),batch_size):
-        current_batch = mall_data[batch_size_index:batch_size_index+batch_size]    
-        sess_results = sess.run(flayer5,feed_dict={x:current_batch})
-        for xx in range(len(sess_results)):
-            test_change_predict = sess_results[xx]
-            plt.figure(figsize=(8, 8))    
-            plt.imshow(np.squeeze(current_batch[xx]),cmap='gray')
-            plt.imshow(np.squeeze(test_change_predict), cmap='hot', alpha=0.5)
-            plt.axis('off')
-            plt.savefig('mall_frame/'+str(batch_size_index)+"_"+str(xx)+".png",bbox_inches='tight')
-            plt.close('all')
 
 
 
