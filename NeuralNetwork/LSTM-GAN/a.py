@@ -7,13 +7,8 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
 from imgaug import augmenters as iaa
+import nibabel as nib
 import imgaug as ia
-from mpl_toolkits.mplot3d import Axes3D
-from skimage.color import rgba2rgb,rgb2gray
-
-old_v = tf.logging.get_verbosity()
-tf.logging.set_verbosity(tf.logging.ERROR)
-from tensorflow.examples.tutorials.mnist import input_data
 
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
@@ -66,51 +61,6 @@ def unpickle(file):
     return dict
 # ====== miscellaneous =====
 
-# ================= VIZ =================
-# Def: Simple funciton to view the histogram of weights
-def show_hist_of_weigt(all_weight_list,status='before'):
-    fig = plt.figure()
-    weight_index = 0
-
-    for i in range(1,1+int(len(all_weight_list)//3)):
-        ax = fig.add_subplot(1,4,i)
-        ax.grid(False)
-        temp_weight_list = all_weight_list[weight_index:weight_index+3]
-        for temp_index in range(len(temp_weight_list)):
-            current_flat = temp_weight_list[temp_index].flatten()
-            ax.hist(current_flat,histtype='step',bins='auto',label=str(temp_index+weight_index))
-            ax.legend()
-        ax.set_title('From Layer : '+str(weight_index+1)+' to '+str(weight_index+3))
-        weight_index = weight_index + 3
-    plt.savefig('viz/weights_'+str(status)+"_training.png")
-    plt.close('all')
-
-# Def: Simple function to show 9 image with different channels
-def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=None,predict=None):
-    image = (image-image.min())/(image.max()-image.min())
-    fig = plt.figure()
-    color_channel = 0
-    limit = 10
-    if alpha: limit = len(gt)
-    for i in range(1,limit):
-        ax = fig.add_subplot(3,3,i)
-        ax.grid(False)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        if alpha:
-            ax.set_title("GT: "+str(gt[i-1])+" Predict: "+str(predict[i-1]))
-        else:
-            ax.set_title("Channel : " + str(color_channel) + " : " + str(color_channel+channel_increase-1))
-        ax.imshow(np.squeeze(image[:,:,color_channel:color_channel+channel_increase]))
-        color_channel = color_channel + channel_increase
-    
-    if alpha:
-        plt.savefig('viz/z_'+str(alpha) + "_alpha_image.png")
-    else:
-        plt.savefig('viz/'+str(layer_num) + "_layer_"+str(image_num)+"_image.png")
-    plt.close('all')
-# ================= VIZ =================
-
 # ================= LAYER CLASSES =================
 class CNN():
     
@@ -151,6 +101,19 @@ class CNN():
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
 
         return grad_pass,update_w 
+
+class CNN_3D():
+    
+    def __init__(self,filter_depth,filter_height,filter_width,in_channels,out_channels,act=tf_elu,d_act=d_tf_elu):
+        self.w = tf.Variable(tf.random_normal([filter_depth,filter_height,filter_width,in_channels,out_channels],stddev=0.05,seed=2,dtype=tf.float64))
+        self.act,self.d_act = act,d_act
+    def getw(self): return [self.w]
+    def feedforward(self,input,stride=1,padding='SAME'):
+        self.input  = input
+        self.layer  = tf.nn.conv3d(input,self.w,strides=[1,1,1,1,1],padding=padding)
+        self.layerA = self.act(self.layer)
+        return self.layerA 
+
 
 class CNN_Trans():
     
@@ -276,49 +239,33 @@ class Sparse_Filter_Layer():
 # ================= LAYER CLASSES =================
 
 # data
-PathDicom = "../../Dataset/PennFudanPed/PNGImages/"
-image_list = []  # create an empty list
+PathDicom = "../../Dataset/Neurofeedback_Skull_stripped/NFBS_Dataset/"
+lstFilesDCM = []  # create an empty list
 for dirName, subdirList, fileList in os.walk(PathDicom):
     for filename in fileList:
-        if  ".png" in filename.lower() :  # check whether the file's DICOM \PedMasks
-            image_list.append(os.path.join(dirName,filename))
+        if ".nii.gz" in filename.lower() and not 'brain' in filename.lower():  # check whether the file's DICOM
+            lstFilesDCM.append(os.path.join(dirName,filename))
+all_brain_data = np.zeros((20,192,256,256))
+for current_brain in range(len(all_brain_data)):
+    all_brain_data[current_brain] = nib.load(lstFilesDCM[current_brain]).get_fdata().T 
+all_brain_data = all_brain_data/all_brain_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis]
 
-mask_list = []  # create an empty list
-PathDicom = "../../Dataset/PennFudanPed/PedMasks/"
+PathDicom = "../../Dataset/Neurofeedback_Skull_stripped/NFBS_Dataset/"
+lstFilesDCM = []  # create an empty list
 for dirName, subdirList, fileList in os.walk(PathDicom):
     for filename in fileList:
-        if  ".png" in filename.lower() :  # check whether the file's DICOM \PedMasks
-            mask_list.append(os.path.join(dirName,filename))
+        if ".nii.gz" in filename.lower() and  'brainmask' in filename.lower():  # check whether the file's DICOM
+            lstFilesDCM.append(os.path.join(dirName,filename))
+all_mask_data = np.zeros((20,192,256,256))
+for current_brain in range(len(all_mask_data)):
+    all_mask_data[current_brain] = nib.load(lstFilesDCM[current_brain]).get_fdata().T 
+all_mask_data = all_mask_data/all_mask_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis]
 
-mall_data_list = []
-PathDicom = "../../Dataset/MallData/frames/"
-for dirName, subdirList, fileList in os.walk(PathDicom):
-    for filename in fileList:
-        if  ".jpg" in filename.lower() :  # check whether the file's DICOM \PedMasks
-            mall_data_list.append(os.path.join(dirName,filename))
-
-image_resize_px = 96  
-train_images = np.zeros(shape=(170,image_resize_px,image_resize_px,3))
-train_labels = np.zeros(shape=(170,image_resize_px,image_resize_px,1))
-mall_data = np.zeros(shape=(500,image_resize_px,image_resize_px,3))
-
-for file_index in range(len(mall_data)):
-    mall_data[file_index,:,:]   = imresize(imread(mall_data_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
-
-for file_index in range(len(image_list)):
-    train_images[file_index,:,:]   = imresize(imread(image_list[file_index],mode='RGB'),(image_resize_px,image_resize_px))
-    train_labels[file_index,:,:]   = np.expand_dims(imresize(rgb2gray(imread(mask_list[file_index],mode='RGB')),(image_resize_px,image_resize_px)),3) 
-
-train_images,train_labels = shuffle(train_images,train_labels)
-train_labels = (train_labels>10.0) * 255.0
-train_images = train_images/255.0
-train_labels = train_labels/255.0
-mall_data = mall_data/255.0
-
-train_batch = train_images[:85]
-train_label = train_labels[:85]
-test_batch = train_images[85:]
-test_label = train_labels[85:]
+split_number = 18
+train_batch = all_brain_data[:split_number]
+train_label = all_mask_data[:split_number]
+test_batch = all_brain_data[split_number:]
+test_label =all_mask_data[split_number:]
 
 # print out the data shape
 print(train_batch.shape)
@@ -335,96 +282,35 @@ print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
 
-print(mall_data.shape)
-print(mall_data.max())
-print(mall_data.min())
-
 # class
-el1 = CNN(3,3,4)
-el2 = CNN(3,4,8)
-el3 = CNN(3,8,16)
-el4 = CNN(3,16,8)
-
-reduce_dim = 3*3*1
-full_layer = FNN(6*6*8,1*1*reduce_dim,act=softabs,d_act=d_tf_atan)
-
-dl0 = CNN_Trans(1,3,1)
-dl1 = CNN_Trans(1,3,3)
-fl1 = CNN(1,3,3)
-
-dl2 = CNN_Trans(3,3,19)
-fl2 = CNN(3,3,3)
-
-dl3 = CNN_Trans(3,3,11)
-fl3 = CNN(3,3,3)
-
-dl4 = CNN_Trans(3,3,7)
-fl4 = CNN(3,3,1,act=tf_sigmoid)
+l0 = CNN_3D(3,3,3,1,3)
+l1 = CNN_3D(3,3,3,3,6)
+l2 = CNN_3D(3,3,3,6,6)
+l3 = CNN_3D(3,3,3,6,3)
+l4 = CNN_3D(3,3,3,3,1)
 
 # hyper
 num_epoch = 801
-num_to_change = 200 
 learning_rate = 0.0005
-batch_size = 5
+batch_size = 2
 print_size = 10
 
 # graph
-x = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,3],dtype=tf.float64)
-y = tf.placeholder(shape=[batch_size,image_resize_px,image_resize_px,1],dtype=tf.float64)
+x = tf.placeholder(shape=(batch_size,192,256,256,1),dtype=tf.float64)
+y = tf.placeholder(shape=(batch_size,192,256,256,1),dtype=tf.float64)
 
-elayer1 = el1.feedforward(x)
+layer0 = l0.feedforward(x)
+layer1 = l1.feedforward(layer0)
+layer2 = l2.feedforward(layer1)
+layer3 = l3.feedforward(layer2)
+layer4 = l4.feedforward(layer3)
 
-elayer2_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
-elayer2_input = tf.nn.max_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') *elayer2_input_weight +\
-tf.nn.avg_pool(elayer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer2_input_weight)
-elayer2 = el2.feedforward(elayer2_input)
+cost1 = tf.reduce_mean(tf.square(layer4-y))
+cost2 = -tf.reduce_mean( y * tf.log(layer4 + 1e-20) + (1.0-y)*tf.log(1-layer4 + 1e-20) )
+total_cost = cost1 + cost2
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
-elayer3_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
-elayer3_input = tf.nn.avg_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') *elayer3_input_weight +\
-tf.nn.max_pool(elayer2,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer3_input_weight)
-elayer3 = el3.feedforward(elayer3_input)
-
-elayer4_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
-elayer4_input = tf.nn.max_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')*elayer4_input_weight +\
-tf.nn.avg_pool(elayer3,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-elayer4_input_weight)
-elayer4 = el4.feedforward(elayer4_input)
-
-sparse_input_weight = tf.Variable(tf.random_normal([],stddev=0.05,seed=2,dtype=tf.float64))
-sparse_input = tf.nn.avg_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') *sparse_input_weight +\
-tf.nn.max_pool(elayer4,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID') * (1.0-sparse_input_weight)
-fully_layer_input = tf.reshape(sparse_input,[batch_size,-1])
-fully_layer_out = full_layer.feedforward(fully_layer_input)
-
-dlayer0_input = tf.reshape(fully_layer_out,[batch_size,3,3,1])
-dlayer0_input = tf.image.resize_images(dlayer0_input, [6, 6],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-dlayer0_input2 = tf.cast(dlayer0_input,dtype=tf.float64)
-dlayer0 = dl0.feedforward(dlayer0_input2,stride=1) 
-
-dlayer01 = tf.image.resize_images(dlayer0, [12, 12],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
-dlayer01 = tf.cast(dlayer01,dtype=tf.float64)
-dlayer1 = dl1.feedforward(dlayer01) 
-flayer1 = fl1.feedforward(dlayer1)
-
-flayer11 = tf.image.resize_images(flayer1, [24, 24],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-flayer11 = tf.cast(flayer11,dtype=tf.float64)
-dlayer2 = dl2.feedforward(tf.concat([flayer11,elayer3],3),stride=1) 
-flayer2 = fl2.feedforward(dlayer2)
-
-flayer21 = tf.image.resize_images(flayer2, [48, 48],method=tf.image.ResizeMethod.BILINEAR,align_corners=False)
-flayer21 = tf.cast(flayer21,dtype=tf.float64)
-dlayer3 = dl3.feedforward(tf.concat([flayer21,elayer2],3))
-flayer3 = fl3.feedforward(dlayer3)
-
-flayer31 = tf.image.resize_images(flayer3, [96, 96],method=tf.image.ResizeMethod.BICUBIC,align_corners=False)
-flayer31 = tf.cast(flayer31,dtype=tf.float64)
-dlayer4 = dl4.feedforward(tf.concat([flayer31,elayer1],3),stride=1)
-flayer5 = fl4.feedforward(dlayer4)
-
-cost0 = tf.reduce_mean(tf.square(flayer5-y))
-cost2 = -tf.reduce_mean(y * tf.log(1e-20 + flayer5)+ (1-y) * tf.log(1e-20 + 1 - flayer5))
-
-total_cost= cost0+cost2
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate*10.0).minimize(total_cost)
+sys.exit()
 
 # sess
 with tf.Session() as sess:
