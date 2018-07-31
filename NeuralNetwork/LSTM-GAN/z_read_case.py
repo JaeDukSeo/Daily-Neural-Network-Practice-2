@@ -260,7 +260,7 @@ for current_range in range(len(test_data)):
     all_images.append(ax3.imshow(test_label_pd[current_range],cmap='gray',alpha=1.0, animated=True))
     image.append(all_images)
 ani = animation.ArtistAnimation(f, image, interval=50, blit=True,repeat_delay=1000)
-ani.save('dynamic_images.mp4')
+# ani.save('dynamic_images.mp4')
 plt.show()
 
 # -- end code --
