@@ -15,5 +15,15 @@ for dirName, subdirList, fileList in os.walk(PathDicom):
             lstFilesDCM.append(os.path.join(dirName,filename))
 
 temp = lstFilesDCM[0]
+img = nib.load(temp) 
+
+import matplotlib.pyplot as plt
+image = img.get_fdata().T
+
+for x in image:
+    plt.imshow(x)
+    plt.show()
+
+
 
 # -- end code --
