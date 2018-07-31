@@ -273,15 +273,15 @@ print(test_label.min(axis=(1,2,3)).max())
 print('-----------------------')
 
 # class
-l0 = CNN_3D(10,3,3,1,3)
-l1 = CNN_3D(10,3,3,3,6)
-l2 = CNN_3D(10,3,3,6,6)
-l3 = CNN_3D(10,3,3,6,3)
-l4 = CNN_3D(10,3,3,3,1,act=tf_sigmoid)
+l0 = CNN_3D(3,3,3,1,4)
+l1 = CNN_3D(3,3,3,4,8)
+l2 = CNN_3D(3,3,3,8,8,act=tf_sigmoid)
+l3 = CNN_3D(3,3,3,8,4)
+l4 = CNN_3D(1,1,1,4,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 10 
-learning_rate = 0.00008
+num_epoch = 10
+learning_rate = 0.0008
 batch_size = 2
 print_size = 1
 divide_size = 3
@@ -315,8 +315,8 @@ with tf.Session() as sess:
     # start the training
     for iter in range(num_epoch):
 
-        train_batch,train_label = shuffle(train_batch,train_label)
-        test_batch,test_label = shuffle(test_batch,test_label)
+        # train_batch,train_label = shuffle(train_batch,train_label)
+        # test_batch,test_label = shuffle(test_batch,test_label)
 
         # train for batch
         for batch_size_index in range(0,len(train_batch),batch_size):
