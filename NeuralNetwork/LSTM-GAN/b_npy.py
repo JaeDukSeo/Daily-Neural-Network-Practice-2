@@ -110,11 +110,14 @@ class CNN_3D():
         self.b = tf.Variable(tf.random_normal([out_channels],stddev=0.05,seed=2,dtype=tf.float64))
         self.act,self.d_act = act,d_act
     def getw(self): return [self.w]
-    def feedforward(self,input,stride=1,padding='SAME'):
+    def feedforward(self,input,stride=1,padding='SAME',res=True):
         self.input  = input
         self.layer  = tf.nn.conv3d(input,self.w,strides=[1,1,1,1,1],padding=padding) + self.b
         self.layerA = self.act(self.layer)
-        return self.layerA 
+        if res:
+            return self.layerA + self.input
+        else:
+            return self.layerA 
 
 class CNN_Trans():
     
@@ -273,15 +276,15 @@ print(test_label.min(axis=(1,2,3)).max())
 print('-----------------------')
 
 # class
-l0 = CNN_3D(3,3,3,1,4)
-l1 = CNN_3D(3,3,3,4,8)
-l2 = CNN_3D(3,3,3,8,8,act=tf_sigmoid)
-l3 = CNN_3D(3,3,3,8,4)
-l4 = CNN_3D(1,1,1,4,1,act=tf_sigmoid)
+l0 = CNN_3D(3,3,3,1,6)
+l1 = CNN_3D(3,3,3,6,6)
+l2 = CNN_3D(3,1,1,6,6)
+l3 = CNN_3D(3,3,3,6,6)
+l4 = CNN_3D(3,3,3,6,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 10
-learning_rate = 0.0008
+num_epoch = 21
+learning_rate = 0.001
 batch_size = 2
 print_size = 1
 divide_size = 3
@@ -289,12 +292,13 @@ divide_size = 3
 # graph
 x = tf.placeholder(shape=(batch_size,divide_size,32,32,1),dtype=tf.float64)
 y = tf.placeholder(shape=(batch_size,divide_size,32,32,1),dtype=tf.float64)
+is_train = tf.placeholder(tf.bool)
 
-layer0 = l0.feedforward(x)
+layer0 = l0.feedforward(x,res=False)
 layer1 = l1.feedforward(layer0)
 layer2 = l2.feedforward(layer1)
 layer3 = l3.feedforward(layer2)
-layer4 = l4.feedforward(layer3)
+layer4 = l4.feedforward(layer3,res=False)
 
 cost1 = tf.reduce_mean(tf.square(layer4-y))
 cost2 = -tf.reduce_mean(y*tf.log(layer4+1e-10) + (1.0-y)*tf.log(1.0-layer4+1e-10))
@@ -325,7 +329,7 @@ with tf.Session() as sess:
             for divide_batch_index in range(0,192,divide_size):
                 current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
                 current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-                sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
+                sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide,is_train:True})
                 print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
                 train_cota = train_cota + sess_result[0]
 
@@ -336,7 +340,7 @@ with tf.Session() as sess:
             for divide_batch_index in range(0,192,divide_size):
                 current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
                 current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-                sess_result = sess.run([total_cost],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
+                sess_result = sess.run([total_cost],feed_dict={x:current_batch_divide,y:current_batch_label_divide,is_train:False})
                 print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
                 test_cota = test_cota + sess_result[0]
             
@@ -372,7 +376,7 @@ with tf.Session() as sess:
         current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
         for divide_batch_index in range(0,192,divide_size):
             current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-            sess_result = sess.run(layer4,feed_dict={x:current_batch_divide})
+            sess_result = sess.run(layer4,feed_dict={x:current_batch_divide,is_train:False})
             final_output[:,divide_batch_index:divide_batch_index+divide_size,:,:,:] = sess_result
 
     np.save('test_data.npy',test_batch)
