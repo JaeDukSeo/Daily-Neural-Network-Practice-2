@@ -1,4 +1,5 @@
-import tensorflow as tf
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 import numpy as np
 import sys, os,cv2
 from sklearn.utils import shuffle
@@ -13,7 +14,7 @@ from scipy.ndimage import zoom
 import matplotlib.animation as animation
 
 plt.style.use('seaborn-white')
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import tensorflow as tf
 np.random.seed(6278)
 tf.set_random_seed(6728)
 ia.seed(6278)
