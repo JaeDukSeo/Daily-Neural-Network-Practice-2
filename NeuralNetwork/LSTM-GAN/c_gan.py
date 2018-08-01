@@ -289,33 +289,33 @@ d3 = CNN_3D(3,3,3,6,6)
 d4 = CNN_3D(3,3,3,6,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 21
-learning_rate = 0.001
+num_epoch = 10
+learning_rate = 0.00008
 batch_size = 2
 print_size = 1
 divide_size = 3
 
 # graph
-x = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
-y = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
+x = tf.placeholder(shape=(batch_size,divide_size,32,32,1),dtype=tf.float64)
+y = tf.placeholder(shape=(batch_size,divide_size,32,32,1),dtype=tf.float64)
 
-layer0_g = g0.feedforward(x)
+layer0_g = g0.feedforward(x,res=False)
 layer1_g = g1.feedforward(layer0_g)
 layer2_g = g2.feedforward(layer1_g)
 layer3_g = g3.feedforward(layer2_g)
-layer4_g = g4.feedforward(layer3_g)
+layer4_g = g4.feedforward(layer3_g,res=False)
 
-true_d_1 = d0.feedforward(y)
+true_d_1 = d0.feedforward(y,res=False)
 true_d_2 = d1.feedforward(true_d_1)
 true_d_3 = d2.feedforward(true_d_2)
 true_d_4 = d3.feedforward(true_d_3)
-true_d_f = d4.feedforward(true_d_4)
+true_d_f = d4.feedforward(true_d_4,res=False)
 
-fake_d_1 = d0.feedforward(layer4_g)
+fake_d_1 = d0.feedforward(layer4_g,res=False)
 fake_d_2 = d1.feedforward(fake_d_1)
 fake_d_3 = d2.feedforward(fake_d_2)
 fake_d_4 = d3.feedforward(fake_d_3)
-fake_d_f = d4.feedforward(fake_d_4)
+fake_d_f = d4.feedforward(fake_d_4,res=False)
 d_weights = d0.getw() + d1.getw() + d2.getw() + d3.getw() + d4.getw() 
 g_weights = g0.getw() + g1.getw() + g2.getw() + g3.getw() + g4.getw() 
 
@@ -352,9 +352,10 @@ with tf.Session() as sess:
                 current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
                 current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
 
-                sess_result = sess.run([D_loss,auto_d_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
-                print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
-                train_cota = train_cota + sess_result[0]
+                for _ in range(3):
+                    sess_result = sess.run([D_loss,auto_d_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
+                    print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
+                    train_cota = train_cota + sess_result[0]
 
                 sess_result = sess.run([G_loss,auto_g_train],feed_dict={x:current_batch_divide})
                 print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
