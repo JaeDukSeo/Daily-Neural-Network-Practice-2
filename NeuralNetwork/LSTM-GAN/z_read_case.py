@@ -250,14 +250,14 @@ print(test_label_gt.shape)
 print(test_label_pd.shape)
 
 image = []
-f, (ax1, ax2,ax3) = plt.subplots(1, 3, sharey=True,figsize=(9,3))
+f, (ax1, ax2,ax3) = plt.subplots(1, 3, sharey=True,figsize=(12,4))
 for current_range in range(len(test_data)):
     all_images = []
     all_images.append(ax1.imshow(test_data[current_range],cmap='gray', animated=True))
-    # all_images.append(ax2.imshow(test_data[current_range],cmap='gray', animated=True))
-    all_images.append(ax2.imshow(test_label_gt[current_range],cmap='gray',alpha=1.0, animated=True))
-    # all_images.append(ax3.imshow(test_data[current_range],cmap='gray', animated=True))
-    all_images.append(ax3.imshow(test_label_pd[current_range],cmap='gray',alpha=1.0, animated=True))
+    all_images.append(ax2.imshow(test_data[current_range],cmap='gray', animated=True))
+    all_images.append(ax2.imshow(test_label_gt[current_range],cmap='YlGnBu',alpha=0.3, animated=True))
+    all_images.append(ax3.imshow(test_data[current_range],cmap='gray', animated=True))
+    all_images.append(ax3.imshow(test_label_pd[current_range],cmap='YlGnBu',alpha=0.3, animated=True))
     image.append(all_images)
 ani = animation.ArtistAnimation(f, image, interval=50, blit=True,repeat_delay=1000)
 # ani.save('dynamic_images.mp4')
