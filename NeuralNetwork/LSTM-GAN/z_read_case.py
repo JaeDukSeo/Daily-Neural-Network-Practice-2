@@ -241,9 +241,9 @@ class Sparse_Filter_Layer():
 # ================= LAYER CLASSES =================
 
 # read the data
-test_data= np.squeeze(np.load('./casea_conv/test_data.npy'))[1]
-test_label_gt= np.squeeze(np.load('./casea_conv/test_label_gt.npy'))[1]
-test_label_pd= np.squeeze(np.load('./casea_conv/test_label_pd.npy'))[1]
+test_data= np.squeeze(np.load('./test_data.npy'))[1]
+test_label_gt= np.squeeze(np.load('./test_label_gt.npy'))[1]
+test_label_pd= np.squeeze(np.load('./test_label_pd.npy'))[1]
 
 print(test_data.shape)
 print(test_label_gt.shape)

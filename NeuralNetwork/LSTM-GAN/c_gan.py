@@ -107,14 +107,17 @@ class CNN_3D():
     
     def __init__(self,filter_depth,filter_height,filter_width,in_channels,out_channels,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([filter_depth,filter_height,filter_width,in_channels,out_channels],stddev=0.05,seed=2,dtype=tf.float64))
+        self.b = tf.Variable(tf.random_normal([out_channels],stddev=0.05,seed=2,dtype=tf.float64))
         self.act,self.d_act = act,d_act
     def getw(self): return [self.w]
-    def feedforward(self,input,stride=1,padding='SAME'):
+    def feedforward(self,input,stride=1,padding='SAME',res=True):
         self.input  = input
-        self.layer  = tf.nn.conv3d(input,self.w,strides=[1,1,1,1,1],padding=padding)
+        self.layer  = tf.nn.conv3d(input,self.w,strides=[1,1,1,1,1],padding=padding) + self.b
         self.layerA = self.act(self.layer)
-        return self.layerA 
-
+        if res:
+            return self.layerA + self.input
+        else:
+            return self.layerA 
 
 class CNN_Trans():
     
@@ -273,34 +276,34 @@ print(test_label.min(axis=(1,2,3)).max())
 print('-----------------------')
 
 # class
-g0 = CNN_3D(3,3,3,1,3)
-g1 = CNN_3D(3,3,3,3,6)
+g0 = CNN_3D(3,3,3,1,6)
+g1 = CNN_3D(3,3,3,6,6)
 g2 = CNN_3D(3,1,1,6,6)
-g3 = CNN_3D(3,3,3,6,3)
-g4 = CNN_3D(3,3,3,3,1,act=tf_sigmoid)
+g3 = CNN_3D(3,3,3,6,6)
+g4 = CNN_3D(3,3,3,6,1,act=tf_sigmoid)
 
-d0 = CNN_3D(3,3,3,1,3)
-d1 = CNN_3D(3,3,3,3,6)
+d0 = CNN_3D(3,3,3,1,6)
+d1 = CNN_3D(3,3,3,6,6)
 d2 = CNN_3D(3,1,1,6,6)
-d3 = CNN_3D(3,3,3,6,3)
-d4 = CNN_3D(3,3,3,3,1,act=tf_sigmoid)
+d3 = CNN_3D(3,3,3,6,6)
+d4 = CNN_3D(3,3,3,6,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 10
-learning_rate = 0.0005
+num_epoch = 21
+learning_rate = 0.001
 batch_size = 2
 print_size = 1
-divide_size = 4
+divide_size = 3
 
 # graph
 x = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
 y = tf.placeholder(shape=(batch_size,divide_size,64,64,1),dtype=tf.float64)
 
 layer0_g = g0.feedforward(x)
-layer1_g = g1.feedforward(layer0)
-layer2_g = g2.feedforward(layer1)
-layer3_g = g3.feedforward(layer2)
-layer4_g = g4.feedforward(layer3)
+layer1_g = g1.feedforward(layer0_g)
+layer2_g = g2.feedforward(layer1_g)
+layer3_g = g3.feedforward(layer2_g)
+layer4_g = g4.feedforward(layer3_g)
 
 true_d_1 = d0.feedforward(y)
 true_d_2 = d1.feedforward(true_d_1)
@@ -313,14 +316,16 @@ fake_d_2 = d1.feedforward(fake_d_1)
 fake_d_3 = d2.feedforward(fake_d_2)
 fake_d_4 = d3.feedforward(fake_d_3)
 fake_d_f = d4.feedforward(fake_d_4)
+d_weights = d0.getw() + d1.getw() + d2.getw() + d3.getw() + d4.getw() 
+g_weights = g0.getw() + g1.getw() + g2.getw() + g3.getw() + g4.getw() 
 
 # ----- losses
-G_loss = -tf.reduce_mean(tf.log(fake_d_f+1e-10)) 
 D_loss = -tf.reduce_mean(tf.log(true_d_f+1e-10) + tf.log(1.0 - fake_d_f+1e-10))
+G_loss = -tf.reduce_mean(tf.log(fake_d_f+1e-10)) 
 
 # --- training
-auto_d_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(D_loss)
-auto_g_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(G_loss)
+auto_d_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(D_loss,var_list= d_weights)
+auto_g_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(G_loss,var_list= g_weights)
 
 # sess
 with tf.Session() as sess:
@@ -346,7 +351,12 @@ with tf.Session() as sess:
             for divide_batch_index in range(0,192,divide_size):
                 current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
                 current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-                sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
+
+                sess_result = sess.run([D_loss,auto_d_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
+                print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
+                train_cota = train_cota + sess_result[0]
+
+                sess_result = sess.run([G_loss,auto_g_train],feed_dict={x:current_batch_divide})
                 print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
                 train_cota = train_cota + sess_result[0]
 
@@ -357,10 +367,15 @@ with tf.Session() as sess:
             for divide_batch_index in range(0,192,divide_size):
                 current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
                 current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-                sess_result = sess.run([total_cost],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
+
+                sess_result = sess.run([D_loss],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
                 print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
                 test_cota = test_cota + sess_result[0]
-            
+
+                sess_result = sess.run([G_loss],feed_dict={x:current_batch_divide})
+                print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
+                train_cota = train_cota + sess_result[0]
+
         # if it is print size print the cost and Sample Image
         if iter % print_size==0:
             print("\n--------------")   
@@ -393,7 +408,7 @@ with tf.Session() as sess:
         current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
         for divide_batch_index in range(0,192,divide_size):
             current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-            sess_result = sess.run(layer4,feed_dict={x:current_batch_divide})
+            sess_result = sess.run(layer4_g,feed_dict={x:current_batch_divide})
             final_output[:,divide_batch_index:divide_batch_index+divide_size,:,:,:] = sess_result
 
     np.save('test_data.npy',test_batch)
