@@ -289,8 +289,8 @@ d3 = CNN_3D(3,3,3,6,6)
 d4 = CNN_3D(3,3,3,6,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 20
-learning_rate = 0.0009
+num_epoch = 40
+learning_rate = 0.0008
 batch_size = 2
 print_size = 1
 divide_size = 3
