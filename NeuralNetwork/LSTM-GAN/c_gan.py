@@ -290,7 +290,7 @@ d4 = CNN_3D(3,3,3,6,1,act=tf_sigmoid)
 
 # hyper
 num_epoch = 20
-learning_rate = 0.0002
+learning_rate = 0.0009
 batch_size = 2
 print_size = 1
 divide_size = 3
@@ -321,7 +321,7 @@ g_weights = g0.getw() + g1.getw() + g2.getw() + g3.getw() + g4.getw()
 
 # ----- losses
 D_loss = -tf.reduce_mean(tf.log(true_d_f+1e-10) + tf.log(1.0 - fake_d_f+1e-10))
-G_loss = -tf.reduce_mean(tf.log(fake_d_f+1e-10)) + tf.reduce_mean(tf.square(layer4_g-y))
+G_loss = -tf.reduce_mean(tf.log(fake_d_f+1e-10)) 
 
 # --- training
 auto_d_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(D_loss,var_list= d_weights)
