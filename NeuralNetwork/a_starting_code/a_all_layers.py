@@ -203,6 +203,11 @@ class FNN():
 
         return grad_pass,update_w  
 
+class LSTM():
+    
+    def __init__(self):
+        pass
+
 class ICA_Layer():
 
     def __init__(self,inc):
@@ -245,43 +250,82 @@ class Sparse_Filter_Layer():
         four = tf.divide(third,tf.sqrt(tf.reduce_sum(third**2,axis=1)[:,tf.newaxis] +self.epsilon))
         self.cost_update = tf.reduce_mean(four)
         return self.sparse_layer ,self.cost_update
+
+class SOM_Layer(): 
+
+    def __init__(self,m,n,dim,num_epoch,learning_rate_som = 0.04,radius_factor = 1.1,
+    gaussian_std=0.5):
+        
+        self.m = m
+        self.n = n
+        self.dim = dim
+        self.gaussian_std = gaussian_std
+        self.num_epoch = num_epoch
+        # self.map = tf.Variable(tf.random_uniform(shape=[m*n,dim],minval=0,maxval=1,seed=2))
+        self.map = tf.Variable(tf.random_normal(shape=[m*n,dim],seed=2))
+
+        self.location_vects = tf.constant(np.array(list(self._neuron_locations(m, n))))
+        self.alpha = learning_rate_som
+        self.sigma = max(m,n)*1.1
+
+    def _neuron_locations(self, m, n):
+        """
+        Yields one by one the 2-D locations of the individual neurons in the SOM.
+        """
+        # Nested iterations over both dimensions to generate all 2-D locations in the map
+        for i in range(m):
+            for j in range(n):
+                yield np.array([i, j])
+
+    def getmap(self): return self.map
+    def getlocation(self): return self.bmu_locs
+
+    def feedforward(self,input):
+    
+        self.input = input
+        self.grad_pass = tf.pow(tf.subtract(tf.expand_dims(self.map, axis=0),tf.expand_dims(self.input, axis=1)), 2)
+        self.squared_distance = tf.reduce_sum(self.grad_pass, 2)
+        self.bmu_indices = tf.argmin(self.squared_distance, axis=1)
+        self.bmu_locs = tf.reshape(tf.gather(self.location_vects, self.bmu_indices), [-1, 2])
+
+    def backprop(self,iter,num_epoch):
+
+        # Update the weigths 
+        radius = tf.subtract(self.sigma,
+                                tf.multiply(iter,
+                                            tf.divide(tf.cast(tf.subtract(self.alpha, 1),tf.float32),
+                                                    tf.cast(tf.subtract(num_epoch, 1),tf.float32))))
+
+        alpha = tf.subtract(self.alpha,
+                            tf.multiply(iter,
+                                            tf.divide(tf.cast(tf.subtract(self.alpha, 1),tf.float32),
+                                                      tf.cast(tf.subtract(num_epoch, 1),tf.float32))))
+
+        self.bmu_distance_squares = tf.reduce_sum(
+                tf.pow(tf.subtract(
+                    tf.expand_dims(self.location_vects, axis=0),
+                    tf.expand_dims(self.bmu_locs, axis=1)), 2), 
+            2)
+
+        self.neighbourhood_func = tf.exp(tf.divide(tf.negative(tf.cast(
+                self.bmu_distance_squares, "float32")), tf.multiply(
+                tf.square(tf.multiply(radius, self.gaussian_std)), 2)))
+
+        self.learning_rate_op = tf.multiply(self.neighbourhood_func, alpha)
+        
+        self.numerator = tf.reduce_sum(
+            tf.multiply(tf.expand_dims(self.learning_rate_op, axis=-1),
+            tf.expand_dims(self.input, axis=1)), axis=0)
+
+        self.denominator = tf.expand_dims(
+            tf.reduce_sum(self.learning_rate_op,axis=0) + float(1e-20), axis=-1)
+
+        self.new_weights = tf.div(self.numerator, self.denominator)
+        self.update = [tf.assign(self.map, self.new_weights)]
+
+        return self.update,tf.reduce_mean(self.grad_pass, 1)
+
 # ================= LAYER CLASSES =================
-
-# read the data
-all_brain_data= np.load('all_brain_data.npy')
-all_mask_data = np.load('all_mask_data.npy')
-
-all_brain_data = (all_brain_data-all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
-                (all_brain_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] +1e-10 ) 
-
-all_mask_data = (all_mask_data-all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
-                (all_mask_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] +1e-10 ) 
-
-split_number = 18
-train_batch = all_brain_data[:split_number]
-train_label = all_mask_data[:split_number]
-test_batch = all_brain_data[split_number:]
-test_label =all_mask_data[split_number:]
-
-# print out the data shape
-print('-----------------------')
-print(train_batch.shape)
-print(train_batch.max(axis=(1,2,3)).max())
-print(train_batch.min(axis=(1,2,3)).max())
-print(train_label.shape)
-print(train_label.max(axis=(1,2,3)).max())
-print(train_label.min(axis=(1,2,3)).max())
-
-print(test_batch.shape)
-print(test_batch.max(axis=(1,2,3)).max())
-print(test_batch.min(axis=(1,2,3)).max())
-print(test_label.shape)
-print(test_label.max(axis=(1,2,3)).max())
-print(test_label.min(axis=(1,2,3)).max())
-print('-----------------------')
-
-
-
-
+    
 
 # -- end code --
