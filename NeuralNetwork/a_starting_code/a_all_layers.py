@@ -163,10 +163,152 @@ class CNN_Trans():
 
         return grad_pass,update_w 
 
-class LSTM_CNN():
+class RNN_CNN():
+
+    def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size):
+
+        self.w = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out]))
+        self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out]))
+
+        self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size,size,size,c_in]))
+        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
+        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
+        
+        self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h)),tf.Variable(tf.zeros_like(self.h))
+
+    def feedfoward(self,input,timestamp,internal):
+
+        # assign the input for back prop
+        hidden_assign = []
+        hidden_assign.append(tf.assign(self.input_record[timestamp,:,:,:],input))
+
+        # perform feed forward
+        layer =  tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')  + \
+        tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME') 
+
+        if internal: 
+            layerA = tf_elu(internal.feedforward(tf_elu(layer)))
+        else:
+            layerA = tf_elu(layer)
+
+        # assign for back prop
+        hidden_assign.append(tf.assign(self.hidden_record[timestamp+1,:,:,:,:],layer))
+        hidden_assign.append(tf.assign(self.hiddenA_record[timestamp+1,:,:,:,:],layerA))
+
+        return layerA, hidden_assign 
+
+    def backprop(self,grad,timestamp):
+
+        grad_1 = grad
+        grad_2 = d_tf_elu(self.hidden_record[timestamp,:,:,:,:])
+        grad_3_x = self.input_record[timestamp,:,:,:,:]
+        grad_3_h = self.hiddenA_record[timestamp-1,:,:,:,:]
+
+        grad_middle = grad_1 * grad_2
+
+        grad_x = tf.nn.conv2d_backprop_filter(
+            input=grad_3_x,filter_size = self.w.shape,
+            out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
+        )
+
+        grad_h = tf.nn.conv2d_backprop_filter(
+            input=grad_3_h,filter_size = self.h.shape,
+            out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
+        )
+
+        grad_pass = tf.nn.conv2d_backprop_input(
+            input_size = self.hiddenA_record[timestamp-1,:,:,:].shape,
+            filter=self.h,out_backprop = grad_middle,
+            strides=[1,1,1,1],padding='SAME'
+        )
+
+        update_w = []
+        # === update x ====
+        update_w.append( tf.assign(self.m_x,beta_1*self.m_x + (1-beta_1) * grad_x)  )
+        update_w.append( tf.assign(self.v_x,beta_2*self.v_x + (1-beta_2) * grad_x ** 2) )
+        m_hat_x = self.m_x/(1-beta_1)
+        v_hat_x = self.v_x/(1-beta_2)
+        adam_middle_x = learning_rate/(tf.sqrt(v_hat_x) + adam_e)
+        update_w.append( tf.assign(self.w_x, tf.subtract(self.w_x,adam_middle_x*m_hat_x))  )
+
+        # === update h ====
+        update_w.append( tf.assign(self.m_h,beta_1*self.m_h + (1-beta_1) * grad_h)  )
+        update_w.append( tf.assign(self.v_h,beta_2*self.v_h + (1-beta_2) * grad_h ** 2) )
+        m_hat_h = self.m_h/(1-beta_1)
+        v_hat_h = self.v_h/(1-beta_2)
+        adam_middle_h = learning_rate/(tf.sqrt(v_hat_h) + adam_e)
+        update_w.append( tf.assign(self.w_h, tf.subtract(self.w_h,adam_middle_h*m_hat_h))  )
+        
+        return grad_pass,update_w
     
-    def __init__(self):
-        pass
+class Zig_Zag_RNN_CNN():
+
+    def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size):
+    
+        self.w_1 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out],stddev=0.05))
+        self.h_1 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out],stddev=0.05))
+
+        self.w_2 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out],stddev=0.05))
+        self.h_2 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out],stddev=0.05))
+
+        self.input_record_1   = tf.Variable(tf.zeros([timestamp,batch_size//2,size,size,c_in]))
+        self.hidden_record_1  = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
+        self.hiddenA_record_1 = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
+        
+        self.input_record_2   = tf.Variable(tf.zeros([timestamp,batch_size//2,size,size,c_in]))
+        self.hidden_record_2  = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
+        self.hiddenA_record_2 = tf.Variable(tf.zeros([timestamp+1,batch_size//2,size,size,c_out]))
+
+    def feedforward_straight(self,input1,input2,timestamp):
+
+        # assign the inputs 
+        hidden_assign = []
+        
+        # perform feed forward on left
+        layer_1 =  tf.nn.conv2d(input1,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
+        tf.nn.conv2d(self.hiddenA_record_1[timestamp,:,:,:,:],self.h_1,strides=[1,1,1,1],padding='SAME') 
+        layerA_1 = tf_elu(layer_1)
+
+        # perform feed forward on right
+        layer_2 =  tf.nn.conv2d(input2,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
+        tf.nn.conv2d(self.hiddenA_record_2[timestamp,:,:,:,:],self.h_2,strides=[1,1,1,1],padding='SAME') 
+        layerA_2 = tf_elu(layer_2)
+    
+        # assign for left
+        hidden_assign.append(tf.assign(self.hidden_record_1[timestamp+1,:,:,:,:],layer_1))
+        hidden_assign.append(tf.assign(self.hiddenA_record_1[timestamp+1,:,:,:,:],layerA_1))
+
+        # assign for right
+        hidden_assign.append(tf.assign(self.hidden_record_2[timestamp+1,:,:,:,:],layer_2))
+        hidden_assign.append(tf.assign(self.hiddenA_record_2[timestamp+1,:,:,:,:],layerA_2))
+
+        return layerA_1,layerA_2,hidden_assign
+
+    def feedforward_zigzag(self,input1,input2,timestamp):
+        
+        # assign the inputs 
+        hidden_assign = []
+        
+        # perform feed forward on left
+        layer_1 =  tf.nn.conv2d(input1,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
+        tf.nn.conv2d(self.hiddenA_record_2[timestamp,:,:,:,:],self.h_1,strides=[1,1,1,1],padding='SAME') 
+        layerA_1 = tf_elu(layer_1)
+
+        # perform feed forward on right
+        layer_2 =  tf.nn.conv2d(input2,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
+        tf.nn.conv2d(self.hiddenA_record_1[timestamp,:,:,:,:],self.h_2,strides=[1,1,1,1],padding='SAME') 
+        layerA_2 = tf_elu(layer_2)
+    
+        # assign for left
+        hidden_assign.append(tf.assign(self.hidden_record_1[timestamp+1,:,:,:,:],layer_1))
+        hidden_assign.append(tf.assign(self.hiddenA_record_1[timestamp+1,:,:,:,:],layerA_1))
+
+        # assign for right
+        hidden_assign.append(tf.assign(self.hidden_record_2[timestamp+1,:,:,:,:],layer_2))
+        hidden_assign.append(tf.assign(self.hiddenA_record_2[timestamp+1,:,:,:,:],layerA_2))
+
+        return layerA_1,layerA_2,hidden_assign
 
 class FNN():
     
@@ -202,11 +344,6 @@ class FNN():
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
 
         return grad_pass,update_w  
-
-class LSTM():
-    
-    def __init__(self):
-        pass
 
 class ICA_Layer():
 
@@ -324,7 +461,6 @@ class SOM_Layer():
         self.update = [tf.assign(self.map, self.new_weights)]
 
         return self.update,tf.reduce_mean(self.grad_pass, 1)
-
 # ================= LAYER CLASSES =================
     
 
