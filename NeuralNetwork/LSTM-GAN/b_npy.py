@@ -243,8 +243,8 @@ class Sparse_Filter_Layer():
 # ================= LAYER CLASSES =================
 
 # read the data
-all_brain_data= np.load('all_brain_data.npy')
-all_mask_data = np.load('all_mask_data.npy')
+all_brain_data= np.load('data/all_brain_data_32.npy')
+all_mask_data = np.load('data/all_mask_data_32.npy')
 
 all_brain_data = (all_brain_data-all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
                 (all_brain_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] +1e-10 ) 
@@ -258,7 +258,7 @@ train_label = all_mask_data[:split_number]
 test_batch = all_brain_data[split_number:]
 test_label =all_mask_data[split_number:]
 
-# print out the data shape
+# print out the data shape s
 print('-----------------------')
 print(train_batch.shape)
 print(train_batch.max(axis=(1,2,3)).max())
@@ -283,8 +283,8 @@ l3 = CNN_3D(3,3,3,6,6)
 l4 = CNN_3D(3,3,3,6,1,act=tf_sigmoid)
 
 # hyper
-num_epoch = 21
-learning_rate = 0.001
+num_epoch = 40
+learning_rate = 0.002
 batch_size = 2
 print_size = 1
 divide_size = 3
