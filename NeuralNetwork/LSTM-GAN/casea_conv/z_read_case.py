@@ -1,4 +1,5 @@
-import tensorflow as tf
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 import numpy as np
 import sys, os,cv2
 from sklearn.utils import shuffle
@@ -10,9 +11,10 @@ from imgaug import augmenters as iaa
 import nibabel as nib
 import imgaug as ia
 from scipy.ndimage import zoom
+import matplotlib.animation as animation
 
 plt.style.use('seaborn-white')
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import tensorflow as tf
 np.random.seed(6278)
 tf.set_random_seed(6728)
 ia.seed(6278)
@@ -107,17 +109,14 @@ class CNN_3D():
     
     def __init__(self,filter_depth,filter_height,filter_width,in_channels,out_channels,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([filter_depth,filter_height,filter_width,in_channels,out_channels],stddev=0.05,seed=2,dtype=tf.float64))
-        self.b = tf.Variable(tf.random_normal([out_channels],stddev=0.05,seed=2,dtype=tf.float64))
         self.act,self.d_act = act,d_act
     def getw(self): return [self.w]
-    def feedforward(self,input,stride=1,padding='SAME',res=True):
+    def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
-        self.layer  = tf.nn.conv3d(input,self.w,strides=[1,1,1,1,1],padding=padding) + self.b
+        self.layer  = tf.nn.conv3d(input,self.w,strides=[1,1,1,1,1],padding=padding)
         self.layerA = self.act(self.layer)
-        if res:
-            return self.layerA + self.input
-        else:
-            return self.layerA 
+        return self.layerA 
+
 
 class CNN_Trans():
     
@@ -243,180 +242,26 @@ class Sparse_Filter_Layer():
 # ================= LAYER CLASSES =================
 
 # read the data
-all_brain_data= np.load('all_brain_data.npy')
-all_mask_data = np.load('all_mask_data.npy')
+test_data= np.squeeze(np.load('./test_data.npy'))[1]
+test_label_gt= np.squeeze(np.load('./test_label_gt.npy'))[1]
+test_label_pd= np.squeeze(np.load('./test_label_pd.npy'))[1]
 
-all_brain_data = (all_brain_data-all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
-                (all_brain_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_brain_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] +1e-10 ) 
+print(test_data.shape)
+print(test_label_gt.shape)
+print(test_label_pd.shape)
 
-all_mask_data = (all_mask_data-all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] ) / \
-                (all_mask_data.max(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] - all_mask_data.min(axis=(1,2,3))[:, np.newaxis, np.newaxis, np.newaxis] +1e-10 ) 
-
-split_number = 18
-train_batch = all_brain_data[:split_number]
-train_label = all_mask_data[:split_number]
-test_batch = all_brain_data[split_number:]
-test_label =all_mask_data[split_number:]
-
-# print out the data shape
-print('-----------------------')
-print(train_batch.shape)
-print(train_batch.max(axis=(1,2,3)).max())
-print(train_batch.min(axis=(1,2,3)).max())
-print(train_label.shape)
-print(train_label.max(axis=(1,2,3)).max())
-print(train_label.min(axis=(1,2,3)).max())
-
-print(test_batch.shape)
-print(test_batch.max(axis=(1,2,3)).max())
-print(test_batch.min(axis=(1,2,3)).max())
-print(test_label.shape)
-print(test_label.max(axis=(1,2,3)).max())
-print(test_label.min(axis=(1,2,3)).max())
-print('-----------------------')
-
-# class
-g0 = CNN_3D(3,3,3,1,6)
-g1 = CNN_3D(3,3,3,6,6)
-g2 = CNN_3D(3,1,1,6,6)
-g3 = CNN_3D(3,3,3,6,6)
-g4 = CNN_3D(3,3,3,6,1,act=tf_sigmoid)
-
-d0 = CNN_3D(3,3,3,1,6)
-d1 = CNN_3D(3,3,3,6,6)
-d2 = CNN_3D(3,1,1,6,6)
-d3 = CNN_3D(3,3,3,6,6)
-d4 = CNN_3D(3,3,3,6,1,act=tf_sigmoid)
-
-# hyper
-num_epoch = 101
-learning_rate = 0.0002
-batch_size = 2
-print_size = 1
-divide_size = 3
-
-# graph
-x = tf.placeholder(shape=(batch_size,divide_size,32,32,1),dtype=tf.float64)
-y = tf.placeholder(shape=(batch_size,divide_size,32,32,1),dtype=tf.float64)
-
-layer0_g = g0.feedforward(x,res=False)
-layer1_g = g1.feedforward(layer0_g)
-layer2_g = g2.feedforward(layer1_g)
-layer3_g = g3.feedforward(layer2_g)
-layer4_g = g4.feedforward(layer3_g,res=False)
-
-true_d_1 = d0.feedforward(y,res=False)
-true_d_2 = d1.feedforward(true_d_1)
-true_d_3 = d2.feedforward(true_d_2)
-true_d_4 = d3.feedforward(true_d_3)
-true_d_f = d4.feedforward(true_d_4,res=False)
-
-fake_d_1 = d0.feedforward(layer4_g,res=False)
-fake_d_2 = d1.feedforward(fake_d_1)
-fake_d_3 = d2.feedforward(fake_d_2)
-fake_d_4 = d3.feedforward(fake_d_3)
-fake_d_f = d4.feedforward(fake_d_4,res=False)
-d_weights = d0.getw() + d1.getw() + d2.getw() + d3.getw() + d4.getw() 
-g_weights = g0.getw() + g1.getw() + g2.getw() + g3.getw() + g4.getw() 
-
-# ----- losses
-D_loss = -tf.reduce_mean(tf.log(true_d_f+1e-10) + tf.log(1.0 - fake_d_f+1e-10))
-G_loss = -tf.reduce_mean(tf.log(fake_d_f+1e-10)) 
-
-# --- training
-auto_d_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(D_loss,var_list= d_weights)
-auto_g_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(G_loss,var_list= g_weights)
-
-# sess
-with tf.Session() as sess:
-
-    sess.run(tf.global_variables_initializer())
-
-    train_cota,train_acca = 0,0
-    train_cot,train_acc = [],[]
-    
-    test_cota,test_acca = 0,0
-    test_cot,test_acc = [],[]
-
-    # start the training
-    for iter in range(num_epoch):
-
-        train_batch,train_label = shuffle(train_batch,train_label)
-        test_batch,test_label = shuffle(test_batch,test_label)
-
-        # train for batch
-        for batch_size_index in range(0,len(train_batch),batch_size):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            for divide_batch_index in range(0,192,divide_size):
-                current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-                current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-
-                sess_result = sess.run([D_loss,auto_d_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
-                print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
-                train_cota = train_cota + sess_result[0]
-
-                sess_result = sess.run([G_loss,auto_g_train],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
-                print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
-                train_cota = train_cota + sess_result[0]
-
-        # test for batch
-        for batch_size_index in range(0,len(test_batch),batch_size):
-            current_batch = test_batch[batch_size_index:batch_size_index+batch_size]
-            current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
-            for divide_batch_index in range(0,192,divide_size):
-                current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-                current_batch_label_divide = current_batch_label[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-
-                sess_result = sess.run([D_loss],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
-                print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
-                test_cota = test_cota + sess_result[0]
-
-                sess_result = sess.run([G_loss],feed_dict={x:current_batch_divide,y:current_batch_label_divide})
-                print("Current Iter : ",iter,' current batch: ',batch_size_index ,' current divide index : ',divide_batch_index ,' Current cost: ', sess_result[0],end='\r')
-                train_cota = train_cota + sess_result[0]
-
-        # if it is print size print the cost and Sample Image
-        if iter % print_size==0:
-            print("\n--------------")   
-            print('Current Iter: ',iter,' Accumulated Train cost : ', train_cota/(len(train_batch)/(batch_size)),end='\n')
-            print('Current Iter: ',iter,' Accumulated Test cost : ', test_cota/(len(train_batch)/(batch_size)),end='\n')
-            print("--------------")
-
-        train_cot.append(train_cota/(len(train_batch)/(batch_size)))
-        test_cot.append(test_cota/(len(test_batch)/(batch_size)))
-        train_cota,train_acca = 0,0
-        test_cota,test_acca = 0,0
-
-    # Normalize the cost of the training
-    train_cot = (train_cot-min(train_cot) ) / (max(train_cot)-min(train_cot))
-    test_cot = (test_cot-min(test_cot) ) / (max(test_cot)-min(test_cot))
-
-    # plot the training and testing graph
-    plt.figure()
-    plt.legend()
-    plt.plot(range(len(train_cot)),train_cot,color='green',label='Train cost ovt')
-    plt.plot(range(len(train_cot)),train_cot,color='red',label='Test cost ovt')
-    plt.title("Average Accuracy / Cost Over Time")
-    plt.savefig("viz/Case Train.png",bbox_inches='tight')
-    plt.close('all')
-
-    # generate final output value for test
-    final_output = np.zeros_like(test_label)
-    for batch_size_index in range(0,len(test_batch),batch_size):
-        current_batch = test_batch[batch_size_index:batch_size_index+batch_size]
-        current_batch_label = test_label[batch_size_index:batch_size_index+batch_size]
-        for divide_batch_index in range(0,192,divide_size):
-            current_batch_divide = current_batch[:,divide_batch_index:divide_batch_index+divide_size,:,:,:]
-            sess_result = sess.run(layer4_g,feed_dict={x:current_batch_divide})
-            final_output[:,divide_batch_index:divide_batch_index+divide_size,:,:,:] = sess_result
-
-    np.save('test_data.npy',test_batch)
-    np.save('test_label_gt.npy',test_label)
-    np.save('test_label_pd.npy',final_output)
-
-
-
-
+image = []
+f, (ax1, ax2,ax3) = plt.subplots(1, 3, sharey=True,figsize=(15,5))
+for current_range in range(len(test_data)):
+    all_images = []
+    all_images.append(ax1.imshow(test_data[current_range],cmap='gray', animated=True))
+    # all_images.append(ax2.imshow(test_data[current_range],cmap='gray', animated=True))
+    all_images.append(ax2.imshow(test_label_gt[current_range],cmap='gray',alpha=1.0, animated=True))
+    # all_images.append(ax3.imshow(test_data[current_range],cmap='gray', animated=True))
+    all_images.append(ax3.imshow(test_label_pd[current_range],cmap='gray',alpha=1.0, animated=True))
+    image.append(all_images)
+ani = animation.ArtistAnimation(f, image, interval=50, blit=True,repeat_delay=1000)
+# ani.save('dynamic_images.mp4')
+plt.show()
 
 # -- end code --
