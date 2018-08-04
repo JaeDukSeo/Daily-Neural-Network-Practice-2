@@ -540,7 +540,7 @@ class Sparse_Coding():
         return self.x
 
     def backprop(self,input):
-        difference = input-tf.matmul(tf.transpose(tf.matmul(tf.transpose(self.A),self.x)),tf.sign(self.x))
+        difference = tf.matmul(tf.transpose(input-tf.matmul(self.x,tf.transpose(self.A))),tf.sign(self.x))
         update_w = []
         update_w.append(tf.assign(self.A,self.A-learning_rate * difference))
         return difference,update_w
@@ -575,7 +575,7 @@ print(test_label.min())
 # hyper
 num_epoch = 100
 learning_rate = 0.000001
-test_batch = 50
+batch_size = 50
 
 # class 
 sparse_coding = Sparse_Coding(784,10)
@@ -586,10 +586,51 @@ x = sparse_coding.feedforward(b,10)
 grad,grad_update = sparse_coding.backprop(b)
 
 # sess
+with tf.Session( ) as sess:
 
+    sess.run(tf.global_variables_initializer())
+    
+    train_cota,train_acca = 0,0
+    train_cot,train_acc = [],[]
+    
+    test_cota,test_acca = 0,0
+    test_cot,test_acc = [],[]
 
+    for iter in range(num_epoch):
 
+        train_batch,train_label = shuffle(train_batch,train_label)
 
+        for batch_size_index in range(0,len(train_batch),batch_size):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
+            sess_result = sess.run([grad,grad_update],feed_dict={x:current_batch,y:current_batch_label})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+            train_cota = train_cota + sess_result[0]
+            
+        if iter % print_size==0:
+            print("\n----------")
+            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),' Current Acc: ', train_acca/(len(train_batch)/batch_size),end='\n')
+            print("----------")
+
+        train_cot.append(train_cota/(len(train_batch)/batch_size))
+        train_cota,train_acca = 0,0
+
+    # training done
+    # plt.figure()
+    # plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
+    # plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
+    # plt.legend()
+    # plt.title("Train Average Accuracy / Cost Over Time")
+    # plt.savefig('case b train.png')
+    # plt.show()
+
+    # plt.figure()
+    # plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
+    # plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
+    # plt.legend()
+    # plt.title("Test Average Accuracy / Cost Over Time")
+    # plt.savefig('case b test.png')
+    # plt.show()
 
 
 
