@@ -541,7 +541,7 @@ l0 = CNN(3,3,15)
 l1 = RNN_CNN(6,3,5,3,3,16)
 l2 = CNN(3,25,35)
 l3 = RNN_CNN(6,7,9,3,3,4)
-l4 = RNN_CNN(6,9,11,3,3,2)
+l4 = CNN(1,45,10)
 
 # graph
 x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float64)
@@ -562,11 +562,17 @@ layer1_pool = tf.nn.avg_pool(layer1_ouput,ksize=[1,2,2,1],strides=[1,2,2,1],padd
 layer2 = l2.feedforward(layer1_pool)
 layer2_pool = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer2_reshape = tf.reshape(layer2_pool,[batch_size,4,4,7,5])
-print(layer2_pool)
-print(layer2_reshape)
 
+layer3_full = [] ; layer3_update = []
+for current_time_stamp in range(5):
+    layer3_temp,layer3_assign = l3.feedfoward(layer2_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
+    layer3_full.append(layer3_temp)
+    layer3_update.append(layer3_assign)
+layer3_ouput = tf.reshape(tf.convert_to_tensor(layer3_full),[batch_size,4,4,45])
+layer3_pool = tf.nn.avg_pool(layer3_ouput,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 
-    
+layer4 = l4.feedforward(layer3_pool)
+layer4_pool = tf.reduce_mean(layer4,(1,2))
 
 
 # session
