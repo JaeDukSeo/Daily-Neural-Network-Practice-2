@@ -540,7 +540,7 @@ class Sparse_Coding():
         return self.x
 
     def backprop(self,input):
-        difference = input-tf.matmul(tf.matmul(self.x.T,self.A),tf.sign(self.x))
+        difference = input-tf.matmul(tf.transpose(tf.matmul(tf.transpose(self.A),self.x)),tf.sign(self.x))
         update_w = []
         update_w.append(tf.assign(self.A,self.A-learning_rate * difference))
         return difference,update_w
@@ -574,13 +574,16 @@ print(test_label.min())
 
 # hyper
 num_epoch = 100
+learning_rate = 0.000001
+test_batch = 50
 
 # class 
 sparse_coding = Sparse_Coding(784,10)
 
 # graph
-b = tf.placeholder(shape=[None,784],dtype=tf.float64)
+b = tf.placeholder(shape=[test_batch,784],dtype=tf.float64)
 x = sparse_coding.feedforward(b,10)
+grad,grad_update = sparse_coding.backprop(b)
 
 # sess
 
