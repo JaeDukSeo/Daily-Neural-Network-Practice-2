@@ -171,19 +171,19 @@ class RNN_CNN():
 
     def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size,act=tf_elu,d_act=d_tf_elu):
 
-        self.w = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out],stddev=0.05,seed=2))
-        self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out],stddev=0.05,seed=2))
+        self.w = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out],stddev=0.05,seed=2,dtype=tf.float64))
+        self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out],stddev=0.05,seed=2,dtype=tf.float64))
 
         self.act = act; self.d_act = d_act
 
-        self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size,size,size,c_in]))
-        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
-        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
+        self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size,size,size,c_in],tf.float64))
+        self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out],tf.float64))
+        self.hiddenA_record = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out],tf.float64))
         
-        self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
-        self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h)),tf.Variable(tf.zeros_like(self.h))
+        self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
+        self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.h,dtype=tf.float64))
 
-    def feedfoward(self,input,timestamp,internal):
+    def feedfoward(self,input,timestamp):
 
         # assign the input for back prop
         hidden_assign = []
@@ -539,7 +539,7 @@ beta1,beta2,adam_e = 0.9,0.999,1e-8
 # class
 l0 = CNN(3,3,15)
 l1 = RNN_CNN(6,3,5,3,3,16)
-l2 = RNN_CNN(6,5,7,3,3,8)
+l2 = CNN(3,25,35)
 l3 = RNN_CNN(6,7,9,3,3,4)
 l4 = RNN_CNN(6,9,11,3,3,2)
 
@@ -551,8 +551,21 @@ layer0 = l0.feedforward(x)
 layer0_pool = tf.nn.avg_pool(layer0,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 layer0_reshape = tf.reshape(layer0_pool,[batch_size,16,16,3,5])
 
-for current_depth in range(0,layer0_pool.shape[3],3):
-    print(current_depth)
+layer1_full = [] ; layer1_update = []
+for current_time_stamp in range(5):
+    layer1_temp,layer1_assign = l1.feedfoward(layer0_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
+    layer1_full.append(layer1_temp)
+    layer1_update.append(layer1_assign)
+layer1_ouput = tf.reshape(tf.convert_to_tensor(layer1_full),[batch_size,16,16,25])
+layer1_pool = tf.nn.avg_pool(layer1_ouput,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+
+layer2 = l2.feedforward(layer1_pool)
+layer2_pool = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer2_reshape = tf.reshape(layer2_pool,[batch_size,4,4,7,5])
+print(layer2_pool)
+print(layer2_reshape)
+
+
     
 
 
