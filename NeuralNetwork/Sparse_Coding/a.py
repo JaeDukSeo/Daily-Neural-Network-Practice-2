@@ -533,9 +533,9 @@ class Sparse_Coding():
 
     def feedforward(self,input,threshold):
         temp = tf.matmul(input,self.A)
-        b = tf.nn.top_k(temp, threshold)
-        kth = tf.reduce_min(b.values)
-        topk = tf.cast(tf.greater_equal(temp, kth),tf.float64)
+        # b = tf.nn.top_k(temp, threshold)
+        # kth = tf.reduce_min(b.values)
+        topk = tf.cast(tf.greater_equal(temp, threshold),tf.float64)
         self.x = temp * topk
         return self.x
 
@@ -576,13 +576,14 @@ print(test_label.min())
 num_epoch = 100
 learning_rate = 0.000001
 batch_size = 50
+print_size = 10
 
 # class 
 sparse_coding = Sparse_Coding(784,10)
 
 # graph
-b = tf.placeholder(shape=[test_batch,784],dtype=tf.float64)
-x = sparse_coding.feedforward(b,10)
+b = tf.placeholder(shape=[batch_size,784],dtype=tf.float64)
+x = sparse_coding.feedforward(b,0.001)
 grad,grad_update = sparse_coding.backprop(b)
 
 # sess
@@ -603,15 +604,10 @@ with tf.Session( ) as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([grad,grad_update],feed_dict={x:current_batch,y:current_batch_label})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+            sess_result = sess.run([grad,grad_update],feed_dict={b:current_batch})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0].sum(),end='\r')
             train_cota = train_cota + sess_result[0]
             
-        if iter % print_size==0:
-            print("\n----------")
-            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),' Current Acc: ', train_acca/(len(train_batch)/batch_size),end='\n')
-            print("----------")
-
         train_cot.append(train_cota/(len(train_batch)/batch_size))
         train_cota,train_acca = 0,0
 
