@@ -478,4 +478,45 @@ class SOM_Layer():
         self.update = [tf.assign(self.map, self.new_weights)]
 
         return self.update,tf.reduce_mean(self.grad_pass, 1)
+
+# PCA Layer following the implementation: https://ewanlee.github.io/2018/01/17/PCA-With-Tensorflow/
+class PCA_Layer():
+    
+    def __init__(self,dim,channel):
+        
+        self.alpha = tf.Variable(tf.random_normal(shape=[dim//2,dim//2,channel],dtype=tf.float32,stddev=0.05))
+        self.beta  = tf.Variable(tf.ones(shape=[channel],dtype=tf.float32))
+
+        self.current_sigma = None
+        self.moving_sigma = tf.Variable(tf.zeros(shape=[(dim*dim*channel),(dim*dim*channel)//4],dtype=tf.float32))
+
+    def feedforward(self,input,is_training):
+        update_sigma = []
+
+        # 1. Get the input Shape and reshape the tensor into [Batch,Dim]
+        width,channel = input.shape[1],input.shape[3]
+        reshape_input = tf.reshape(input,[batch_size,-1])
+        trans_input = reshape_input.shape[1]
+
+        # 2. Perform SVD and get the sigma value and get the sigma value
+        singular_values, u, _ = tf.svd(reshape_input,full_matrices=False)
+
+        def training_fn(): 
+            # 3. Training 
+            sigma1 = tf.diag(singular_values)
+            sigma = tf.slice(sigma1, [0,0], [trans_input, (width*width*channel)//4])
+            pca = tf.matmul(u, sigma)
+            update_sigma.append(tf.assign(self.moving_sigma,self.moving_sigma*0.9 + sigma* 0.1 ))
+            return pca,update_sigma
+
+        def testing_fn(): 
+            # 4. Testing calculate hte pca using the Exponentially Weighted Moving Averages  
+            pca = tf.matmul(u, self.moving_sigma)
+            return pca,update_sigma
+
+        pca,update_sigma = tf.cond(is_training, true_fn=training_fn, false_fn=testing_fn)
+        pca_reshaped = tf.reshape(pca,[batch_size,(width//2),(width//2),channel])
+        out_put = self.alpha * pca_reshaped +self.beta 
+        
+        return out_put,update_sigma
 # ================= LAYER CLASSES =================
