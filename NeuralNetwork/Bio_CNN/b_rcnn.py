@@ -538,7 +538,7 @@ beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # class
 l0 = CNN(3,3,15)
-l1 = RNN_CNN(6,3,3,3,3,16)
+l1 = RNN_CNN(6,3,5,3,3,16)
 
 # graph
 
