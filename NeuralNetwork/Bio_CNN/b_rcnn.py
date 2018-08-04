@@ -533,7 +533,7 @@ print('------------------------------')
 
 # hyper 
 num_epoch = 3000
-learning_rate = 0.000008
+learning_rate = 0.0001
 batch_size = 20
 print_size = 10
 time_stamp = 3
