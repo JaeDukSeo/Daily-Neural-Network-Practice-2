@@ -169,10 +169,12 @@ class CNN_Trans():
 
 class RNN_CNN():
 
-    def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size):
+    def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size,act=tf_elu,d_act=d_tf_elu):
 
         self.w = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out],stddev=0.05,seed=2))
         self.h = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out],stddev=0.05,seed=2))
+
+        self.act = act; self.d_act = d_act
 
         self.input_record   = tf.Variable(tf.zeros([timestamp,batch_size,size,size,c_in]))
         self.hidden_record  = tf.Variable(tf.zeros([timestamp+1,batch_size,size,size,c_out]))
@@ -188,13 +190,8 @@ class RNN_CNN():
         hidden_assign.append(tf.assign(self.input_record[timestamp,:,:,:],input))
 
         # perform feed forward
-        layer =  tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')  + \
-        tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME') 
-
-        if internal: 
-            layerA = tf_elu(internal.feedforward(tf_elu(layer)))
-        else:
-            layerA = tf_elu(layer)
+        layer =  tf.nn.conv2d(input,self.w,strides=[1,1,1,1],padding='SAME')  + tf.nn.conv2d(self.hidden_record[timestamp,:,:,:,:],self.h,strides=[1,1,1,1],padding='SAME') 
+        layerA = self.act(layer)
 
         # assign for back prop
         hidden_assign.append(tf.assign(self.hidden_record[timestamp+1,:,:,:,:],layer))
@@ -205,7 +202,7 @@ class RNN_CNN():
     def backprop(self,grad,timestamp):
 
         grad_1 = grad
-        grad_2 = d_tf_elu(self.hidden_record[timestamp,:,:,:,:])
+        grad_2 = self.d_act(self.hidden_record[timestamp,:,:,:,:])
         grad_3_x = self.input_record[timestamp,:,:,:,:]
         grad_3_h = self.hiddenA_record[timestamp-1,:,:,:,:]
 
@@ -248,10 +245,12 @@ class RNN_CNN():
     
 class ZigZag_RNN_CNN():
 
-    def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size):
+    def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size,act=tf_elu,d_act=d_tf_elu):
     
         self.w_1 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out],stddev=0.05,seed=2))
         self.h_1 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out],stddev=0.05,seed=2))
+
+        self.act = act; self.d_act = d_act
 
         self.w_2 = tf.Variable(tf.random_normal([x_kernel,x_kernel,c_in,c_out],stddev=0.05,seed=2))
         self.h_2 = tf.Variable(tf.random_normal([h_kernel,h_kernel,c_out,c_out],stddev=0.05,seed=2))
@@ -272,12 +271,12 @@ class ZigZag_RNN_CNN():
         # perform feed forward on left
         layer_1 =  tf.nn.conv2d(input1,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
         tf.nn.conv2d(self.hiddenA_record_1[timestamp,:,:,:,:],self.h_1,strides=[1,1,1,1],padding='SAME') 
-        layerA_1 = tf_elu(layer_1)
+        layerA_1 = self.act(layer_1)
 
         # perform feed forward on right
         layer_2 =  tf.nn.conv2d(input2,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
         tf.nn.conv2d(self.hiddenA_record_2[timestamp,:,:,:,:],self.h_2,strides=[1,1,1,1],padding='SAME') 
-        layerA_2 = tf_elu(layer_2)
+        layerA_2 = self.act(layer_2)
     
         # assign for left
         hidden_assign.append(tf.assign(self.hidden_record_1[timestamp+1,:,:,:,:],layer_1))
@@ -297,12 +296,12 @@ class ZigZag_RNN_CNN():
         # perform feed forward on left
         layer_1 =  tf.nn.conv2d(input1,self.w_1,strides=[1,1,1,1],padding='SAME')  + \
         tf.nn.conv2d(self.hiddenA_record_2[timestamp,:,:,:,:],self.h_1,strides=[1,1,1,1],padding='SAME') 
-        layerA_1 = tf_elu(layer_1)
+        layerA_1 = self.d_act(layer_1)
 
         # perform feed forward on right
         layer_2 =  tf.nn.conv2d(input2,self.w_2,strides=[1,1,1,1],padding='SAME')  + \
         tf.nn.conv2d(self.hiddenA_record_1[timestamp,:,:,:,:],self.h_2,strides=[1,1,1,1],padding='SAME') 
-        layerA_2 = tf_elu(layer_2)
+        layerA_2 = self.d_act(layer_2)
     
         # assign for left
         hidden_assign.append(tf.assign(self.hidden_record_1[timestamp+1,:,:,:,:],layer_1))
@@ -531,6 +530,11 @@ print(test_label.max())
 print(test_label.min())
 
 # hyper 
+num_epoch = 3000
+learning_rate = 0.00008
+batch_size = 50
+
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # class
 
