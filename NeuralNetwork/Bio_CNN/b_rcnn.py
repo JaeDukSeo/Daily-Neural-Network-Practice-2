@@ -539,8 +539,22 @@ beta1,beta2,adam_e = 0.9,0.999,1e-8
 # class
 l0 = CNN(3,3,15)
 l1 = RNN_CNN(6,3,5,3,3,16)
+l2 = RNN_CNN(6,5,7,3,3,8)
+l3 = RNN_CNN(6,7,9,3,3,4)
+l4 = RNN_CNN(6,9,11,3,3,2)
 
 # graph
+x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float64)
+y = tf.placeholder(shape=[batch_size,10],dtype=tf.float64)
+
+layer0 = l0.feedforward(x)
+layer0_pool = tf.nn.avg_pool(layer0,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer0_reshape = tf.reshape(layer0_pool,[batch_size,16,16,3,5])
+
+for current_depth in range(0,layer0_pool.shape[3],3):
+    print(current_depth)
+    
+
 
 # session
 
