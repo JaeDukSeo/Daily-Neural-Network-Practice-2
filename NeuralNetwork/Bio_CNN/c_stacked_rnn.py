@@ -62,7 +62,6 @@ def unpickle(file):
     return dict
 # ====== miscellaneous =====
 
-
 # ================= LAYER CLASSES =================
 class CNN():
     
@@ -479,3 +478,193 @@ class SOM_Layer():
 
         return self.update,tf.reduce_mean(self.grad_pass, 1)
 # ================= LAYER CLASSES =================
+
+# data
+PathDicom = "../../Dataset/cifar-10-batches-py/"
+lstFilesDCM = []  # create an empty list
+for dirName, subdirList, fileList in os.walk(PathDicom):
+    for filename in fileList:
+        if not ".html" in filename.lower() and not  ".meta" in filename.lower():  # check whether the file's DICOM
+            lstFilesDCM.append(os.path.join(dirName,filename))
+
+# Read the data traind and Test
+batch0 = unpickle(lstFilesDCM[0])
+batch1 = unpickle(lstFilesDCM[1])
+batch2 = unpickle(lstFilesDCM[2])
+batch3 = unpickle(lstFilesDCM[3])
+batch4 = unpickle(lstFilesDCM[4])
+
+onehot_encoder = OneHotEncoder(sparse=True)
+train_batch = np.vstack((batch0[b'data'],batch1[b'data'],batch2[b'data'],batch3[b'data'],batch4[b'data']))
+train_label = np.expand_dims(np.hstack((batch0[b'labels'],batch1[b'labels'],batch2[b'labels'],batch3[b'labels'],batch4[b'labels'])).T,axis=1).astype(np.float64)
+train_label = onehot_encoder.fit_transform(train_label).toarray().astype(np.float64)
+
+test_batch = unpickle(lstFilesDCM[5])[b'data']
+test_label = np.expand_dims(np.array(unpickle(lstFilesDCM[5])[b'labels']),axis=0).T.astype(np.float64)
+test_label = onehot_encoder.fit_transform(test_label).toarray().astype(np.float64)
+
+# reshape data
+train_batch = np.reshape(train_batch,(len(train_batch),3,32,32))
+test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
+
+# rotate data
+train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float64)
+test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float64)
+
+# normalize 
+train_batch= train_batch/255.0
+test_batch = test_batch/255.0
+
+# print out the data shape and the max and min value
+print('------------------------------')
+print(train_batch.shape)
+print(train_batch.max())
+print(train_batch.min())
+print(train_label.shape)
+print(train_label.max())
+print(train_label.min())
+print(test_batch.shape)
+print(test_batch.max())
+print(test_batch.min())
+print(test_label.shape)
+print(test_label.max())
+print(test_label.min())
+print('------------------------------')
+
+# hyper 
+num_epoch = 300
+learning_rate = 0.00008
+batch_size = 50 
+print_size = 1
+time_stamp = 3
+
+beta1,beta2,adam_e = 0.9,0.999,1e-8
+
+# class
+l0 = CNN(3,3,12)
+l1 = RNN_CNN(time_stamp,4,8,3,1,16)
+l2 = RNN_CNN(time_stamp,8,16,3,1,8)
+l3 = RNN_CNN(time_stamp,16,32,3,1,4)
+l4 = RNN_CNN(time_stamp,32,10,3,1,4)
+
+# graph
+x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float64)
+y = tf.placeholder(shape=[batch_size,10],dtype=tf.float64)
+
+layer0 = l0.feedforward(x)
+layer0_pool = tf.nn.avg_pool(layer0,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer0_reshape = tf.reshape(layer0_pool,[batch_size,16,16,4,time_stamp])
+
+layer1_full = [] ; layer1_update = []
+for current_time_stamp in range(time_stamp):
+    layer1_temp,layer1_assign = l1.feedfoward(layer0_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
+    layer1_full.append(layer1_temp)
+    layer1_update.append(layer1_assign)
+layer1_ouput = tf.reshape(tf.convert_to_tensor(layer1_full),[batch_size,16,16,8*time_stamp])
+layer1_pool = tf.nn.avg_pool(layer1_ouput,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer1_reshape = tf.reshape(layer1_pool,[batch_size,8,8,8,time_stamp])
+
+layer2_full = [] ; layer2_update = []
+for current_time_stamp in range(time_stamp):
+    layer2_temp,layer2_assign = l2.feedfoward(layer1_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
+    layer2_full.append(layer2_temp)
+    layer2_update.append(layer2_assign)
+layer2_ouput = tf.reshape(tf.convert_to_tensor(layer2_full),[batch_size,8,8,16*time_stamp])
+layer2_pool = tf.nn.avg_pool(layer2_ouput,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
+layer2_reshape = tf.reshape(layer2_pool,[batch_size,4,4,16,time_stamp])
+
+layer3_full = [] ; layer3_update = []
+for current_time_stamp in range(time_stamp):
+    layer3_temp,layer3_assign = l3.feedfoward(layer2_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
+    layer3_full.append(layer3_temp)
+    layer3_update.append(layer3_assign)
+layer3_reshape = tf.reshape(tf.convert_to_tensor(layer3_full),[batch_size,4,4,32,time_stamp])
+
+layer4_full = [] ; layer4_update = []
+for current_time_stamp in range(time_stamp):
+    layer4_temp,layer4_assign = l4.feedfoward(layer3_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
+    layer4_full.append(layer4_temp)
+    layer4_update.append(layer4_assign)
+layer4_out = layer4_full[0] + layer4_full[1] + layer4_full[2]
+
+layer4_pool = tf.reduce_mean(layer4_out,(1,2))
+final_soft = tf_softmax(layer4_pool)
+
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4_pool,labels=y))
+correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float64))
+
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+
+# session
+with tf.Session() as sess:
+
+    sess.run(tf.global_variables_initializer())
+    
+    train_cota,train_acca = 0,0
+    train_cot,train_acc = [],[]
+    
+    test_cota,test_acca = 0,0
+    test_cot,test_acc = [],[]
+
+    for iter in range(num_epoch):
+
+        train_batch,train_label = shuffle(train_batch,train_label)
+
+        for batch_size_index in range(0,len(train_batch),batch_size):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
+
+            sess_result = sess.run([cost,accuracy,auto_train,correct_prediction,
+            layer1_full,layer1_update,
+            layer2_full,layer2_update,
+            layer3_full,layer3_update,
+            layer4_full,layer4_update,
+            final_soft,layer4_pool],feed_dict={x:current_batch,y:current_batch_label})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+            train_cota = train_cota + sess_result[0]
+            train_acca = train_acca + sess_result[1]
+            
+        for test_batch_index in range(0,len(test_batch),batch_size):
+            current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
+            current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
+
+            sess_result = sess.run([cost,accuracy,correct_prediction,
+            layer1_full,layer1_update,
+            layer2_full,layer2_update,
+            layer3_full,layer3_update,
+            layer4_full,layer4_update,
+            final_soft,layer4_pool],feed_dict={x:current_batch,y:current_batch_label})
+            print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+            test_acca = sess_result[1] + test_acca
+            test_cota = sess_result[0] + test_cota
+
+        if iter % print_size==0:
+            print("\n-----------------")
+            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),' Current Acc: ', train_acca/(len(train_batch)/batch_size),end='\n')
+            print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
+            print("-----------------")
+
+        train_acc.append(train_acca/(len(train_batch)/batch_size))
+        train_cot.append(train_cota/(len(train_batch)/batch_size))
+        test_acc.append(test_acca/(len(test_batch)/batch_size))
+        test_cot.append(test_cota/(len(test_batch)/batch_size))
+        test_cota,test_acca = 0,0
+        train_cota,train_acca = 0,0
+
+    # training done
+    plt.figure(figsize=(10, 10))
+    plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
+    plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
+    plt.legend()
+    plt.title("Train Average Accuracy / Cost Over Time")
+    plt.show()
+
+    plt.figure(figsize=(10, 10))
+    plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
+    plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
+    plt.legend()
+    plt.title("Test Average Accuracy / Cost Over Time")
+    plt.show()
+
+# -- end code --

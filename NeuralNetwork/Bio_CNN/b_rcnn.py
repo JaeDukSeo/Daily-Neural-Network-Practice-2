@@ -542,9 +542,9 @@ beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # class
 l0 = CNN(3,3,96)
-l1 = RNN_CNN(time_stamp,32,64,3,3,16)
+l1 = RNN_CNN(time_stamp,32,64,5,3,16)
 l2 = CNN(3,64,192)
-l3 = RNN_CNN(time_stamp,64,128,3,3,4)
+l3 = RNN_CNN(time_stamp,64,128,5,3,4)
 l4 = CNN(1,128,10)
 
 # graph
@@ -560,7 +560,7 @@ for current_time_stamp in range(time_stamp):
     layer1_temp,layer1_assign = l1.feedfoward(layer0_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
     layer1_full.append(layer1_temp)
     layer1_update.append(layer1_assign)
-layer1_ouput =layer1_full[0] * layer1_full[1] * layer1_full[2]
+layer1_ouput =layer1_full[0] + layer1_full[1] + layer1_full[2]
 layer1_pool = tf.nn.avg_pool(layer1_ouput,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 
 layer2 = l2.feedforward(layer1_pool)
@@ -572,7 +572,7 @@ for current_time_stamp in range(time_stamp):
     layer3_temp,layer3_assign = l3.feedfoward(layer2_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
     layer3_full.append(layer3_temp)
     layer3_update.append(layer3_assign)
-layer3_ouput = layer3_full[0] * layer3_full[1] * layer3_full[2]
+layer3_ouput = layer3_full[0] + layer3_full[1] + layer3_full[2]
 
 layer4 = l4.feedforward(layer3_ouput)
 layer4_pool = tf.reduce_mean(layer4,(1,2))
