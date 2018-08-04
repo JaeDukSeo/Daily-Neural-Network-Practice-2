@@ -536,15 +536,16 @@ num_epoch = 3000
 learning_rate = 0.000008
 batch_size = 20
 print_size = 10
+time_stamp = 3
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # class
-l0 = CNN(3,3,75)
-l1 = RNN_CNN(5,15,17,3,1,16)
-l2 = CNN(3,85,95)
-l3 = RNN_CNN(5,19,21,3,1,4)
-l4 = CNN(3,105,10)
+l0 = CNN(3,3,96)
+l1 = RNN_CNN(time_stamp,32,64,3,1,16)
+l2 = CNN(3,192,192)
+l3 = RNN_CNN(time_stamp,64,128,3,1,4)
+l4 = CNN(3,384,10)
 
 # graph
 x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float64)
@@ -552,26 +553,26 @@ y = tf.placeholder(shape=[batch_size,10],dtype=tf.float64)
 
 layer0 = l0.feedforward(x)
 layer0_pool = tf.nn.avg_pool(layer0,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer0_reshape = tf.reshape(layer0_pool,[batch_size,16,16,15,5])
+layer0_reshape = tf.reshape(layer0_pool,[batch_size,16,16,32,time_stamp])
 
 layer1_full = [] ; layer1_update = []
-for current_time_stamp in range(5):
+for current_time_stamp in range(time_stamp):
     layer1_temp,layer1_assign = l1.feedfoward(layer0_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
     layer1_full.append(layer1_temp)
     layer1_update.append(layer1_assign)
-layer1_ouput = tf.reshape(tf.convert_to_tensor(layer1_full),[batch_size,16,16,85])
+layer1_ouput = tf.reshape(tf.convert_to_tensor(layer1_full),[batch_size,16,16,192])
 layer1_pool = tf.nn.avg_pool(layer1_ouput,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 
 layer2 = l2.feedforward(layer1_pool)
 layer2_pool = tf.nn.avg_pool(layer2,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
-layer2_reshape = tf.reshape(layer2_pool,[batch_size,4,4,19,5])
+layer2_reshape = tf.reshape(layer2_pool,[batch_size,4,4,64,time_stamp])
 
 layer3_full = [] ; layer3_update = []
-for current_time_stamp in range(5):
+for current_time_stamp in range(time_stamp):
     layer3_temp,layer3_assign = l3.feedfoward(layer2_reshape[:,:,:,:,current_time_stamp],current_time_stamp)
     layer3_full.append(layer3_temp)
     layer3_update.append(layer3_assign)
-layer3_ouput = tf.reshape(tf.convert_to_tensor(layer3_full),[batch_size,4,4,105])
+layer3_ouput = tf.reshape(tf.convert_to_tensor(layer3_full),[batch_size,4,4,384])
 
 layer4 = l4.feedforward(layer3_ouput)
 layer4_pool = tf.reduce_mean(layer4,(1,2))
