@@ -512,10 +512,11 @@ train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(n
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float64)
 
 # normalize 
-train_batch= test_batch/255.0
+train_batch= train_batch/255.0
 test_batch = test_batch/255.0
 
 # print out the data shape and the max and min value
+print('------------------------------')
 print(train_batch.shape)
 print(train_batch.max())
 print(train_batch.min())
@@ -528,20 +529,22 @@ print(test_batch.min())
 print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
+print('------------------------------')
 
 # hyper 
 num_epoch = 3000
-learning_rate = 0.00008
-batch_size = 50
+learning_rate = 0.0001
+batch_size = 100
+print_size = 10
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # class
 l0 = CNN(3,3,15)
-l1 = RNN_CNN(6,3,5,3,3,16)
+l1 = RNN_CNN(5,3,5,5,5,16)
 l2 = CNN(3,25,35)
-l3 = RNN_CNN(6,7,9,3,3,4)
-l4 = CNN(1,45,10)
+l3 = RNN_CNN(5,7,9,5,5,4)
+l4 = CNN(3,45,10)
 
 # graph
 x = tf.placeholder(shape=[batch_size,32,32,3],dtype=tf.float64)
@@ -569,9 +572,8 @@ for current_time_stamp in range(5):
     layer3_full.append(layer3_temp)
     layer3_update.append(layer3_assign)
 layer3_ouput = tf.reshape(tf.convert_to_tensor(layer3_full),[batch_size,4,4,45])
-layer3_pool = tf.nn.avg_pool(layer3_ouput,ksize=[1,2,2,1],strides=[1,2,2,1],padding='VALID')
 
-layer4 = l4.feedforward(layer3_pool)
+layer4 = l4.feedforward(layer3_ouput)
 layer4_pool = tf.reduce_mean(layer4,(1,2))
 final_soft = tf_softmax(layer4_pool)
 
@@ -582,5 +584,66 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float64))
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # session
+with tf.Session() as sess:
+
+    sess.run(tf.global_variables_initializer())
+    
+    train_cota,train_acca = 0,0
+    train_cot,train_acc = [],[]
+    
+    test_cota,test_acca = 0,0
+    test_cot,test_acc = [],[]
+
+    for iter in range(num_epoch):
+
+        train_batch,train_label = shuffle(train_batch,train_label)
+
+        for batch_size_index in range(0,len(train_batch),batch_size):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
+
+            sess_result = sess.run([cost,accuracy,auto_train,correct_prediction,layer1_full,
+            layer1_update,layer3_full,layer3_update,final_soft,layer4_pool],feed_dict={x:current_batch,y:current_batch_label})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+            train_cota = train_cota + sess_result[0]
+            train_acca = train_acca + sess_result[1]
+            
+        for test_batch_index in range(0,len(test_batch),batch_size):
+            current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
+            current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
+
+            sess_result = sess.run([cost,accuracy,correct_prediction,layer1_full,
+            layer1_update,layer3_full,layer3_update,final_soft,layer4_pool],feed_dict={x:current_batch,y:current_batch_label})
+            print("Current Iter : ",iter, " current batch: ",test_batch_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
+            test_acca = sess_result[1] + test_acca
+            test_cota = sess_result[0] + test_cota
+
+        if iter % print_size==0:
+            print("\n-----------------")
+            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),' Current Acc: ', train_acca/(len(train_batch)/batch_size),end='\n')
+            print('Test Current cost: ', test_cota/(len(test_batch)/batch_size),' Current Acc: ', test_acca/(len(test_batch)/batch_size),end='\n')
+            print("-----------------")
+
+        train_acc.append(train_acca/(len(train_batch)/batch_size))
+        train_cot.append(train_cota/(len(train_batch)/batch_size))
+        test_acc.append(test_acca/(len(test_batch)/batch_size))
+        test_cot.append(test_cota/(len(test_batch)/batch_size))
+        test_cota,test_acca = 0,0
+        train_cota,train_acca = 0,0
+
+    # training done
+    plt.figure(figsize=(10, 10))
+    plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
+    plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
+    plt.legend()
+    plt.title("Train Average Accuracy / Cost Over Time")
+    plt.show()
+
+    plt.figure(figsize=(10, 10))
+    plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
+    plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
+    plt.legend()
+    plt.title("Test Average Accuracy / Cost Over Time")
+    plt.show()
 
 # -- end code --
