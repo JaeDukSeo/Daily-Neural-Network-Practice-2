@@ -573,7 +573,13 @@ layer3_pool = tf.nn.avg_pool(layer3_ouput,ksize=[1,2,2,1],strides=[1,2,2,1],padd
 
 layer4 = l4.feedforward(layer3_pool)
 layer4_pool = tf.reduce_mean(layer4,(1,2))
+final_soft = tf_softmax(layer4_pool)
 
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=layer4_pool,labels=y))
+correct_prediction = tf.equal(tf.argmax(final_soft, 1), tf.argmax(y, 1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float64))
+
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # session
 
