@@ -575,9 +575,9 @@ print(test_label.min())
 
 # hyper
 num_epoch = 500
-learning_rate = 0.001
+learning_rate = 0.0000008
 batch_size = 50
-print_size = 1
+print_size = 10
 lambda_val = 3e-3
 beta_val = 3
 sparsity_parameter = 0.1
@@ -593,7 +593,7 @@ A = tf.Variable(tf.random_normal([196,784],stddev=0.05,seed=2,dtype=tf.float64))
 
 created = tf.matmul(s,A)
 
-cost = tf.sqrt(tf.square(created-x)) + lambda_val * tf.sqrt(tf.square(s)+sparsity_parameter) + beta_val * tf.sqrt(tf.square(A))
+cost = tf.reduce_sum(tf.sqrt(tf.square(created-x))) + lambda_val * tf.reduce_sum(tf.sqrt(tf.square(s)+sparsity_parameter)) + beta_val * tf.reduce_sum(tf.sqrt(tf.square(A)))
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
 # sess
@@ -608,8 +608,7 @@ with tf.Session( ) as sess:
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            current_batch_label = train_label[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost,auto_train],feed_dict={b:current_batch})
+            sess_result = sess.run([cost,auto_train],feed_dict={x:current_batch})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0].sum(),end='\r')
             train_cota = train_cota + sess_result[0]
             
@@ -621,6 +620,10 @@ with tf.Session( ) as sess:
     final_A_reshape = np.reshape(A,(196,28,28))
     print(final_A_reshape.shape)
 
+    if iter % print_size==0:
+        print("\n----------")
+        print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),end='\n')
+        print("----------")
 
     # training done
     # plt.figure()
