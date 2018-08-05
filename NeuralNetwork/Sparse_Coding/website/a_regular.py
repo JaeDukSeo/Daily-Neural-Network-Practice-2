@@ -547,16 +547,14 @@ class Sparse_Coding():
 # ================= LAYER CLASSES =================
 
 # data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+mnist = input_data.read_data_sets('../../../Dataset/MNIST/', one_hot=True)
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 x_data_added,x_data_added_label = mnist.validation.images,mnist.validation.labels
 
-x_data = np.vstack((x_data,x_data_added))
+train_batch = np.vstack((x_data,x_data_added))[:10000,:]
 train_label = np.vstack((train_label,x_data_added_label))
-train_batch = np.zeros((60000,784))
-test_batch = np.zeros((10000,784))
+test_batch = y_data
 
-train_batch = train_batch[:10000]
 # print out the data shape and the max and min value
 print(train_batch.shape)
 print(train_batch.max())
@@ -570,6 +568,7 @@ print(test_batch.min())
 print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
+sys.exit()
 
 # hyper
 num_epoch = 800
