@@ -66,7 +66,6 @@ def unpickle(file):
     return dict
 # ====== miscellaneous =====
 
-
 # ================= LAYER CLASSES =================
 class CNN():
     
@@ -551,7 +550,7 @@ mnist = input_data.read_data_sets('../../../Dataset/MNIST/', one_hot=True)
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 x_data_added,x_data_added_label = mnist.validation.images,mnist.validation.labels
 
-train_batch = np.vstack((x_data,x_data_added))[:10000,:]
+train_batch = np.vstack((x_data,x_data_added))[:50,:]
 train_label = np.vstack((train_label,x_data_added_label))
 test_batch = y_data
 
@@ -568,41 +567,35 @@ print(test_batch.min())
 print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
-sys.exit()
 
 # hyper
 num_epoch = 800
 learning_rate = 0.00008
-batch_size = 2000
+batch_size = 50
 print_size = 20
-lambda_val = 3e-3
-beta_val = 3
-sparsity_parameter = 0.1
+sparsity_parameter = 0.005
+beta = 0.3
 
 # class 
-# l0 = FNN(784,196)
+l0 = FNN(784,10,act=tf_sigmoid,d_act=tf_sigmoid)
+l1 = FNN(10,10,act=tf_sigmoid,d_act=tf_sigmoid)
+l2 = FNN(10,784,act=tf_sigmoid,d_act=tf_sigmoid)
 
 # graph
 x = tf.placeholder(shape=[batch_size,784],dtype=tf.float64)
 
-# s = tf.Variable(tf.random_normal([batch_size,196],stddev=0.05,seed=2,dtype=tf.float64))
-A = tf.Variable(tf.random_normal([196,784],stddev=0.05,seed=2,dtype=tf.float64))
+layer0 = l0.feedforward(x)
+layer1 = l1.feedforward(layer0)
+layer2 = l2.feedforward(layer1)
 
-s = tf.matmul(x,tf.transpose(A))
-A_div = tf.reduce_sum(tf.abs(A),axis=1)
-new_s = s/A_div
-
-
-created = tf.matmul(new_s,A)
-
-# cost1 = tf.reduce_sum(tf.square(created-x)) + lambda_val * tf.reduce_sum(tf.sqrt(tf.square(new_s)))
-# auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost1)
-
-cost2 = tf.reduce_sum(tf.square(created-x)) + beta_val * tf.reduce_sum(tf.square(A))
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost2)
-
-processed_A = A/tf.sqrt(tf.square(tf.reduce_sum(A,axis=0)))
-
+p_hat = tf.reduce_mean(layer1,axis=0)
+recont_cost = tf.reduce_mean(tf.square(layer2-x)*0.5)
+sparse_cost = tf.reduce_sum(
+    sparsity_parameter * tf.log(sparsity_parameter/p_hat + 1e-5) + \
+    (1.0-sparsity_parameter) * tf.log( (1-sparsity_parameter)/(1-p_hat) + 1e-5)
+) 
+total_cost = recont_cost + beta * sparse_cost
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
 with tf.Session( ) as sess:
@@ -616,10 +609,9 @@ with tf.Session( ) as sess:
 
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost2,auto_train2],feed_dict={x:current_batch})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0].sum(),end='\r')
+            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
             train_cota = train_cota + sess_result[0]
-            
 
         if iter % print_size==0:
             print("\n----------")
@@ -629,17 +621,24 @@ with tf.Session( ) as sess:
         train_cot.append(train_cota/(len(train_batch)/batch_size))
         train_cota,train_acca = 0,0
 
-    final_A = sess.run(processed_A)
-    final_A_reshape = np.reshape(final_A,(196,28,28))
+    # 100 * 100 = 10000 -> 
+    final_W = np.reshape(sess.run(l1.getw()),(4,10,10))
+    print(final_W.shape)
 
-    fig=plt.figure(figsize=(10, 10))
-    columns = 14
-    rows = 14
-    for i in range(1, columns*rows +1):
-        fig.add_subplot(rows, columns, i)
-        plt.axis('off')
-        plt.imshow(final_A_reshape[i-1,:,:],cmap='gray')
+    fig, axes = plt.subplots(1, 3, subplot_kw=dict(polar=True))
+    axes[0, 0].imshow(final_W[0,:,:],cmap='gray')
+    axes[0, 1].imshow(final_W[1,:,:],cmap='gray')
+    axes[0, 2].imshow(final_W[2,:,:],cmap='gray')
     plt.show()
+
+    # fig=plt.figure(figsize=(10, 10))
+    # columns = 14
+    # rows = 14
+    # for i in range(1, columns*rows +1):
+    #     fig.add_subplot(rows, columns, i)
+    #     plt.axis('off')
+    #     plt.imshow(final_A_reshape[i-1,:,:],cmap='gray')
+    # plt.show()
 
 
     # training done
