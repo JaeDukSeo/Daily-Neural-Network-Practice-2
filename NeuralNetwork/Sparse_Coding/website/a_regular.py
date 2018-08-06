@@ -659,6 +659,4 @@ with tf.Session( ) as sess:
     # plt.show()
 
 
-
-
 # -- end code --
