@@ -73,8 +73,10 @@ class sparse_autoencoder(object):
         """
         
         return 1.0 / (1.0 + np.exp(-x))
-
-    def feedforward(self,input):
+    def feedforward(self,input,theta):
+        
+        # Retrieve the weights and biases from theta.        
+        W1, W2, b1, b2 = self.unpack_theta(theta)
         hidden_layer = self.sigmoid(np.dot(W1, input) + b1)
         output_layer = self.sigmoid(np.dot(W2, hidden_layer) + b2)
         return output_layer
@@ -166,22 +168,6 @@ class sparse_autoencoder(object):
                                      b1_grad.flatten(), b2_grad.flatten()))        
         return [cost, theta_grad]
     def train(self, data, max_iterations):
-        """ Return optimal theta for a given set of data 
-        
-        Parameters
-        ----------
-        data : ndarray
-               Array of form (visible_size, number of patches)       
-        max_iterations : int
-                         Maximum number of iterations to use in the numerical
-                         solver
-                         
-        Returns
-        -------
-        opt_theta : ndarray
-                    Array containing weights and biases which minimize the
-                    cost function.
-        """
         
         opt_soln = scipy.optimize.minimize(self.cost, 
                                            self.initial_theta, 
@@ -190,53 +176,18 @@ class sparse_autoencoder(object):
         opt_theta = opt_soln.x
         return opt_theta
 
-def visualizeW1(opt_W1, vis_patch_side, hid_patch_side):
-    """Visualize the obtained W1 values as images
-    
-    Parameters
-    ----------
-    opt_W1 : ndarray
-             Array of dimension (hidden_size, visible_size) containing weights
-             between visible input and hidden layer.
-    vis_patch_side : int
-                     Number of pixels per side of images to be displayed
-    hid_patch_side : int
-                     Subplot of size (hid_patch_side, hid_patch_side) images
-                     to be displayed. 
-                     
-    Notes
-    -----
-    Written by Siddharth Agrawal for the same tutorial project.  See his github
-    page.    
-    """
-    
-    figure, axes = matplotlib.pyplot.subplots(nrows = hid_patch_side,
-                                              ncols = hid_patch_side)
-    index = 0                                              
-    for axis in axes.flat:    
-        # Add row of weights as an image to the plot.    
-        image = axis.imshow(opt_W1[index, :].reshape(vis_patch_side, 
-                            vis_patch_side), cmap = matplotlib.pyplot.cm.gray,
-                            interpolation = 'nearest')
-        axis.set_frame_on(False)
-        axis.set_axis_off()
-        index += 1
-        
-    # Show the obtained plot.        
-    matplotlib.pyplot.show()        
-
 # Parameters
 beta = 3.0 # sparsity parameter (rho) weight
 lamda = 3e-3 # regularization weight
-rho = 0.1 # sparstiy parameter i.e. target average activation for hidden 
-            # units
+rho = 0.1 # sparstiy parameter i.e. target average activation for hidden  units
 visible_side = 28 # sqrt of number of visible units
 hidden_side = 14 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side * hidden_side # number of hidden units
-m = 100 # number of training examples
+m = 1000     # number of training examples
 max_iterations = 400 # Maximum number of iterations for numerical solver.
 
+# data
 mnist = input_data.read_data_sets('../../../Dataset/MNIST/', one_hot=True)
 training_data = mnist.train.images.T
 training_data = training_data[:, 0:m]
@@ -244,6 +195,71 @@ training_data = training_data[:, 0:m]
 # Create instance of autoencoder     
 sae = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
 opt_theta = sae.train(training_data, max_iterations)
+
+def display_network(A):
+    opt_normalize = True
+    opt_graycolor = True
+
+    # Rescale
+    A = A - np.average(A)
+
+    # Compute rows & cols
+    (row, col) = A.shape
+    sz = int(np.ceil(np.sqrt(row)))
+    buf = 1
+    n = int(np.ceil(np.sqrt(col)))
+    m = int(np.ceil(col / n))
+
+    image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
+
+    if not opt_graycolor:
+        image *= 0.1
+
+    k = 0
+    for i in range(int(m)):
+        for j in range(int(n)):
+            if k >= col:
+                continue
+
+            clim = np.max(np.abs(A[:, k]))
+
+            if opt_normalize:
+                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                    A[:, k].reshape(sz, sz) / clim
+            else:
+                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                    A[:, k].reshape(sz, sz) / np.max(np.abs(A))
+            k += 1
+    fig=plt.figure(figsize=(10, 10))
+    plt.axis('off')
+    plt.imshow(image,cmap='gray')
+    plt.show()
+    # plt.imsave(filename, image, cmap=matplotlib.cm.gray)
+
+# train data
+training_data = training_data[:, 0:196]
+training_data_reshape = np.reshape(training_data.T,(196,28,28))
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(training_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
+plt.show()
+display_network(training_data)
+
+# re con data
+recon_data = sae.feedforward(training_data,opt_theta)
+recon_data_reshape = np.reshape(recon_data.T,(196,28,28))
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
+plt.show()
+display_network(recon_data)
+
 
 # Visualize the optimized activations    
 opt_W1 = opt_theta[0 : visible_size * hidden_size].reshape(hidden_size, visible_size)    
@@ -255,7 +271,16 @@ for i in range(1, columns*rows +1):
     plt.axis('off')
     plt.imshow(opt_W1_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
 plt.show()
+display_network(opt_W1.T)
 
+opt_W1_temp = (opt_W1_reshape-opt_W1_reshape.min(axis=0)) / (opt_W1_reshape.max(axis=0)-opt_W1_reshape.min(axis=0))
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(opt_W1_temp[i-1,:,:],cmap='gray')
+plt.show()
 
 
 
