@@ -324,8 +324,8 @@ class LSTM_CNN():
 
 class FNN():
     
-    def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
+    def __init__(self,input_dim,hidden_dim,act,d_act,std=0.005):
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=std,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -569,27 +569,25 @@ print(test_label.max())
 print(test_label.min())
 
 # hyper
-num_epoch = 800
-learning_rate = 0.00008
+num_epoch = 4000
+learning_rate = 0.07
 batch_size = 50
 print_size = 20
-sparsity_parameter = 0.005
-beta = 0.3
+sparsity_parameter = 0.01
+beta = 5
 
 # class 
-l0 = FNN(784,10,act=tf_sigmoid,d_act=tf_sigmoid)
-l1 = FNN(10,10,act=tf_sigmoid,d_act=tf_sigmoid)
-l2 = FNN(10,784,act=tf_sigmoid,d_act=tf_sigmoid)
+l0 = FNN(784,100,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(784+ 100 + 1)))
+l1 = FNN(100,784,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(100+ 784 + 1)))
 
 # graph
-x = tf.placeholder(shape=[batch_size,784],dtype=tf.float64)
+x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
 layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
-layer2 = l2.feedforward(layer1)
 
-p_hat = tf.reduce_mean(layer1,axis=0)
-recont_cost = tf.reduce_mean(tf.square(layer2-x)*0.5)
+p_hat = tf.reduce_mean(layer0,axis=0)
+recont_cost = tf.reduce_mean(tf.square(layer1-x)*0.5)
 sparse_cost = tf.reduce_sum(
     sparsity_parameter * tf.log(sparsity_parameter/p_hat + 1e-5) + \
     (1.0-sparsity_parameter) * tf.log( (1-sparsity_parameter)/(1-p_hat) + 1e-5)
@@ -622,23 +620,22 @@ with tf.Session( ) as sess:
         train_cota,train_acca = 0,0
 
     # 100 * 100 = 10000 -> 
-    final_W = np.reshape(sess.run(l1.getw()),(4,10,10))
-    print(final_W.shape)
+    print('\n\n------------')
+    final_W = sess.run(l0.getw())[0]
+    final_layer_reshape = np.reshape(final_W,(28,28,100)).T
 
-    fig, axes = plt.subplots(1, 3, subplot_kw=dict(polar=True))
-    axes[0, 0].imshow(final_W[0,:,:],cmap='gray')
-    axes[0, 1].imshow(final_W[1,:,:],cmap='gray')
-    axes[0, 2].imshow(final_W[2,:,:],cmap='gray')
+    # final_W_mean = final_W / np.sqrt(np.sum(final_W,axis=0)**2)
+    # final_layer = sess.run(layer1,feed_dict={x:final_W_mean.T})
+    # final_layer_reshape = np.reshape(final_layer,(100,28,28))
+
+    fig=plt.figure(figsize=(10, 10))
+    columns = 10
+    rows = 10
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(final_layer_reshape[i-1,:,:],cmap='gray')
     plt.show()
-
-    # fig=plt.figure(figsize=(10, 10))
-    # columns = 14
-    # rows = 14
-    # for i in range(1, columns*rows +1):
-    #     fig.add_subplot(rows, columns, i)
-    #     plt.axis('off')
-    #     plt.imshow(final_A_reshape[i-1,:,:],cmap='gray')
-    # plt.show()
 
 
     # training done
