@@ -273,7 +273,7 @@ for i in range(1, columns*rows +1):
 plt.show()
 display_network(opt_W1.T)
 
-opt_W1_temp = (opt_W1_reshape-opt_W1_reshape.min(axis=0)) / (opt_W1_reshape.max(axis=0)-opt_W1_reshape.min(axis=0))
+opt_W1_temp = (opt_W1_reshape-opt_W1_reshape.min()) / (opt_W1_reshape.max()-opt_W1_reshape.min())
 fig=plt.figure(figsize=(10, 10))
 columns = 14; rows = 14
 for i in range(1, columns*rows +1):
@@ -282,6 +282,14 @@ for i in range(1, columns*rows +1):
     plt.imshow(opt_W1_temp[i-1,:,:],cmap='gray')
 plt.show()
 
-
+opt_W1_temp2 = opt_W1  / np.sqrt(np.sum(opt_W1,axis=1) ** 2)
+opt_W1_temp2 = np.reshape(opt_W1_temp2,(196,28,28))
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(opt_W1_temp2[i-1,:,:],cmap='gray')
+plt.show()
 
 # -- end code --
