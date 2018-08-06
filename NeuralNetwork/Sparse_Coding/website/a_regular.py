@@ -550,7 +550,7 @@ mnist = input_data.read_data_sets('../../../Dataset/MNIST/', one_hot=True)
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 x_data_added,x_data_added_label = mnist.validation.images,mnist.validation.labels
 
-train_batch = np.vstack((x_data,x_data_added))[:50,:]
+train_batch = x_data[:1000,:]
 train_label = np.vstack((train_label,x_data_added_label))
 test_batch = y_data
 
@@ -569,74 +569,96 @@ print(test_label.max())
 print(test_label.min())
 
 # hyper
-num_epoch = 4000
-learning_rate = 0.07
-batch_size = 50
-print_size = 20
-sparsity_parameter = 0.01
-beta = 5
+num_epoch = 400
+# learning_rate = 0.03
+batch_size = 1000;  print_size = 10
+sparsity_parameter = 0.1
+beta = 3.0
+lambda_value = 3e-3
 
 # class 
-l0 = FNN(784,100,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(784+ 100 + 1)))
-l1 = FNN(100,784,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(100+ 784 + 1)))
+l0 = FNN(784,196,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(784+100 + 1)))
+l1 = FNN(196,784,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(100+784 + 1)))
 
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
+l0w = l0.getw()[0]
+l1w = l1.getw()[0]
 layer0 = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
 
-p_hat = tf.reduce_mean(layer0,axis=0)
 recont_cost = tf.reduce_mean(tf.square(layer1-x)*0.5)
+
+p_hat = tf.reduce_mean(layer0,axis=0)
 sparse_cost = tf.reduce_sum(
-    sparsity_parameter * tf.log(sparsity_parameter/p_hat + 1e-5) + \
-    (1.0-sparsity_parameter) * tf.log( (1-sparsity_parameter)/(1-p_hat) + 1e-5)
+    sparsity_parameter * tf.log(sparsity_parameter/p_hat) + \
+    (1.0-sparsity_parameter) * tf.log( (1-sparsity_parameter)/(1-p_hat) )
 ) 
-total_cost = recont_cost + beta * sparse_cost
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
+
+reg_cost =  (tf.reduce_sum(l0w * l0w) + tf.reduce_sum(l1w * l1w))/ 2.0 
+total_cost = recont_cost   + beta *sparse_cost +lambda_value * reg_cost
+auto_train = tf.contrib.opt.ScipyOptimizerInterface(total_cost, method='L-BFGS-B',   options={'maxiter': num_epoch})
+# auto_train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost,var_list=[l0w,l1w])
 
 # sess
 with tf.Session( ) as sess:
 
     sess.run(tf.global_variables_initializer())
+    auto_train.minimize(sess,feed_dict={x: train_batch})
     
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
     
-    for iter in range(num_epoch):
-
-        for batch_size_index in range(0,len(train_batch),batch_size):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
-            train_cota = train_cota + sess_result[0]
-
-        if iter % print_size==0:
-            print("\n----------")
-            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),end='\n')
-            print("----------")
-
-        train_cot.append(train_cota/(len(train_batch)/batch_size))
-        train_cota,train_acca = 0,0
+    # for iter in range(num_epoch):
+    #     for batch_size_index in range(0,len(train_batch),batch_size):
+    #         current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+    #         sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
+    #         print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
+    #         train_cota = train_cota + sess_result[0]
+    #     if iter % print_size==0:
+    #         print("\n----------")
+    #         print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),end='\n')
+    #         print("----------")
 
     # 100 * 100 = 10000 -> 
     print('\n\n------------')
-    final_W = sess.run(l0.getw())[0]
-    final_layer_reshape = np.reshape(final_W,(28,28,100)).T
+    test_image = train_batch[:196 ]
 
-    # final_W_mean = final_W / np.sqrt(np.sum(final_W,axis=0)**2)
-    # final_layer = sess.run(layer1,feed_dict={x:final_W_mean.T})
-    # final_layer_reshape = np.reshape(final_layer,(100,28,28))
+    test_image_reshape = np.reshape(test_image,(196,28,28))
+    fig=plt.figure(figsize=(10, 10))
+    columns = 14; rows = 14
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(test_image_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
+
+    test_final =  sess.run(layer1,feed_dict={x:test_image})
+    test_final_reshape = np.reshape(test_final,(196,28,28))
+
+    print(test_image.shape)
+    print(test_final_reshape.shape)
 
     fig=plt.figure(figsize=(10, 10))
-    columns = 10
-    rows = 10
+    columns = 14; rows = 14
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(test_final_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
+
+    final_W = sess.run(l0.getw())[0]
+    final_layer_reshape = np.reshape(final_W,(28,28,196)).T
+    fig=plt.figure(figsize=(10, 10))
+    columns = 14; rows = 14
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
         plt.imshow(final_layer_reshape[i-1,:,:],cmap='gray')
     plt.show()
-
 
     # training done
     # plt.figure()

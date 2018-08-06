@@ -20,55 +20,20 @@ import matplotlib.pyplot
 import time
 import struct
 import array
+import matplotlib.pyplot as plt
 
 import os,sys
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
+# Generate training data 
+import tensorflow as tf
+old_v = tf.logging.get_verbosity()
+tf.logging.set_verbosity(tf.logging.ERROR)
+from tensorflow.examples.tutorials.mnist import input_data
+
 class sparse_autoencoder(object):
-    """
-    Creates an instance of a sparse autoencoder.
-    
-    Attributes
-    ----------
-    visible_size : int
-                   Number of input units
-    hidden_size : int
-                  Number of hidden units
-    lambda_ : float
-              Weight decay parameter
-    rho : float
-          Target average activation for the hidden units
-    beta : float
-           Weighting on the sparsity penalty term
-    idx_0 : int
-            Starting index for weight W1 terms in theta array.  Should be 0.
-    idx_1 : int
-            Start index for weight W2 terms in theta array.  
-    idx_2 : int 
-            Starting index for bias b1 terms in theta array.
-    idx_3 : int
-            Starting index for bias b2 terms in theta array.
-    initial_theta : ndarray
-                    Array with appropriately generated random entries.  
-                    Used as initial guess in numerical calculation.              
-    """
     
     def __init__(self, visible_size, hidden_size, lambda_, rho, beta):
-        """Create instance of sparse autoencoder
-        
-        Parameters
-        ----------
-        visible_size : int
-                       the number of input units (probably 64) 
-        hidden_size : int 
-                      the number of hidden units (probably 25) 
-        lambda_ : float
-                weight decay parameter
-        rho : float
-              The desired average activation for the hidden units 
-        beta : float
-               weight of sparsity penalty term             
-        """   
         
         self.visible_size = visible_size  
         self.hidden_size = hidden_size 
@@ -79,10 +44,8 @@ class sparse_autoencoder(object):
         # initialize weights and bias terms 
         w_max = np.sqrt(6.0 / (visible_size + hidden_size + 1.0))
         w_min = -w_max
-        W1 = (w_max - w_min) * np.random.random_sample(size = (hidden_size, 
-                                                        visible_size)) + w_min
-        W2 = (w_max - w_min) * np.random.random_sample(size = (visible_size, 
-                                                        hidden_size)) + w_min
+        W1 = (w_max - w_min) * np.random.random_sample(size = (hidden_size, visible_size)) + w_min
+        W2 = (w_max - w_min) * np.random.random_sample(size = (visible_size, hidden_size)) + w_min
         b1 = np.zeros(hidden_size)
         b2 = np.zeros(visible_size)
         
@@ -95,7 +58,6 @@ class sparse_autoencoder(object):
         self.idx_4 = self.idx_3 + visible_size # length of b2
         self.initial_theta = np.concatenate((W1.flatten(), W2.flatten(), 
                                              b1.flatten(), b2.flatten()))
-        
     def sigmoid(self, x):
         """ Apply sigmoid transorm to array
         
@@ -111,7 +73,11 @@ class sparse_autoencoder(object):
         """
         
         return 1.0 / (1.0 + np.exp(-x))
-    
+
+    def feedforward(self,input):
+        hidden_layer = self.sigmoid(np.dot(W1, input) + b1)
+        output_layer = self.sigmoid(np.dot(W2, hidden_layer) + b2)
+        return output_layer
     def unpack_theta(self, theta):
         """Break up theta array into  2 weight and 2 bias arrays
         
@@ -138,8 +104,6 @@ class sparse_autoencoder(object):
         b2 = theta[self.idx_3 : self.idx_4]
         b2 = np.reshape(b2, (self.visible_size, 1))
         return W1, W2, b1, b2     
-        
-        
     def cost(self, theta, visible_input):
         """Evaluate sigmoidal cost function for given theta and input array
         
@@ -201,8 +165,6 @@ class sparse_autoencoder(object):
         theta_grad = np.concatenate((W1_grad.flatten(), W2_grad.flatten(), 
                                      b1_grad.flatten(), b2_grad.flatten()))        
         return [cost, theta_grad]
-        
-        
     def train(self, data, max_iterations):
         """ Return optimal theta for a given set of data 
         
@@ -224,8 +186,7 @@ class sparse_autoencoder(object):
         opt_soln = scipy.optimize.minimize(self.cost, 
                                            self.initial_theta, 
                                            args = (data,), method = 'L-BFGS-B',
-                                           jac = True, options = 
-                                           {'maxiter':max_iterations} )
+                                           jac = True, options = {'maxiter':max_iterations} )
         opt_theta = opt_soln.x
         return opt_theta
 
@@ -264,55 +225,38 @@ def visualizeW1(opt_W1, vis_patch_side, hid_patch_side):
     # Show the obtained plot.        
     matplotlib.pyplot.show()        
 
-def run_sparse_ae_MNIST():
-    """  We generate training data by taking random patches from MNIST 
-    image files, and then use it to train a sparse autoencoder
-    Solution to 
-    http://ufldl.stanford.edu/wiki/index.php/Exercise:Vectorization
-    """
-    
-    # Start timing    
-    t0 = time.time()
-    
-    # Parameters
-    beta = 3.0 # sparsity parameter (rho) weight
-    lamda = 3e-3 # regularization weight
-    rho = 0.1 # sparstiy parameter i.e. target average activation for hidden 
-              # units
-    visible_side = 28 # sqrt of number of visible units
-    hidden_side = 14 # sqrt of number of hidden units
-    visible_size = visible_side * visible_side # number of visible units
-    hidden_size = hidden_side * hidden_side # number of hidden units
-    m = 10000 # number of training examples
-    max_iterations = 400 # Maximum number of iterations for numerical solver.
-    
-    # Generate training data 
-    from tensorflow.examples.tutorials.mnist import input_data
-    # mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
-    mnist = input_data.read_data_sets('../../../Dataset/MNIST/', one_hot=True)
-    training_data = mnist.train.images.T
-    # training_data = loadMNISTImages('train-images.idx3-ubyte')  
-    training_data = training_data[:, 0:m]
-    print(training_data.shape)
-    
-    # Create instance of autoencoder     
-    sae = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
-    # Train the autoencoder and retrieve optimal weights and biases
-    opt_theta = sae.train(training_data, max_iterations)
-    
-    # Calculate wall time 
-    print("Wall time: {0:.1f} seconds".format(time.time() - t0))
-    
-    # Visualize the optimized activations    
-    opt_W1 = opt_theta[0 : visible_size * hidden_size].reshape(hidden_size, visible_size)    
-    visualizeW1(opt_W1, visible_side, hidden_side)
+# Parameters
+beta = 3.0 # sparsity parameter (rho) weight
+lamda = 3e-3 # regularization weight
+rho = 0.1 # sparstiy parameter i.e. target average activation for hidden 
+            # units
+visible_side = 28 # sqrt of number of visible units
+hidden_side = 14 # sqrt of number of hidden units
+visible_size = visible_side * visible_side # number of visible units
+hidden_size = hidden_side * hidden_side # number of hidden units
+m = 100 # number of training examples
+max_iterations = 400 # Maximum number of iterations for numerical solver.
+
+mnist = input_data.read_data_sets('../../../Dataset/MNIST/', one_hot=True)
+training_data = mnist.train.images.T
+training_data = training_data[:, 0:m]
+
+# Create instance of autoencoder     
+sae = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
+opt_theta = sae.train(training_data, max_iterations)
+
+# Visualize the optimized activations    
+opt_W1 = opt_theta[0 : visible_size * hidden_size].reshape(hidden_size, visible_size)    
+opt_W1_reshape = np.reshape(opt_W1,(196,28,28))
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(opt_W1_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
+plt.show()
 
 
-if __name__ == "__main__":
-    """Selection of programmes to run.  Uncomment the one you are interested
-       in.
-    """
-    run_sparse_ae_MNIST() # Solution for vectorization exercise.
 
 
 # -- end code --
