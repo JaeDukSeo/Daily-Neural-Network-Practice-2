@@ -21,6 +21,9 @@ import time
 import struct
 import array
 
+import os,sys
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+
 class sparse_autoencoder(object):
     """
     Creates an instance of a sparse autoencoder.
@@ -284,8 +287,13 @@ def run_sparse_ae_MNIST():
     max_iterations = 400 # Maximum number of iterations for numerical solver.
     
     # Generate training data 
-    training_data = loadMNISTImages('train-images.idx3-ubyte')  
+    from tensorflow.examples.tutorials.mnist import input_data
+    # mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
+    mnist = input_data.read_data_sets('../../../Dataset/MNIST/', one_hot=True)
+    training_data = mnist.train.images.T
+    # training_data = loadMNISTImages('train-images.idx3-ubyte')  
     training_data = training_data[:, 0:m]
+    print(training_data.shape)
     
     # Create instance of autoencoder     
     sae = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
@@ -293,11 +301,10 @@ def run_sparse_ae_MNIST():
     opt_theta = sae.train(training_data, max_iterations)
     
     # Calculate wall time 
-    print "Wall time: {0:.1f} seconds".format(time.time() - t0)
+    print("Wall time: {0:.1f} seconds".format(time.time() - t0))
     
     # Visualize the optimized activations    
-    opt_W1 = opt_theta[0 : visible_size * hidden_size].reshape(hidden_size, 
-                                                               visible_size)    
+    opt_W1 = opt_theta[0 : visible_size * hidden_size].reshape(hidden_size, visible_size)    
     visualizeW1(opt_W1, visible_side, hidden_side)
 
 
@@ -305,7 +312,7 @@ if __name__ == "__main__":
     """Selection of programmes to run.  Uncomment the one you are interested
        in.
     """
-    
-#    numerical_gradient_check() 
-    # run_sparse_ae() # Solution for sparse autoencoder exercise.
-   run_sparse_ae_MNIST() # Solution for vectorization exercise.
+    run_sparse_ae_MNIST() # Solution for vectorization exercise.
+
+
+# -- end code --
