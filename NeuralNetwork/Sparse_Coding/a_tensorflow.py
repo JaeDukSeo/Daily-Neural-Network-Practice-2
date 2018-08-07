@@ -587,7 +587,7 @@ visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side * hidden_side # number of hidden units
 m = 10000 # number of training examples
 max_iterations = 800 # Maximum number of iterations for numerical solver.
-learning_rate = 0.09
+learning_rate = 0.003
 batch_size = 2000
 
 # data
@@ -611,7 +611,8 @@ reg_cost =  lamda * (tf.reduce_sum(W1 * W1) + tf.reduce_sum(W2 * W2)) / 2.0
 KL_div = tf.reduce_sum(rho * tf.log(rho / sparse_phat) +  (1 - rho) * tf.log((1-rho) / (1- sparse_phat)))        
 cost = avg_sum_sq_error + reg_cost + beta * KL_div
 
-sparse_gradup = sparse_layer.backprop(error)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+# sparse_gradup = sparse_layer.backprop(error)
 
 with tf.Session() as sess:
 
@@ -620,9 +621,85 @@ with tf.Session() as sess:
     for iter in range(max_iterations):
         for current_batch_index in range(0,len(training_data),batch_size):
             current_input = training_data[current_batch_index:current_batch_index+batch_size]
-            sess_results = sess.run([cost,sparse_gradup],feed_dict={x:current_input})
+            sess_results = sess.run([cost,auto_train],feed_dict={x:current_input})
             print("Current Iter : ",iter, " current batch: ",current_batch_index, ' Current cost: ', sess_results[0],end='\n')
 
+    def display_network(A):
+        opt_normalize = True
+        opt_graycolor = True
+
+        # Rescale
+        A = A - np.average(A)
+
+        # Compute rows & cols
+        (row, col) = A.shape
+        sz = int(np.ceil(np.sqrt(row)))
+        buf = 1
+        n = int(np.ceil(np.sqrt(col)))
+        m = int(np.ceil(col / n))
+
+        image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
+
+        if not opt_graycolor:
+            image *= 0.1
+
+        k = 0
+        for i in range(int(m)):
+            for j in range(int(n)):
+                if k >= col:
+                    continue
+
+                clim = np.max(np.abs(A[:, k]))
+
+                if opt_normalize:
+                    image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                        A[:, k].reshape(sz, sz) / clim
+                else:
+                    image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                        A[:, k].reshape(sz, sz) / np.max(np.abs(A))
+                k += 1
+        fig=plt.figure(figsize=(10, 10))
+        plt.axis('off')
+        plt.title('From Function')
+        plt.imshow(image,cmap='gray')
+        plt.show()
+
+    # training_data = train_batch[:196]
+    # training_data_reshape = np.reshape(training_data,(196,28,28))
+    # fig=plt.figure(figsize=(10, 10))
+    # columns = 14; rows = 14
+    # for i in range(1, columns*rows +1):
+    #     fig.add_subplot(rows, columns, i)
+    #     plt.axis('off')
+    #     plt.imshow(training_data_reshape[i-1,:,:],cmap='gray')
+    # plt.show()
+    # plt.close('all')
+    train_batch = training_data[:batch_size]
+    recon_data = sess.run(sparse_output,feed_dict={x:train_batch})[:196]
+    recon_data_reshape = np.reshape(recon_data,(196,28,28))
+    fig=plt.figure(figsize=(10, 10))
+    columns = 14; rows = 14
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
+
+    opt_W1 = sess.run(W1)
+    display_network(opt_W1)
+    plt.close('all')
+
+    opt_W1_data_reshape = np.reshape(opt_W1.T,(196,28,28))
+    fig=plt.figure(figsize=(10, 10))
+    columns = 14; rows = 14
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(opt_W1_data_reshape[i-1,:,:],cmap='gray')
+    plt.title('OG')
+    plt.show()
+    plt.close('all')
 
 
 # -- end code --
