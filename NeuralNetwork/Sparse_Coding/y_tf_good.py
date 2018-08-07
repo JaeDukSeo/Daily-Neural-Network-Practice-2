@@ -577,18 +577,18 @@ class sparse_autoencoder():
         return update_w
 
 # Parameters
-rho = 0.05 # sparstiy parameter i.e. target average activation for hidden units
-beta = rho * 10.0 # sparsity parameter (rho) weight
-lamda = rho* 0.009# regularization weight
+rho = 0.1 # sparstiy parameter i.e. target average activation for hidden units
+beta = 3.0 # sparsity parameter (rho) weight
+lamda = 0.003 # regularization weight
 
 visible_side = 28 # sqrt of number of visible units
-hidden_side = 10 # sqrt of number of hidden units
+hidden_side = 16 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side  # number of hidden units
 m = 40000 # number of training examples
 max_iterations = 100 # Maximum number of iterations for numerical solver.
-learning_rate = 0.008
-batch_size = 100
+learning_rate = 0.0008
+batch_size = 200
 
 from sklearn.utils import shuffle
 print_size = 10
@@ -614,7 +614,7 @@ reg_cost =  lamda * (tf.reduce_sum(W1 * W1) + tf.reduce_sum(W2 * W2)) / 2.0
 KL_div = tf.reduce_sum(rho * tf.log(rho / sparse_phat) +  (1 - rho) * tf.log((1-rho) / (1- sparse_phat)))
 cost = avg_sum_sq_error + reg_cost + beta * KL_div
 
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta2=0.9).minimize(cost)
 # sparse_gradup = sparse_layer.backprop(error)
 
 with tf.Session() as sess:
@@ -622,7 +622,6 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
 
     for iter in range(max_iterations):
-
         training_data = shuffle(training_data)
         for current_batch_index in range(0,len(training_data),batch_size):
             current_input = training_data[current_batch_index:current_batch_index+batch_size]
@@ -672,10 +671,10 @@ with tf.Session() as sess:
         plt.imshow(image,cmap='gray')
         plt.show()
 
-    training_data = training_data[:10]
-    training_data_reshape = np.reshape(training_data,(10,28,28))
+    training_data = training_data[:hidden_side]
+    training_data_reshape = np.reshape(training_data,(hidden_side,28,28))
     fig=plt.figure(figsize=(10, 10))
-    columns = 10; rows = 1
+    columns = 4; rows = 4
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
@@ -683,11 +682,11 @@ with tf.Session() as sess:
     plt.show()
     plt.close('all')
 
-    train_batch = training_data[:10]
-    recon_data = sess.run(sparse_output,feed_dict={x:train_batch})[:10]
-    recon_data_reshape = np.reshape(recon_data,(10,28,28))
+    train_batch = training_data[:hidden_side]
+    recon_data = sess.run(sparse_output,feed_dict={x:train_batch})[:hidden_side]
+    recon_data_reshape = np.reshape(recon_data,(hidden_side,28,28))
     fig=plt.figure(figsize=(10, 10))
-    columns = 10; rows = 1
+    columns = 4; rows = 4
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
@@ -696,22 +695,11 @@ with tf.Session() as sess:
     plt.close('all')
 
     opt_W1 = sess.run(W1)
-    A = opt_W1 - np.average(opt_W1)
-    A = A/ np.max(np.abs(A),axis=0)[np.newaxis,:]
-    A_reshape = np.reshape(A.T,(10,28,28))
-    fig=plt.figure(figsize=(10, 10))
-    columns = 10; rows = 1
-    for i in range(1, columns*rows +1):
-        fig.add_subplot(rows, columns, i)
-        plt.axis('off')
-        plt.imshow(A_reshape[i-1,:,:],cmap='gray')
-    plt.title('normailed ')
-    plt.show()
-    plt.close('all')
+    display_network(opt_W1)
 
-    opt_W1_data_reshape = np.reshape(opt_W1.T,(10,28,28))
+    opt_W1_data_reshape = np.reshape(opt_W1.T,(hidden_side,28,28))
     fig=plt.figure(figsize=(10, 10))
-    columns = 10; rows = 1
+    columns = 4; rows = 4
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
