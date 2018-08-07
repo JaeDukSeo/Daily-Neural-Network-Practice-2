@@ -580,14 +580,14 @@ class sparse_autoencoder():
 # Parameters
 beta = 3.0 # sparsity parameter (rho) weight
 lamda = 0.003 # regularization weight
-rho = 0.2 # sparstiy parameter i.e. target average activation for hidden units
+rho = 0.1 # sparstiy parameter i.e. target average activation for hidden units
 visible_side = 28 # sqrt of number of visible units
 hidden_side = 10 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side  # number of hidden units
-m = 30000 # number of training examples
+m = 1000 # number of training examples
 max_iterations = 300 # Maximum number of iterations for numerical solver.
-learning_rate = 0.001
+learning_rate = 0.003
 batch_size = 200
 
 from sklearn.utils import shuffle
