@@ -135,9 +135,9 @@ hidden_side = 14 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side * hidden_side # number of hidden units
 m = 1000     # number of training examples
-max_iterations = 400 # Maximum number of iterations for numerical solver.
+max_iterations = 4000 # Maximum number of iterations for numerical solver.
 
-learning_rate = 0.0001
+learning_rate = 0.001
 
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
@@ -147,12 +147,19 @@ training_data = training_data[:, 0:m]
 # class
 sae = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
 current_theta = sae.initial_theta
+m = np.zeros_like(current_theta); v = np.zeros_like(current_theta);
 
 for iter in range(max_iterations):
     cost,theta_grad = sae.cost(current_theta,training_data)
     print("Current Iter : ",iter,' Current cost: ', cost,end='\n')
-    current_theta = current_theta - learning_rate * theta_grad
 
+    m = 0.9 * m + (1.0-0.9) * theta_grad
+    v = 0.999 * v + (1.0-0.999) * theta_grad ** 2
+
+    m_hat = m/(1.0-0.9)
+    v_hat = v/(1.0-0.999)
+
+    current_theta = current_theta - learning_rate / (np.sqrt(v_hat) + 1e-8) * m_hat
 
 def display_network(A):
     opt_normalize = True
@@ -204,9 +211,10 @@ for i in range(1, columns*rows +1):
     plt.axis('off')
     plt.imshow(training_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
 plt.show()
-display_network(training_data)
+# display_network(training_data)
 
 # re con data
+opt_theta = current_theta
 recon_data = sae.feedforward(training_data,opt_theta)
 recon_data_reshape = np.reshape(recon_data.T,(196,28,28))
 fig=plt.figure(figsize=(10, 10))
@@ -216,39 +224,38 @@ for i in range(1, columns*rows +1):
     plt.axis('off')
     plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
 plt.show()
-display_network(recon_data)
-
+# display_network(recon_data)
 
 # Visualize the optimized activations    
 opt_W1 = opt_theta[0 : visible_size * hidden_size].reshape(hidden_size, visible_size)    
-opt_W1_reshape = np.reshape(opt_W1,(196,28,28))
-fig=plt.figure(figsize=(10, 10))
-columns = 14; rows = 14
-for i in range(1, columns*rows +1):
-    fig.add_subplot(rows, columns, i)
-    plt.axis('off')
-    plt.imshow(opt_W1_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
-plt.show()
+# opt_W1_reshape = np.reshape(opt_W1,(196,28,28))
+# fig=plt.figure(figsize=(10, 10))
+# columns = 14; rows = 14
+# for i in range(1, columns*rows +1):
+#     fig.add_subplot(rows, columns, i)
+#     plt.axis('off')
+#     plt.imshow(opt_W1_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
+# plt.show()
 display_network(opt_W1.T)
 
-opt_W1_temp = (opt_W1_reshape-opt_W1_reshape.min()) / (opt_W1_reshape.max()-opt_W1_reshape.min())
-fig=plt.figure(figsize=(10, 10))
-columns = 14; rows = 14
-for i in range(1, columns*rows +1):
-    fig.add_subplot(rows, columns, i)
-    plt.axis('off')
-    plt.imshow(opt_W1_temp[i-1,:,:],cmap='gray')
-plt.show()
+# opt_W1_temp = (opt_W1_reshape-opt_W1_reshape.min()) / (opt_W1_reshape.max()-opt_W1_reshape.min())
+# fig=plt.figure(figsize=(10, 10))
+# columns = 14; rows = 14
+# for i in range(1, columns*rows +1):
+#     fig.add_subplot(rows, columns, i)
+#     plt.axis('off')
+#     plt.imshow(opt_W1_temp[i-1,:,:],cmap='gray')
+# plt.show()
 
-opt_W1_temp2 = opt_W1  / np.sqrt(np.sum(opt_W1,axis=1) ** 2)
-opt_W1_temp2 = np.reshape(opt_W1_temp2,(196,28,28))
-fig=plt.figure(figsize=(10, 10))
-columns = 14; rows = 14
-for i in range(1, columns*rows +1):
-    fig.add_subplot(rows, columns, i)
-    plt.axis('off')
-    plt.imshow(opt_W1_temp2[i-1,:,:],cmap='gray')
-plt.show()
+# opt_W1_temp2 = opt_W1  / np.sqrt(np.sum(opt_W1,axis=1) ** 2)
+# opt_W1_temp2 = np.reshape(opt_W1_temp2,(196,28,28))
+# fig=plt.figure(figsize=(10, 10))
+# columns = 14; rows = 14
+# for i in range(1, columns*rows +1):
+#     fig.add_subplot(rows, columns, i)
+#     plt.axis('off')
+#     plt.imshow(opt_W1_temp2[i-1,:,:],cmap='gray')
+# plt.show()
 
 
 # -- end code --
