@@ -136,7 +136,7 @@ hidden_side = 14 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side * hidden_side # number of hidden units
 m = 1000     # number of training examples
-max_iterations = 4000 # Maximum number of iterations for numerical solver.
+max_iterations = 1000 # Maximum number of iterations for numerical solver.
 learning_rate = 0.1
 
 # data

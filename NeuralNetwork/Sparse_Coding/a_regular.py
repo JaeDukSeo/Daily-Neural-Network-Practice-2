@@ -567,9 +567,9 @@ print(test_label.max())
 print(test_label.min())
 
 # hyper
-num_epoch = 4000
+num_epoch = 1000
 learning_rate = 0.1
-batch_size = 1000;  print_size = 10
+batch_size = 1000;  print_size = 1
 sparsity_parameter = 0.2
 beta = 2.5; lambda_value = 0.003
 
@@ -581,6 +581,7 @@ l1 = FNN(196,784,act=tf_sigmoid,d_act=tf_sigmoid,std=std_value)
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
+layer0_W = l0.getw()
 layer0,layer0_p = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
 
@@ -591,7 +592,7 @@ sparse_cost = tf.reduce_sum(
 ) 
 
 total_cost = recont_cost + beta * sparse_cost
-auto_train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost,var_list=[l0w,l1w])
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
 with tf.Session( ) as sess:
@@ -605,14 +606,8 @@ with tf.Session( ) as sess:
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
             sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\n')
             train_cota = train_cota + sess_result[0]
-        if iter % print_size==0:
-            print("\n----------")
-            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),end='\n')
-            print("----------")
-
-    print('\n\n------------')
 
     def display_network(A):
         opt_normalize = True
@@ -663,7 +658,7 @@ with tf.Session( ) as sess:
         plt.imshow(training_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
     plt.show()
 
-    recon_data = sess.run(layer1,feeddict={x:train_batch})[:196]
+    recon_data = sess.run(layer1,feed_dict={x:train_batch})[:196]
     recon_data_reshape = np.reshape(recon_data,(196,28,28))
     fig=plt.figure(figsize=(10, 10))
     columns = 14; rows = 14
@@ -673,7 +668,7 @@ with tf.Session( ) as sess:
         plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
     plt.show()
 
-    opt_W1 = sess.run(l0.getw)[0]
+    opt_W1 = sess.run(layer0_W)[0]
     display_network(opt_W1)
 
 # -- end code --
