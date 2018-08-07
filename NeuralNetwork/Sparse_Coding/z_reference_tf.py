@@ -65,7 +65,7 @@ class sparse_autoencoder(object):
     
     def feedforward(self,input,theta):
         # Retrieve the weights and biases from theta.        
-        W1, W2, b1, b2 = self.unpack_theta(self.)
+        W1, W2, b1, b2 = self.unpack_theta(theta)
         hidden_layer = self.sigmoid(np.dot(W1, input) + b1)
         output_layer = self.sigmoid(np.dot(W2, hidden_layer) + b2)
         return output_layer
@@ -152,5 +152,103 @@ for iter in range(max_iterations):
     cost,theta_grad = sae.cost(current_theta,training_data)
     print("Current Iter : ",iter,' Current cost: ', cost,end='\n')
     current_theta = current_theta - learning_rate * theta_grad
+
+
+def display_network(A):
+    opt_normalize = True
+    opt_graycolor = True
+
+    # Rescale
+    A = A - np.average(A)
+
+    # Compute rows & cols
+    (row, col) = A.shape
+    sz = int(np.ceil(np.sqrt(row)))
+    buf = 1
+    n = int(np.ceil(np.sqrt(col)))
+    m = int(np.ceil(col / n))
+
+    image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
+
+    if not opt_graycolor:
+        image *= 0.1
+
+    k = 0
+    for i in range(int(m)):
+        for j in range(int(n)):
+            if k >= col:
+                continue
+
+            clim = np.max(np.abs(A[:, k]))
+
+            if opt_normalize:
+                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                    A[:, k].reshape(sz, sz) / clim
+            else:
+                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                    A[:, k].reshape(sz, sz) / np.max(np.abs(A))
+            k += 1
+    fig=plt.figure(figsize=(10, 10))
+    plt.axis('off')
+    plt.imshow(image,cmap='gray')
+    plt.show()
+    # plt.imsave(filename, image, cmap=matplotlib.cm.gray)
+
+# train data
+training_data = training_data[:, 0:196]
+training_data_reshape = np.reshape(training_data.T,(196,28,28))
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(training_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
+plt.show()
+display_network(training_data)
+
+# re con data
+recon_data = sae.feedforward(training_data,opt_theta)
+recon_data_reshape = np.reshape(recon_data.T,(196,28,28))
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
+plt.show()
+display_network(recon_data)
+
+
+# Visualize the optimized activations    
+opt_W1 = opt_theta[0 : visible_size * hidden_size].reshape(hidden_size, visible_size)    
+opt_W1_reshape = np.reshape(opt_W1,(196,28,28))
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(opt_W1_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
+plt.show()
+display_network(opt_W1.T)
+
+opt_W1_temp = (opt_W1_reshape-opt_W1_reshape.min()) / (opt_W1_reshape.max()-opt_W1_reshape.min())
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(opt_W1_temp[i-1,:,:],cmap='gray')
+plt.show()
+
+opt_W1_temp2 = opt_W1  / np.sqrt(np.sum(opt_W1,axis=1) ** 2)
+opt_W1_temp2 = np.reshape(opt_W1_temp2,(196,28,28))
+fig=plt.figure(figsize=(10, 10))
+columns = 14; rows = 14
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    plt.axis('off')
+    plt.imshow(opt_W1_temp2[i-1,:,:],cmap='gray')
+plt.show()
+
 
 # -- end code --
