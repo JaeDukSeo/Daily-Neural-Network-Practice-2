@@ -325,7 +325,11 @@ class LSTM_CNN():
 class FNN():
     
     def __init__(self,input_dim,hidden_dim,act,d_act,std=0.005):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=std,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(
+            (std+std)*\
+            tf.random_uniform([input_dim,hidden_dim], maxval=1.0,seed=2,dtype=tf.float64) - std
+            )
+        # self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=std,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -344,7 +348,8 @@ class FNN():
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
-        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)
+        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle) / batch_size
+        grad = grad + self.w * lambda_value
         grad_pass = tf.matmul(tf.multiply(grad_part_1,grad_part_2),tf.transpose(self.w))
 
         update_w = []
@@ -543,8 +548,25 @@ class Sparse_Coding():
         self.p = tf.reduce_mean(self.layerA,axis=0)
         return self.layerA,self.p
 
-    def backprop(self,input):
-        raise NotImplementedError("Not Implemented Yet")
+    def backprop(self,gradient,KL_div_grad):
+        grad_part_1 = gradient 
+        grad_part_2 = self.d_act(self.layer) 
+        grad_part_3 = self.input
+
+        grad_middle = grad_part_1 * grad_part_2
+        grad = (tf.matmul(tf.transpose(grad_part_3),grad_middle)+KL_div_grad) / batch_size
+        grad = grad + self.w * lambda_value
+        grad_pass = tf.matmul(tf.multiply(grad_part_1,grad_part_2),tf.transpose(self.w))
+
+        update_w = []
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
+
+        return grad_pass,update_w  
 # ================= LAYER CLASSES =================
 
 # data
@@ -571,12 +593,14 @@ print(test_label.max())
 print(test_label.min())
 
 # hyper
-num_epoch = 4000
+num_epoch = 150
 batch_size = 1000;  print_size = 1
-learning_rate = 0.0008
+learning_rate = 0.05
 
-sparsity_parameter = 0.1 ;beta = 3.0
-lambda_value = 0.0
+sparsity_parameter = 0.2 ;beta = 2.5
+lambda_value = 0.003
+
+beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # class 
 std_value = np.sqrt(6.0 / (784 + 196 + 1.0))
@@ -590,15 +614,25 @@ layer0_W,layer1_W = l0.getw()[0],l1.getw()[0]
 layer0,layer0_p = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
 
-recont_cost = tf.reduce_mean(tf.square(layer1-x)*0.5)
-sparse_cost = tf.reduce_sum(
-    sparsity_parameter * tf.log(sparsity_parameter/layer0_p) + \
-    (1.0-sparsity_parameter) * tf.log( (1.0-sparsity_parameter)/(1.0-layer0_p) )
-) 
-reg_cost = tf.reduce_sum(layer0_W**2) + tf.reduce_sum(layer1_W**2)
+error = -(x - layer1)
+sum_sq_error =  0.5 * tf.reduce_sum(error * error, axis = 1)
+avg_sum_sq_error = tf.reduce_mean(sum_sq_error)
+reg_cost =  lambda_value * \
+(tf.reduce_sum(layer0_W * layer0_W) + tf.reduce_sum(layer1_W * layer1_W)) / 2.0
+rho_bar = layer0_p
 
-total_cost = recont_cost + beta * sparse_cost + lambda_value * reg_cost
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
+KL_div = tf.reduce_sum(sparsity_parameter * tf.log(sparsity_parameter/ rho_bar) + 
+        (1 - sparsity_parameter) * tf.log((1-sparsity_parameter) / (1- rho_bar))) 
+
+cost = avg_sum_sq_error + reg_cost + beta * KL_div
+
+KL_div_grad = beta* (- sparsity_parameter / rho_bar + (1 - sparsity_parameter) / 
+                                    (1 - rho_bar))
+
+l1_grad,l1_grad_up = l1.backprop(error)
+l0_grad,l0_grad_up = l0.backprop(l1_grad,KL_div_grad)
+
+grad_update = l1_grad_up + l0_grad_up
 
 # sess
 with tf.Session( ) as sess:
@@ -611,7 +645,7 @@ with tf.Session( ) as sess:
     for iter in range(num_epoch):
         for batch_size_index in range(0,len(train_batch),batch_size):
             current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
+            sess_result = sess.run([cost,grad_update],feed_dict={x:current_batch})
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\n')
             train_cota = train_cota + sess_result[0]
 
