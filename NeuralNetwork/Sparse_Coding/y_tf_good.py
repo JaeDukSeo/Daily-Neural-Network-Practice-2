@@ -580,14 +580,14 @@ class sparse_autoencoder():
 # Parameters
 beta = 3.0 # sparsity parameter (rho) weight
 lamda = 0.003 # regularization weight
-rho = 0.1 # sparstiy parameter i.e. target average activation for hidden units
+rho = 0.2 # sparstiy parameter i.e. target average activation for hidden units
 visible_side = 28 # sqrt of number of visible units
-hidden_side = 14 # sqrt of number of hidden units
+hidden_side = 10 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
-hidden_size = hidden_side * hidden_side # number of hidden units
+hidden_size = hidden_side  # number of hidden units
 m = 30000 # number of training examples
-max_iterations = 200 # Maximum number of iterations for numerical solver.
-learning_rate = 0.00008
+max_iterations = 300 # Maximum number of iterations for numerical solver.
+learning_rate = 0.001
 batch_size = 200
 
 from sklearn.utils import shuffle
@@ -602,7 +602,7 @@ training_data = training_data[0:m,:]
 sparse_layer = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
 
 # graph
-x = tf.placeholder(shape=[batch_size,784],dtype=tf.float64)
+x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
 sparse_output,sparse_phat = sparse_layer.feedforward(x)
 W1,W2 = sparse_layer.getw()
@@ -630,8 +630,8 @@ with tf.Session() as sess:
             sess_results = sess.run([cost,auto_train],feed_dict={x:current_input})
             print("Current Iter : ",iter, " current batch: ",current_batch_index, ' Current cost: ', sess_results[0],end='\r')
 
-            if iter % print_size == 0:
-                print('\n-----------')
+        if iter % print_size == 0:
+            print('\n-----------')
 
     def display_network(A):
         opt_normalize = True
@@ -673,21 +673,22 @@ with tf.Session() as sess:
         plt.imshow(image,cmap='gray')
         plt.show()
 
-    # training_data = train_batch[:196]
-    # training_data_reshape = np.reshape(training_data,(196,28,28))
-    # fig=plt.figure(figsize=(10, 10))
-    # columns = 14; rows = 14
-    # for i in range(1, columns*rows +1):
-    #     fig.add_subplot(rows, columns, i)
-    #     plt.axis('off')
-    #     plt.imshow(training_data_reshape[i-1,:,:],cmap='gray')
-    # plt.show()
-    # plt.close('all')
-    train_batch = training_data[:batch_size]
-    recon_data = sess.run(sparse_output,feed_dict={x:train_batch})[:196]
-    recon_data_reshape = np.reshape(recon_data,(196,28,28))
+    training_data = training_data[:10]
+    training_data_reshape = np.reshape(training_data,(10,28,28))
     fig=plt.figure(figsize=(10, 10))
-    columns = 14; rows = 14
+    columns = 10; rows = 1
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(training_data_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
+
+    train_batch = training_data[:10]
+    recon_data = sess.run(sparse_output,feed_dict={x:train_batch})[:10]
+    recon_data_reshape = np.reshape(recon_data,(10,28,28))
+    fig=plt.figure(figsize=(10, 10))
+    columns = 10; rows = 1
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
@@ -696,12 +697,22 @@ with tf.Session() as sess:
     plt.close('all')
 
     opt_W1 = sess.run(W1)
-    display_network(opt_W1)
+    A = opt_W1 - np.average(opt_W1)
+    A = A/ np.max(np.abs(A),axis=0)[np.newaxis,:]
+    A_reshape = np.reshape(A.T,(10,28,28))
+    fig=plt.figure(figsize=(10, 10))
+    columns = 10; rows = 1
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(A_reshape[i-1,:,:],cmap='gray')
+    plt.title('normailed ')
+    plt.show()
     plt.close('all')
 
-    opt_W1_data_reshape = np.reshape(opt_W1.T,(196,28,28))
+    opt_W1_data_reshape = np.reshape(opt_W1.T,(10,28,28))
     fig=plt.figure(figsize=(10, 10))
-    columns = 14; rows = 14
+    columns = 10; rows = 1
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
