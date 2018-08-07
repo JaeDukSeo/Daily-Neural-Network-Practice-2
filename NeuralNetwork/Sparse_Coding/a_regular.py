@@ -525,24 +525,22 @@ class PCA_Layer():
 
 class Sparse_Coding():
 
-    def __init__(self,in_dim,out_dim):
-        self.A = tf.Variable(tf.random_normal([in_dim,out_dim],stddev=0.05,seed=2,dtype=tf.float64))
+    def __init__(self,input_dim,hidden_dim,act,d_act,std=0.005):
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=std,seed=2,dtype=tf.float64))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.act,self.d_act = act,d_act
 
-    def getw(self): return [self.A]
+    def getw(self): return [self.w]
 
-    def feedforward(self,input,threshold):
-        temp = tf.matmul(input,self.A)
-        # b = tf.nn.top_k(temp, threshold)
-        # kth = tf.reduce_min(b.values)
-        topk = tf.cast(tf.greater_equal(temp, threshold),tf.float64)
-        self.x = temp * topk
-        return self.x
+    def feedforward(self,input):
+        self.input = input
+        self.layer  = tf.matmul(input,self.w)
+        self.layerA = self.act(self.layer) 
+        self.p = tf.reduce_mean(self.layerA,axis=0)
+        return self.layerA,self.p
 
     def backprop(self,input):
-        difference = tf.matmul(tf.transpose(input-tf.matmul(self.x,tf.transpose(self.A))),tf.sign(self.x))
-        update_w = []
-        update_w.append(tf.assign(self.A,self.A+learning_rate * difference))
-        return difference,update_w
+        raise NotImplementedError("Not Implemented Yet")
 # ================= LAYER CLASSES =================
 
 # data
@@ -569,113 +567,113 @@ print(test_label.max())
 print(test_label.min())
 
 # hyper
-num_epoch = 400
-# learning_rate = 0.03
+num_epoch = 4000
+learning_rate = 0.1
 batch_size = 1000;  print_size = 10
-sparsity_parameter = 0.1
-beta = 3.0
-lambda_value = 3e-3
+sparsity_parameter = 0.2
+beta = 2.5; lambda_value = 0.003
 
 # class 
-l0 = FNN(784,196,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(784+100 + 1)))
-l1 = FNN(196,784,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(100+784 + 1)))
+std_value = np.sqrt(6.0 / (784 + 196 + 1.0))
+l0 = Sparse_Coding(784,196,act=tf_sigmoid,d_act=tf_sigmoid,std=std_value)
+l1 = FNN(196,784,act=tf_sigmoid,d_act=tf_sigmoid,std=std_value)
 
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
-l0w = l0.getw()[0]
-l1w = l1.getw()[0]
-layer0 = l0.feedforward(x)
+layer0,layer0_p = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
 
 recont_cost = tf.reduce_mean(tf.square(layer1-x)*0.5)
-
-p_hat = tf.reduce_mean(layer0,axis=0)
 sparse_cost = tf.reduce_sum(
-    sparsity_parameter * tf.log(sparsity_parameter/p_hat) + \
-    (1.0-sparsity_parameter) * tf.log( (1-sparsity_parameter)/(1-p_hat) )
+    sparsity_parameter * tf.log(sparsity_parameter/layer0_p) + \
+    (1.0-sparsity_parameter) * tf.log( (1.0-sparsity_parameter)/(1.0-layer0_p) )
 ) 
 
-reg_cost =  (tf.reduce_sum(l0w * l0w) + tf.reduce_sum(l1w * l1w))/ 2.0 
-total_cost = recont_cost   + beta *sparse_cost +lambda_value * reg_cost
-auto_train = tf.contrib.opt.ScipyOptimizerInterface(total_cost, method='L-BFGS-B',   options={'maxiter': num_epoch})
-# auto_train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost,var_list=[l0w,l1w])
+total_cost = recont_cost + beta * sparse_cost
+auto_train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost,var_list=[l0w,l1w])
 
 # sess
 with tf.Session( ) as sess:
 
     sess.run(tf.global_variables_initializer())
-    auto_train.minimize(sess,feed_dict={x: train_batch})
     
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
     
-    # for iter in range(num_epoch):
-    #     for batch_size_index in range(0,len(train_batch),batch_size):
-    #         current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-    #         sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
-    #         print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
-    #         train_cota = train_cota + sess_result[0]
-    #     if iter % print_size==0:
-    #         print("\n----------")
-    #         print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),end='\n')
-    #         print("----------")
+    for iter in range(num_epoch):
+        for batch_size_index in range(0,len(train_batch),batch_size):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+            sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
+            train_cota = train_cota + sess_result[0]
+        if iter % print_size==0:
+            print("\n----------")
+            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),end='\n')
+            print("----------")
 
-    # 100 * 100 = 10000 -> 
     print('\n\n------------')
-    test_image = train_batch[:196 ]
 
-    test_image_reshape = np.reshape(test_image,(196,28,28))
+    def display_network(A):
+        opt_normalize = True
+        opt_graycolor = True
+
+        # Rescale
+        A = A - np.average(A)
+
+        # Compute rows & cols
+        (row, col) = A.shape
+        sz = int(np.ceil(np.sqrt(row)))
+        buf = 1
+        n = int(np.ceil(np.sqrt(col)))
+        m = int(np.ceil(col / n))
+
+        image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
+
+        if not opt_graycolor:
+            image *= 0.1
+
+        k = 0
+        for i in range(int(m)):
+            for j in range(int(n)):
+                if k >= col:
+                    continue
+
+                clim = np.max(np.abs(A[:, k]))
+
+                if opt_normalize:
+                    image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                        A[:, k].reshape(sz, sz) / clim
+                else:
+                    image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                        A[:, k].reshape(sz, sz) / np.max(np.abs(A))
+                k += 1
+        fig=plt.figure(figsize=(10, 10))
+        plt.axis('off')
+        plt.imshow(image,cmap='gray')
+        plt.show()
+
+    training_data = train_batch[:196]
+    training_data_reshape = np.reshape(training_data,(196,28,28))
     fig=plt.figure(figsize=(10, 10))
     columns = 14; rows = 14
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
-        plt.imshow(test_image_reshape[i-1,:,:],cmap='gray')
+        plt.imshow(training_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
     plt.show()
-    plt.close('all')
 
-    test_final =  sess.run(layer1,feed_dict={x:test_image})
-    test_final_reshape = np.reshape(test_final,(196,28,28))
-
-    print(test_image.shape)
-    print(test_final_reshape.shape)
-
+    recon_data = sess.run(layer1,feeddict={x:train_batch})[:196]
+    recon_data_reshape = np.reshape(recon_data,(196,28,28))
     fig=plt.figure(figsize=(10, 10))
     columns = 14; rows = 14
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
-        plt.imshow(test_final_reshape[i-1,:,:],cmap='gray')
-    plt.show()
-    plt.close('all')
-
-    final_W = sess.run(l0.getw())[0]
-    final_layer_reshape = np.reshape(final_W,(28,28,196)).T
-    fig=plt.figure(figsize=(10, 10))
-    columns = 14; rows = 14
-    for i in range(1, columns*rows +1):
-        fig.add_subplot(rows, columns, i)
-        plt.axis('off')
-        plt.imshow(final_layer_reshape[i-1,:,:],cmap='gray')
+        plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
     plt.show()
 
-    # training done
-    # plt.figure()
-    # plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
-    # plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
-    # plt.legend()
-    # plt.title("Train Average Accuracy / Cost Over Time")
-    # plt.savefig('case b train.png')
-    # plt.show()
-
-    # plt.figure()
-    # plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
-    # plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
-    # plt.legend()
-    # plt.title("Test Average Accuracy / Cost Over Time")
-    # plt.savefig('case b test.png')
-    # plt.show()
-
+    opt_W1 = sess.run(l0.getw)[0]
+    display_network(opt_W1)
 
 # -- end code --

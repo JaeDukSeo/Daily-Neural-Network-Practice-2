@@ -65,8 +65,8 @@ class sparse_autoencoder(object):
     def feedforward(self,input,theta):
         # Retrieve the weights and biases from theta.        
         W1, W2 = self.unpack_theta(theta)
-        hidden_layer = self.sigmoid(np.dot(W1, input) + b1)
-        output_layer = self.sigmoid(np.dot(W2, hidden_layer) + b2)
+        hidden_layer = self.sigmoid(np.dot(W1, input) )
+        output_layer = self.sigmoid(np.dot(W2, hidden_layer) )
         return output_layer
     
     def unpack_theta(self, theta):
@@ -93,12 +93,15 @@ class sparse_autoencoder(object):
         error = -(visible_input - output_layer)
         sum_sq_error =  0.5 * np.sum(error * error, axis = 0)
         avg_sum_sq_error = np.mean(sum_sq_error)
+
         reg_cost =  self.lambda_ * (np.sum(W1 * W1) + np.sum(W2 * W2)) / 2.0
+
         rho_bar = np.mean(hidden_layer, axis=1) # average activation levels 
                                                   # across hidden layer
         KL_div = np.sum(self.rho * np.log(self.rho / rho_bar) + 
                         (1 - self.rho) * np.log((1-self.rho) / (1- rho_bar)))        
-        cost = avg_sum_sq_error + reg_cost + self.beta * KL_div
+        # cost = avg_sum_sq_error + reg_cost + self.beta * KL_div
+        cost = avg_sum_sq_error  + self.beta * KL_div
         
         # Back propagation
         KL_div_grad = self.beta * (- self.rho / rho_bar + (1 - self.rho) / 
@@ -125,9 +128,9 @@ class sparse_autoencoder(object):
         return [cost, theta_grad]
 
 # Parameters
-beta = 3.0 # sparsity parameter (rho) weight
-lamda = 3e-3 # regularization weight
-rho = 0.1 # sparstiy parameter i.e. target average activation for hidden  units
+beta = 2.5 # sparsity parameter (rho) weight
+lamda = 0.003 # regularization weight
+rho = 0.2 # sparstiy parameter i.e. target average activation for hidden  units
 visible_side = 28 # sqrt of number of visible units
 hidden_side = 14 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
