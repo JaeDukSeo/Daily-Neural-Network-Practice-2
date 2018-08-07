@@ -526,7 +526,11 @@ class PCA_Layer():
 class Sparse_Coding():
 
     def __init__(self,input_dim,hidden_dim,act,d_act,std=0.005):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=std,seed=2,dtype=tf.float64))
+        self.w = tf.Variable(
+            (std+std)*\
+            tf.random_uniform([input_dim,hidden_dim], maxval=1.0,seed=2,dtype=tf.float64) - std
+            )
+        # self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=std,seed=2,dtype=tf.float64))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
@@ -567,11 +571,12 @@ print(test_label.max())
 print(test_label.min())
 
 # hyper
-num_epoch = 1000
-learning_rate = 0.1
+num_epoch = 4000
 batch_size = 1000;  print_size = 1
-sparsity_parameter = 0.2
-beta = 2.5; lambda_value = 0.003
+learning_rate = 0.0008
+
+sparsity_parameter = 0.1 ;beta = 3.0
+lambda_value = 0.0
 
 # class 
 std_value = np.sqrt(6.0 / (784 + 196 + 1.0))
@@ -581,7 +586,7 @@ l1 = FNN(196,784,act=tf_sigmoid,d_act=tf_sigmoid,std=std_value)
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
-layer0_W = l0.getw()
+layer0_W,layer1_W = l0.getw()[0],l1.getw()[0]
 layer0,layer0_p = l0.feedforward(x)
 layer1 = l1.feedforward(layer0)
 
@@ -590,8 +595,9 @@ sparse_cost = tf.reduce_sum(
     sparsity_parameter * tf.log(sparsity_parameter/layer0_p) + \
     (1.0-sparsity_parameter) * tf.log( (1.0-sparsity_parameter)/(1.0-layer0_p) )
 ) 
+reg_cost = tf.reduce_sum(layer0_W**2) + tf.reduce_sum(layer1_W**2)
 
-total_cost = recont_cost + beta * sparse_cost
+total_cost = recont_cost + beta * sparse_cost + lambda_value * reg_cost
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 
 # sess
@@ -645,18 +651,20 @@ with tf.Session( ) as sess:
                 k += 1
         fig=plt.figure(figsize=(10, 10))
         plt.axis('off')
+        plt.title('From Function')
         plt.imshow(image,cmap='gray')
         plt.show()
 
-    training_data = train_batch[:196]
-    training_data_reshape = np.reshape(training_data,(196,28,28))
-    fig=plt.figure(figsize=(10, 10))
-    columns = 14; rows = 14
-    for i in range(1, columns*rows +1):
-        fig.add_subplot(rows, columns, i)
-        plt.axis('off')
-        plt.imshow(training_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
-    plt.show()
+    # training_data = train_batch[:196]
+    # training_data_reshape = np.reshape(training_data,(196,28,28))
+    # fig=plt.figure(figsize=(10, 10))
+    # columns = 14; rows = 14
+    # for i in range(1, columns*rows +1):
+    #     fig.add_subplot(rows, columns, i)
+    #     plt.axis('off')
+    #     plt.imshow(training_data_reshape[i-1,:,:],cmap='gray')
+    # plt.show()
+    # plt.close('all')
 
     recon_data = sess.run(layer1,feed_dict={x:train_batch})[:196]
     recon_data_reshape = np.reshape(recon_data,(196,28,28))
@@ -665,10 +673,23 @@ with tf.Session( ) as sess:
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
-        plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray',interpolation = 'nearest')
+        plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray')
     plt.show()
+    plt.close('all')
 
-    opt_W1 = sess.run(layer0_W)[0]
+    opt_W1 = sess.run(layer0_W)
     display_network(opt_W1)
+    plt.close('all')
+
+    opt_W1_data_reshape = np.reshape(opt_W1.T,(196,28,28))
+    fig=plt.figure(figsize=(10, 10))
+    columns = 14; rows = 14
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(opt_W1_data_reshape[i-1,:,:],cmap='gray')
+    plt.title('OG')
+    plt.show()
+    plt.close('all')
 
 # -- end code --
