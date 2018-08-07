@@ -129,15 +129,14 @@ class sparse_autoencoder(object):
 # Parameters
 beta = 3.0 # sparsity parameter (rho) weight
 lamda = 3e-3 # regularization weight
-rho = 0.1 # sparstiy parameter i.e. target average activation for hidden  units
+rho = 0.05 # sparstiy parameter i.e. target average activation for hidden  units
 visible_side = 28 # sqrt of number of visible units
 hidden_side = 14 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side * hidden_side # number of hidden units
 m = 1000     # number of training examples
-max_iterations = 4000 # Maximum number of iterations for numerical solver.
-
-learning_rate = 0.001
+max_iterations = 1000 # Maximum number of iterations for numerical solver.
+learning_rate = 0.1
 
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
@@ -152,13 +151,11 @@ m = np.zeros_like(current_theta); v = np.zeros_like(current_theta);
 for iter in range(max_iterations):
     cost,theta_grad = sae.cost(current_theta,training_data)
     print("Current Iter : ",iter,' Current cost: ', cost,end='\n')
-
+    # current_theta = current_theta - learning_rate * theta_grad
     m = 0.9 * m + (1.0-0.9) * theta_grad
     v = 0.999 * v + (1.0-0.999) * theta_grad ** 2
-
     m_hat = m/(1.0-0.9)
     v_hat = v/(1.0-0.999)
-
     current_theta = current_theta - learning_rate / (np.sqrt(v_hat) + 1e-8) * m_hat
 
 def display_network(A):
