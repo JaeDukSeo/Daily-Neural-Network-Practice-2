@@ -66,7 +66,6 @@ def unpickle(file):
     return dict
 # ====== miscellaneous =====
 
-
 # ================= LAYER CLASSES =================
 class CNN():
     
@@ -325,8 +324,8 @@ class LSTM_CNN():
 
 class FNN():
     
-    def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
+    def __init__(self,input_dim,hidden_dim,act,d_act,std=0.005):
+        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=std,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -544,8 +543,6 @@ class Sparse_Coding():
         update_w = []
         update_w.append(tf.assign(self.A,self.A+learning_rate * difference))
         return difference,update_w
-        
-                
 # ================= LAYER CLASSES =================
 
 # data
@@ -553,12 +550,10 @@ mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 x_data, train_label, y_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 x_data_added,x_data_added_label = mnist.validation.images,mnist.validation.labels
 
-x_data = np.vstack((x_data,x_data_added))
+train_batch = x_data[:1000,:]
 train_label = np.vstack((train_label,x_data_added_label))
-train_batch = np.zeros((60000,784))
-test_batch = np.zeros((10000,784))
+test_batch = y_data
 
-train_batch = train_batch[:10000]
 # print out the data shape and the max and min value
 print(train_batch.shape)
 print(train_batch.max())
@@ -574,76 +569,96 @@ print(test_label.max())
 print(test_label.min())
 
 # hyper
-num_epoch = 800
-learning_rate = 0.00008
-batch_size = 2000
-print_size = 20
-lambda_val = 3e-3
-beta_val = 3
+num_epoch = 400
+# learning_rate = 0.03
+batch_size = 1000;  print_size = 10
 sparsity_parameter = 0.1
+beta = 3.0
+lambda_value = 3e-3
 
 # class 
-# l0 = FNN(784,196)
+l0 = FNN(784,196,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(784+100 + 1)))
+l1 = FNN(196,784,act=tf_sigmoid,d_act=tf_sigmoid,std= (np.sqrt(6) / np.sqrt(100+784 + 1)))
 
 # graph
-x = tf.placeholder(shape=[batch_size,784],dtype=tf.float64)
+x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
-# s = tf.Variable(tf.random_normal([batch_size,196],stddev=0.05,seed=2,dtype=tf.float64))
-A = tf.Variable(tf.random_normal([196,784],stddev=0.05,seed=2,dtype=tf.float64))
+l0w = l0.getw()[0]
+l1w = l1.getw()[0]
+layer0 = l0.feedforward(x)
+layer1 = l1.feedforward(layer0)
 
-s = tf.matmul(x,tf.transpose(A))
-A_div = tf.reduce_sum(tf.abs(A),axis=1)
-new_s = s/A_div
+recont_cost = tf.reduce_mean(tf.square(layer1-x)*0.5)
 
+p_hat = tf.reduce_mean(layer0,axis=0)
+sparse_cost = tf.reduce_sum(
+    sparsity_parameter * tf.log(sparsity_parameter/p_hat) + \
+    (1.0-sparsity_parameter) * tf.log( (1-sparsity_parameter)/(1-p_hat) )
+) 
 
-created = tf.matmul(new_s,A)
-
-# cost1 = tf.reduce_sum(tf.square(created-x)) + lambda_val * tf.reduce_sum(tf.sqrt(tf.square(new_s)))
-# auto_train1 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost1)
-
-cost2 = tf.reduce_sum(tf.square(created-x)) + beta_val * tf.reduce_sum(tf.square(A))
-auto_train2 = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost2)
-
-processed_A = A/tf.sqrt(tf.square(tf.reduce_sum(A,axis=0)))
-
+reg_cost =  (tf.reduce_sum(l0w * l0w) + tf.reduce_sum(l1w * l1w))/ 2.0 
+total_cost = recont_cost   + beta *sparse_cost +lambda_value * reg_cost
+auto_train = tf.contrib.opt.ScipyOptimizerInterface(total_cost, method='L-BFGS-B',   options={'maxiter': num_epoch})
+# auto_train = tf.train.RMSPropOptimizer(learning_rate=learning_rate).minimize(total_cost,var_list=[l0w,l1w])
 
 # sess
 with tf.Session( ) as sess:
 
     sess.run(tf.global_variables_initializer())
+    auto_train.minimize(sess,feed_dict={x: train_batch})
     
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
     
-    for iter in range(num_epoch):
+    # for iter in range(num_epoch):
+    #     for batch_size_index in range(0,len(train_batch),batch_size):
+    #         current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+    #         sess_result = sess.run([total_cost,auto_train],feed_dict={x:current_batch})
+    #         print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
+    #         train_cota = train_cota + sess_result[0]
+    #     if iter % print_size==0:
+    #         print("\n----------")
+    #         print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),end='\n')
+    #         print("----------")
 
-        for batch_size_index in range(0,len(train_batch),batch_size):
-            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
-            sess_result = sess.run([cost2,auto_train2],feed_dict={x:current_batch})
-            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0].sum(),end='\r')
-            train_cota = train_cota + sess_result[0]
-            
+    # 100 * 100 = 10000 -> 
+    print('\n\n------------')
+    test_image = train_batch[:196 ]
 
-        if iter % print_size==0:
-            print("\n----------")
-            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),end='\n')
-            print("----------")
-
-        train_cot.append(train_cota/(len(train_batch)/batch_size))
-        train_cota,train_acca = 0,0
-
-    final_A = sess.run(processed_A)
-    final_A_reshape = np.reshape(final_A,(196,28,28))
-
+    test_image_reshape = np.reshape(test_image,(196,28,28))
     fig=plt.figure(figsize=(10, 10))
-    columns = 14
-    rows = 14
+    columns = 14; rows = 14
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
-        plt.imshow(final_A_reshape[i-1,:,:],cmap='gray')
+        plt.imshow(test_image_reshape[i-1,:,:],cmap='gray')
     plt.show()
+    plt.close('all')
 
+    test_final =  sess.run(layer1,feed_dict={x:test_image})
+    test_final_reshape = np.reshape(test_final,(196,28,28))
+
+    print(test_image.shape)
+    print(test_final_reshape.shape)
+
+    fig=plt.figure(figsize=(10, 10))
+    columns = 14; rows = 14
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(test_final_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
+
+    final_W = sess.run(l0.getw())[0]
+    final_layer_reshape = np.reshape(final_W,(28,28,196)).T
+    fig=plt.figure(figsize=(10, 10))
+    columns = 14; rows = 14
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(final_layer_reshape[i-1,:,:],cmap='gray')
+    plt.show()
 
     # training done
     # plt.figure()
@@ -661,8 +676,6 @@ with tf.Session( ) as sess:
     # plt.title("Test Average Accuracy / Cost Over Time")
     # plt.savefig('case b test.png')
     # plt.show()
-
-
 
 
 # -- end code --
