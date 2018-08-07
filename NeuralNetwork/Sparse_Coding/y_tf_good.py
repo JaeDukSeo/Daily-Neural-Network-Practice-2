@@ -10,6 +10,7 @@ from imgaug import augmenters as iaa
 import nibabel as nib
 import imgaug as ia
 from scipy.ndimage import zoom
+from sklearn.utils import shuffle
 
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -585,12 +586,10 @@ visible_side = 28 # sqrt of number of visible units
 hidden_side = 16 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side  # number of hidden units
-m = 40000 # number of training examples
-max_iterations = 100 # Maximum number of iterations for numerical solver.
-learning_rate = 0.0008
-batch_size = 200
-
-from sklearn.utils import shuffle
+m = 10000 # number of training examples
+batch_size = 50
+max_iterations = 500 # Maximum number of iterations for numerical solver.
+learning_rate = 0.00008
 print_size = 10
 
 # data
