@@ -10,6 +10,7 @@ from imgaug import augmenters as iaa
 import nibabel as nib
 import imgaug as ia
 from scipy.ndimage import zoom
+from sklearn.utils import shuffle
 
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -77,7 +78,7 @@ class CNN():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
-    def getw(self): return [self.w]
+    def getw(self): return self.w
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
@@ -85,7 +86,7 @@ class CNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient,stride=1,padding='SAME'):
+    def backprop(self,gradient,stride=1,padding='SAME',l2_reg = False):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -106,6 +107,7 @@ class CNN():
         m_hat = self.m / (1-beta1)
         v_hat = self.v_prev / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
+
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
 
         return grad_pass,update_w
@@ -116,7 +118,8 @@ class CNN_3D():
         self.w = tf.Variable(tf.random_normal([filter_depth,filter_height,filter_width,in_channels,out_channels],stddev=0.05,seed=2,dtype=tf.float64))
         self.b = tf.Variable(tf.random_normal([out_channels],stddev=0.05,seed=2,dtype=tf.float64))
         self.act,self.d_act = act,d_act
-    def getw(self): return [self.w]
+
+    def getw(self): return self.w
 
     def feedforward(self,input,stride=1,padding='SAME',res=True):
         self.input  = input
@@ -137,7 +140,7 @@ class CNN_Trans():
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
-    def getw(self): return [self.w]
+    def getw(self): return fself.w
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
@@ -333,7 +336,7 @@ class FNN():
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
-    def getw(self): return [self.w]
+    def getw(self): return self.w
 
     def feedforward(self,input=None):
         self.input = input
@@ -360,6 +363,34 @@ class FNN():
 
         return grad_pass,update_w
 
+# Func: Layer for Sparse Coding
+class sparse_code_layer():
+
+    def __init__(self,inc,outc,sparsity=0.1,special_init=False,act=tf_sigmoid,d_act=d_tf_sigmoid):
+
+        if special_init:
+            w_max = np.sqrt(6.0 / (inc + outc + 1.0))
+            w_min = -w_max
+            self.w  = tf.Variable(
+                (w_max - w_min) * tf.random_uniform(shape=(inc, outc),maxval=1.0,dtype=tf.float64,seed=4) + w_min
+            )
+        else:
+            self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float64))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.act = act ; self.d_act = d_act
+
+    def getw(self): return self.w
+
+    def feedforward(self,input):
+        self.input = input
+        self.layer = tf.matmul(input,self.w)
+        self.layerA = self.act(self.layer)
+        self.current_sparsity = tf.reduce_mean(self.layerA, axis=0)
+        return self.layerA,self.current_sparsity
+
+    def backprop(self,grad,reg=False,reg_value = 0.003):
+        pass
+
 class RNN():
 
     def __init__(self):
@@ -370,6 +401,7 @@ class LSTM():
     def __init__(self):
         raise NotImplementedError("Not Implemented Yet")
 
+# Func: Layer for Independent component analysis
 class ICA_Layer():
 
     def __init__(self,inc):
@@ -393,6 +425,7 @@ class ICA_Layer():
 
         return grad_pass,update_w
 
+# Func: Layer for Sparse Filtering
 class Sparse_Filter_Layer():
 
     def __init__(self,outc,changec):
@@ -412,6 +445,7 @@ class Sparse_Filter_Layer():
         self.cost_update = tf.reduce_mean(four)
         return self.sparse_layer ,self.cost_update
 
+# Func: Layer for self organizing maps
 class SOM_Layer():
 
     def __init__(self,m,n,dim,num_epoch,learning_rate_som = 0.04,radius_factor = 1.1, gaussian_std=0.5):
@@ -439,7 +473,6 @@ class SOM_Layer():
 
     def getmap(self): return self.map
     def getlocation(self): return self.bmu_locs
-
     def feedforward(self,input):
 
         self.input = input
@@ -485,7 +518,7 @@ class SOM_Layer():
 
         return self.update,tf.reduce_mean(self.grad_pass, 1)
 
-# PCA Layer following the implementation: https://ewanlee.github.io/2018/01/17/PCA-With-Tensorflow/
+# Func: Layer for principal component analysis
 class PCA_Layer():
 
     def __init__(self,dim,channel):
@@ -527,70 +560,19 @@ class PCA_Layer():
         return out_put,update_sigma
 # ================= LAYER CLASSES =================
 
-
-class sparse_autoencoder():
-
-    def __init__(self, visible_size, hidden_size, lambda_, rho, beta):
-        self.visible_size = visible_size
-        self.hidden_size = hidden_size
-        self.lambda_ = lambda_
-        self.rho = rho
-        self.beta = beta
-
-        # initialize weights and bias terms
-        w_max = np.sqrt(6.0 / (visible_size + hidden_size + 1.0))
-        w_min = -w_max
-        self.W1 = tf.Variable(
-            (w_max - w_min) * tf.random_uniform(shape=(visible_size, hidden_size),maxval=1.0,dtype=tf.float64) + w_min
-        )
-        self.W2 = tf.Variable(
-            (w_max - w_min) * tf.random_uniform(shape=(hidden_size, visible_size),maxval=1.0,dtype=tf.float64) + w_min
-        )
-
-    def feedforward(self,input):
-        self.input  = input
-        self.hidden_layer = tf_sigmoid(tf.matmul(input,self.W1) )
-        self.output_layer = tf_sigmoid(tf.matmul(self.hidden_layer,self.W2) )
-        self.sparse_phat = tf.reduce_mean(self.hidden_layer, axis=0)
-        return self.output_layer ,self.sparse_phat
-
-    def getw(self): return self.W1,self.W2
-
-    def backprop(self, grad):
-
-        # Back propagation
-        KL_div_grad = self.beta * (- self.rho / self.sparse_phat + (1 - self.rho) / (1 - self.sparse_phat))
-
-        del_3 = grad * self.output_layer * (1.0 - self.output_layer)
-        del_2 = tf.transpose(tf.matmul(self.W2,tf.transpose(del_3))) + KL_div_grad * self.hidden_layer * (1 - self.hidden_layer)
-
-        W1_grad = tf.matmul(tf.transpose(self.input),del_2) / batch_size
-        W2_grad = tf.matmul(tf.transpose(self.hidden_layer),del_3) / batch_size
-
-        W1_grad += self.lambda_ * self.W1 # add reg term
-        W2_grad += self.lambda_ * self.W2
-
-        update_w = []
-
-        tf.assign(self.W1,self.W1 - learning_rate * W1_grad)
-        tf.assign(self.W2,self.W2 - learning_rate * W2_grad)
-
-        return update_w
-
 # Parameters
+rho = 0.1 # sparstiy parameter i.e. target average activation for hidden units
 beta = 3.0 # sparsity parameter (rho) weight
 lamda = 0.003 # regularization weight
-rho = 0.1 # sparstiy parameter i.e. target average activation for hidden units
-visible_side = 28 # sqrt of number of visible units
-hidden_side = 14 # sqrt of number of hidden units
-visible_size = visible_side * visible_side # number of visible units
-hidden_size = hidden_side * hidden_side # number of hidden units
-m = 30000 # number of training examples
-max_iterations = 200 # Maximum number of iterations for numerical solver.
-learning_rate = 0.00008
-batch_size = 200
 
-from sklearn.utils import shuffle
+visible_side = 28 # sqrt of number of visible units
+hidden_side = 16 # sqrt of number of hidden units
+visible_size = visible_side * visible_side # number of visible units
+hidden_size = hidden_side  # number of hidden units
+m = 10000 # number of training examples
+batch_size = 100
+max_iterations = 400 # Maximum number of iterations for numerical solver.
+learning_rate = 0.0001
 print_size = 10
 
 # data
@@ -599,39 +581,39 @@ training_data = mnist.train.images
 training_data = training_data[0:m,:]
 
 # Create instance of autoencoder
-sparse_layer = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
+s0 = sparse_code_layer(784,16,act=tf_sigmoid,d_act=d_tf_sigmoid)
+l1 = FNN(16,784,act=tf_sigmoid,d_act=d_tf_sigmoid)
 
 # graph
-x = tf.placeholder(shape=[batch_size,784],dtype=tf.float64)
+x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
-sparse_output,sparse_phat = sparse_layer.feedforward(x)
-W1,W2 = sparse_layer.getw()
+layer0_s,layer0_s_phat  = s0.feedforward(x)
+layer1 = l1.feedforward(layer0_s)
+W1,W2 = s0.getw(),l1.getw()
 
-error = -(x - sparse_output)
-sum_sq_error =  0.5 * tf.reduce_sum(error * error, axis = 1)
-avg_sum_sq_error = tf.reduce_mean(sum_sq_error)
+# error = -(x - layer1)
+# sum_sq_error =  0.5 * tf.reduce_sum(error * error, axis = 1)
+# avg_sum_sq_error = tf.reduce_mean(sum_sq_error)
+avg_sum_sq_error = tf.reduce_mean(tf.square(layer1-x))
 reg_cost =  lamda * (tf.reduce_sum(W1 * W1) + tf.reduce_sum(W2 * W2)) / 2.0
-KL_div = tf.reduce_sum(rho * tf.log(rho / sparse_phat) +  (1 - rho) * tf.log((1-rho) / (1- sparse_phat)))
+KL_div = tf.reduce_sum(rho * tf.log(rho / layer0_s_phat) + \
+ (1 - rho) * tf.log((1-rho) / (1- layer0_s_phat)))
 cost = avg_sum_sq_error + reg_cost + beta * KL_div
 
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta2=0.9).minimize(cost)
 # sparse_gradup = sparse_layer.backprop(error)
 
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-
     for iter in range(max_iterations):
-
         training_data = shuffle(training_data)
-
         for current_batch_index in range(0,len(training_data),batch_size):
             current_input = training_data[current_batch_index:current_batch_index+batch_size]
             sess_results = sess.run([cost,auto_train],feed_dict={x:current_input})
             print("Current Iter : ",iter, " current batch: ",current_batch_index, ' Current cost: ', sess_results[0],end='\r')
-
-            if iter % print_size == 0:
-                print('\n-----------')
+        if iter % print_size == 0:
+            print('\n-----------')
 
     def display_network(A):
         opt_normalize = True
@@ -673,21 +655,22 @@ with tf.Session() as sess:
         plt.imshow(image,cmap='gray')
         plt.show()
 
-    # training_data = train_batch[:196]
-    # training_data_reshape = np.reshape(training_data,(196,28,28))
-    # fig=plt.figure(figsize=(10, 10))
-    # columns = 14; rows = 14
-    # for i in range(1, columns*rows +1):
-    #     fig.add_subplot(rows, columns, i)
-    #     plt.axis('off')
-    #     plt.imshow(training_data_reshape[i-1,:,:],cmap='gray')
-    # plt.show()
-    # plt.close('all')
-    train_batch = training_data[:batch_size]
-    recon_data = sess.run(sparse_output,feed_dict={x:train_batch})[:196]
-    recon_data_reshape = np.reshape(recon_data,(196,28,28))
+    training_data = training_data[:hidden_side]
+    training_data_reshape = np.reshape(training_data,(hidden_side,28,28))
     fig=plt.figure(figsize=(10, 10))
-    columns = 14; rows = 14
+    columns = 4; rows = 4
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(training_data_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
+
+    train_batch = training_data[:hidden_side]
+    recon_data = sess.run(layer1,feed_dict={x:train_batch})[:hidden_side]
+    recon_data_reshape = np.reshape(recon_data,(hidden_side,28,28))
+    fig=plt.figure(figsize=(10, 10))
+    columns = 4; rows = 4
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
@@ -699,9 +682,9 @@ with tf.Session() as sess:
     display_network(opt_W1)
     plt.close('all')
 
-    opt_W1_data_reshape = np.reshape(opt_W1.T,(196,28,28))
+    opt_W1_data_reshape = np.reshape(opt_W1.T,(hidden_side,28,28))
     fig=plt.figure(figsize=(10, 10))
-    columns = 14; rows = 14
+    columns = 4; rows = 4
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
