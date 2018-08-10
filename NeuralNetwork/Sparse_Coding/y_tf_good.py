@@ -600,7 +600,7 @@ training_data = training_data[0:m,:]
 # Create instance of autoencoder
 sparse_layer = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
 
-# graph 9
+# graph 
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
 sparse_output,sparse_phat = sparse_layer.feedforward(x)
