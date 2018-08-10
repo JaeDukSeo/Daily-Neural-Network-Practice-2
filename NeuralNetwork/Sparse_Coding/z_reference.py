@@ -116,8 +116,8 @@ current_theta = sae.initial_theta
 m = np.zeros_like(current_theta); v = np.zeros_like(current_theta);
 
 for iter in range(max_iterations):
-    cost,theta_grad = sae.cost(current_theta,training_data)
-    print("Current Iter : ",iter,' Current cost: ', cost[0],' current sparse : ',cost[2],end='\n')
+    cost,theta_grad,sparse = sae.cost(current_theta,training_data)
+    print("Current Iter : ",iter,' Current cost: ', cost,' current sparse : ',sparse,end='\n')
     m = 0.9 * m + (1.0-0.9) * theta_grad
     v = 0.999 * v + (1.0-0.999) * theta_grad ** 2
     m_hat = m/(1.0-0.9)

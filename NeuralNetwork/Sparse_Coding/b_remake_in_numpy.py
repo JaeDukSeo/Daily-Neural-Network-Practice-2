@@ -53,8 +53,8 @@ class sparse_autoencoder(object):
         sum_sq_error =  0.5 * np.sum(error * error, axis = 0)
         avg_sum_sq_error = np.mean(sum_sq_error)
         reg_cost =  self.lambda_ * (np.sum(self.W1 * self.W1) + np.sum(self.W2 * self.W2)) / 2.0
-        KL_div = np.sum(self.rho * np.log(self.rho / self.rho_bar) +  (1 - self.rho) * np.log((1-self.rho) / (1- self.rho_bar)))
-        cost = avg_sum_sq_error + reg_cost + self.beta * KL_div
+        KL_div = self.beta * np.sum(self.rho * np.log(self.rho / self.rho_bar) +  (1 - self.rho) * np.log((1-self.rho) / (1- self.rho_bar)))
+        cost = avg_sum_sq_error + reg_cost + KL_div
 
         # Back propagation
         KL_div_grad = self.beta * (- self.rho / self.rho_bar + (1 - self.rho) / (1 - self.rho_bar))
@@ -70,12 +70,12 @@ class sparse_autoencoder(object):
 
         self.m2 = 0.9 * self.m2 + (1.0-0.9) * W2_grad
         self.v2 = 0.999 * self.v2 + (1.0-0.999) * W2_grad ** 2
-        v2_hat,m2_hat =  self.m2/(1.0-0.9),self.v2/(1.0-0.999)
+        m2_hat,v2_hat =  self.m2/(1.0-0.9),self.v2/(1.0-0.999)
         self.W2 = self.W2 - learning_rate / (np.sqrt(v2_hat) + 1e-8) * m2_hat
 
         self.m1 = 0.9 * self.m1 + (1.0-0.9) * W1_grad
         self.v1 = 0.999 * self.v1 + (1.0-0.999) * W1_grad ** 2
-        v1_hat,m1_hat =  self.m1/(1.0-0.9),self.v1/(1.0-0.999)
+        m1_hat,v1_hat =  self.m1/(1.0-0.9),self.v1/(1.0-0.999)
         self.W1 = self.W1 - learning_rate / (np.sqrt(v1_hat) + 1e-8) * m1_hat
 
         return cost
@@ -102,8 +102,7 @@ sae = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
 for iter in range(max_iterations):
     sparse_layer,sparse_phat = sae.feedforward(training_data)
     cost = sae.cost(training_data)
-    print("Current Iter : ",iter,' Current cost: ', cost,' Current Sparse: ',sparse_phat,end='\n')
-    input()
+    print("Current Iter : ",iter,' Current cost: ', cost,'\n Current Sparse: ',np.around(sparse_phat,2),end='\n')
 
 def display_network(A):
     opt_normalize = True
@@ -171,10 +170,10 @@ plt.close('all')
 # Visualize the optimized activations
 current_theta = sae.W1
 # opt_W1 = current_theta.reshape(hidden_size, visible_size)
-display_network(current_theta.T)
+display_network(current_theta)
 plt.close('all')
 
-opt_W1_reshape = np.reshape(current_theta,(16,28,28))
+opt_W1_reshape = np.reshape(current_theta.T,(16,28,28))
 fig=plt.figure(figsize=(10, 10))
 columns = 4; rows = 4
 for i in range(1, columns*rows +1):
