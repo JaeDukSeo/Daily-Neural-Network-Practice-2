@@ -619,7 +619,10 @@ kth = tf.reduce_min(top_4.values)
 top_4_mask = tf.cast(tf.greater_equal(x, kth),tf.float64)
 x_hat = top_4_mask * x
 
-print(x_hat)
+A_update = tf.matmul((b - tf.matmul(A,x_hat)),tf.transpose(tf.sign(x_hat)))
+
+print(A)
+print(A_update)
 
 
 
