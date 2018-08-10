@@ -86,7 +86,7 @@ class CNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient,stride=1,padding='SAME'):
+    def backprop(self,gradient,stride=1,padding='SAME',l2_reg = False):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -107,6 +107,7 @@ class CNN():
         m_hat = self.m / (1-beta1)
         v_hat = self.v_prev / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
+
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
 
         return grad_pass,update_w
@@ -541,10 +542,10 @@ class sparse_autoencoder():
         w_max = np.sqrt(6.0 / (visible_size + hidden_size + 1.0))
         w_min = -w_max
         self.W1 = tf.Variable(
-            (w_max - w_min) * tf.random_uniform(shape=(visible_size, hidden_size),maxval=1.0,dtype=tf.float64) + w_min
+            (w_max - w_min) * tf.random_uniform(shape=(visible_size, hidden_size),maxval=1.0,dtype=tf.float64,seed=4) + w_min
         )
         self.W2 = tf.Variable(
-            (w_max - w_min) * tf.random_uniform(shape=(hidden_size, visible_size),maxval=1.0,dtype=tf.float64) + w_min
+            (w_max - w_min) * tf.random_uniform(shape=(hidden_size, visible_size),maxval=1.0,dtype=tf.float64,seed=4) + w_min
         )
 
     def feedforward(self,input):
@@ -587,9 +588,9 @@ hidden_side = 16 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side  # number of hidden units
 m = 10000 # number of training examples
-batch_size = 10000
-max_iterations = 500 # Maximum number of iterations for numerical solver.
-learning_rate = 0.00008
+batch_size = 100
+max_iterations = 400 # Maximum number of iterations for numerical solver.
+learning_rate = 0.0001
 print_size = 10
 
 # data
@@ -600,7 +601,7 @@ training_data = training_data[0:m,:]
 # Create instance of autoencoder
 sparse_layer = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
 
-# graph 
+# graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
 sparse_output,sparse_phat = sparse_layer.feedforward(x)
@@ -619,14 +620,12 @@ auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta2=0.9).minim
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-
     for iter in range(max_iterations):
         training_data = shuffle(training_data)
         for current_batch_index in range(0,len(training_data),batch_size):
             current_input = training_data[current_batch_index:current_batch_index+batch_size]
             sess_results = sess.run([cost,auto_train],feed_dict={x:current_input})
             print("Current Iter : ",iter, " current batch: ",current_batch_index, ' Current cost: ', sess_results[0],end='\r')
-
         if iter % print_size == 0:
             print('\n-----------')
 
@@ -695,6 +694,7 @@ with tf.Session() as sess:
 
     opt_W1 = sess.run(W1)
     display_network(opt_W1)
+    plt.close('all')
 
     opt_W1_data_reshape = np.reshape(opt_W1.T,(hidden_side,28,28))
     fig=plt.figure(figsize=(10, 10))

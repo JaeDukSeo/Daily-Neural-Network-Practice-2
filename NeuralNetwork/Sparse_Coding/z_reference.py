@@ -9,38 +9,38 @@ import array
 import matplotlib.pyplot as plt
 
 import os,sys
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-# Generate training data 
+# Generate training data
 import tensorflow as tf
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
 
 class sparse_autoencoder(object):
-    
+
     def __init__(self, visible_size, hidden_size, lambda_, rho, beta):
-        self.visible_size = visible_size  
-        self.hidden_size = hidden_size 
-        self.lambda_ = lambda_ 
-        self.rho = rho 
-        self.beta = beta 
-                
-        # initialize weights and bias terms 
+        self.visible_size = visible_size
+        self.hidden_size = hidden_size
+        self.lambda_ = lambda_
+        self.rho = rho
+        self.beta = beta
+
+        # initialize weights and bias terms
         w_max = np.sqrt(6.0 / (visible_size + hidden_size + 1.0))
         w_min = -w_max
         W1 = (w_max - w_min) * np.random.random_sample(size = (hidden_size, visible_size)) + w_min
         W2 = (w_max - w_min) * np.random.random_sample(size = (visible_size, hidden_size)) + w_min
-        
-        # unroll the weights and bias terms into an initial "guess" for theta 
+
+        # unroll the weights and bias terms into an initial "guess" for theta
         self.idx_0 = 0
         self.idx_1 = hidden_size * visible_size # length of W1
         self.idx_2 = self.idx_1 +  hidden_size * visible_size # length of W2
         self.initial_theta = np.concatenate((W1.flatten(), W2.flatten()))
-        
+
     def sigmoid(self, x):
         return 1.0 / (1.0 + np.exp(-x))
-    
+
     def unpack_theta(self, theta):
         W1 = theta[self.idx_0 : self.idx_1]
         W1 = np.reshape(W1, (self.hidden_size, self.visible_size))
@@ -56,40 +56,40 @@ class sparse_autoencoder(object):
 
     def cost(self, theta, visible_input):
         W1, W2 = self.unpack_theta(theta)
-        
-        # Forward pass to get the activation levels.        
+
+        # Forward pass to get the activation levels.
         hidden_layer = self.sigmoid(np.dot(W1, visible_input) )
         output_layer = self.sigmoid(np.dot(W2, hidden_layer) )
         m = visible_input.shape[1] # number of training examples
-        
-        # Calculate the cost.         
+
+        # Calculate the cost.
         error = -(visible_input - output_layer)
         sum_sq_error =  0.5 * np.sum(error * error, axis = 0)
         avg_sum_sq_error = np.mean(sum_sq_error)
         reg_cost =  self.lambda_ * (np.sum(W1 * W1) + np.sum(W2 * W2)) / 2.0
         rho_bar = np.mean(hidden_layer, axis=1) # average activation levels across hidden layer
-        KL_div = np.sum(self.rho * np.log(self.rho / rho_bar) +  (1 - self.rho) * np.log((1-self.rho) / (1- rho_bar)))        
+        KL_div = np.sum(self.rho * np.log(self.rho / rho_bar) +  (1 - self.rho) * np.log((1-self.rho) / (1- rho_bar)))
         cost = avg_sum_sq_error + reg_cost + self.beta * KL_div
-        
+
         # Back propagation
         KL_div_grad = self.beta * (- self.rho / rho_bar + (1 - self.rho) / (1 - rho_bar))
-        
+
         del_3 = error * output_layer * (1.0 - output_layer)
         del_2 = np.transpose(W2).dot(del_3) + KL_div_grad[:, np.newaxis]
         del_2 *= hidden_layer * (1 - hidden_layer)
-        
-        # Vector implementation actually calculates sum over m training 
-        # examples, hence the need to divide by m         
+
+        # Vector implementation actually calculates sum over m training
+        # examples, hence the need to divide by m
         W1_grad = del_2.dot(visible_input.transpose()) / m
         W2_grad = del_3.dot(hidden_layer.transpose()) / m
-        
+
         W1_grad += self.lambda_ * W1 # add reg term
         W2_grad += self.lambda_ * W2
-        
-        # roll out the weights and biases into single vector theta        
-        theta_grad = np.concatenate((W1_grad.flatten(), W2_grad.flatten()))        
+
+        # roll out the weights and biases into single vector theta
+        theta_grad = np.concatenate((W1_grad.flatten(), W2_grad.flatten()))
         return [cost, theta_grad]
-        
+
 # Parameters
 beta = 3.0 # sparsity parameter (rho) weight
 lamda = 0.003 # regularization weight
@@ -107,7 +107,7 @@ mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 training_data = mnist.train.images.T
 training_data = training_data[:, 0:m]
 
-# Create instance of autoencoder     
+# Create instance of autoencoder
 sae = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
 current_theta = sae.initial_theta
 m = np.zeros_like(current_theta); v = np.zeros_like(current_theta);
@@ -185,8 +185,8 @@ for i in range(1, columns*rows +1):
 plt.show()
 plt.close('all')
 
-# Visualize the optimized activations    
-opt_W1 = opt_theta[0 : visible_size * hidden_size].reshape(hidden_size, visible_size)    
+# Visualize the optimized activations
+opt_W1 = opt_theta[0 : visible_size * hidden_size].reshape(hidden_size, visible_size)
 display_network(opt_W1.T)
 plt.close('all')
 
