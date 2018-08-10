@@ -29,7 +29,7 @@ def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float64)  + (tf_elu(tf.cast(t
 def tf_tanh(x): return tf.nn.tanh(x)
 def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
 
-def tf_sigmoid(x): return tf.nn.sigmoid(x) 
+def tf_sigmoid(x): return tf.nn.sigmoid(x)
 def d_tf_sigmoid(x): return tf_sigmoid(x) * (1.0-tf_sigmoid(x))
 
 def tf_atan(x): return tf.atan(x)
@@ -51,7 +51,7 @@ def tf_repeat(tensor, repeats):
     repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
 
     Returns:
-    
+
     A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
     """
     expanded_tensor = tf.expand_dims(tensor, -1)
@@ -104,7 +104,7 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
             ax.set_title("Channel : " + str(color_channel) + " : " + str(color_channel+channel_increase-1))
         ax.imshow(np.squeeze(image[:,:,color_channel:color_channel+channel_increase]))
         color_channel = color_channel + channel_increase
-    
+
     if alpha:
         plt.savefig('viz/z_'+str(alpha) + "_alpha_image.png")
     else:
@@ -114,7 +114,7 @@ def show_9_images(image,layer_num,image_num,channel_increase=3,alpha=None,gt=Non
 
 # ================= LAYER CLASSES =================
 class CNN():
-    
+
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=1,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
@@ -124,13 +124,13 @@ class CNN():
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
-        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) 
+        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding)
         self.layerA = self.act(self.layer)
-        return self.layerA 
+        return self.layerA
 
     def backprop(self,gradient,stride=1,padding='SAME'):
-        grad_part_1 = gradient 
-        grad_part_2 = self.d_act(self.layer) 
+        grad_part_1 = gradient
+        grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
@@ -149,12 +149,12 @@ class CNN():
         m_hat = self.m / (1-beta1)
         v_hat = self.v_prev / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
 
-        return grad_pass,update_w 
+        return grad_pass,update_w
 
 class CNN_Trans():
-    
+
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
@@ -167,13 +167,13 @@ class CNN_Trans():
         output_shape2 = self.input.shape[2].value * stride
         self.layer  = tf.nn.conv2d_transpose(
             input,self.w,output_shape=[batch_size,output_shape2,output_shape2,self.w.shape[2].value],
-            strides=[1,stride,stride,1],padding=padding) 
+            strides=[1,stride,stride,1],padding=padding)
         self.layerA = self.act(self.layer)
-        return self.layerA 
+        return self.layerA
 
     def backprop(self,gradient,stride=1,padding='SAME'):
-        grad_part_1 = gradient 
-        grad_part_2 = self.d_act(self.layer) 
+        grad_part_1 = gradient
+        grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
@@ -186,19 +186,19 @@ class CNN_Trans():
         grad_pass = tf.nn.conv2d(
             input=grad_middle,filter = self.w,strides=[1,stride,stride,1],padding=padding
         )
-        
+
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
         update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1)
         v_hat = self.v_prev / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))         
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
 
-        return grad_pass,update_w 
+        return grad_pass,update_w
 
 class FNN():
-    
+
     def __init__(self,input_dim,hidden_dim,act,d_act):
         self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=1,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
@@ -212,8 +212,8 @@ class FNN():
         return self.layerA
 
     def backprop(self,gradient=None):
-        grad_part_1 = gradient 
-        grad_part_2 = self.d_act(self.layer) 
+        grad_part_1 = gradient
+        grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
@@ -226,15 +226,15 @@ class FNN():
         m_hat = self.m / (1-beta1)
         v_hat = self.v_prev / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
 
-        return grad_pass,update_w  
+        return grad_pass,update_w
 
 class ICA_Layer():
 
     def __init__(self,inc):
-        self.w_ica = tf.Variable(tf.random_normal([inc,inc],stddev=0.05,seed=2)) 
-        # self.w_ica = tf.Variable(tf.eye(inc)*0.0001) 
+        self.w_ica = tf.Variable(tf.random_normal([inc,inc],stddev=0.05,seed=2))
+        # self.w_ica = tf.Variable(tf.eye(inc)*0.0001)
 
     def feedforward(self,input):
         self.input = input
@@ -252,7 +252,7 @@ class ICA_Layer():
         update_w = []
         update_w.append(tf.assign(self.w_ica,self.w_ica+0.2*g_tf))
 
-        return grad_pass,update_w  
+        return grad_pass,update_w
 
 class TSNE_Layer():
 
@@ -264,17 +264,17 @@ class TSNE_Layer():
         self.P = P
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
-    def getw(self): return self.w   
+    def getw(self): return self.w
 
     def tf_neg_distance(self,X):
         X_sum = tf.reduce_sum(X**2,1)
         distance = tf.reshape(X_sum,[-1,1])
-        return -(distance - 2*tf.matmul(X,tf.transpose(X))+tf.transpose(distance)) 
+        return -(distance - 2*tf.matmul(X,tf.transpose(X))+tf.transpose(distance))
 
     def tf_q_tsne(self,Y):
         distances = self.tf_neg_distance(Y)
         inv_distances = tf.pow(1. - distances, -1)
-        inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float64)) 
+        inv_distances = tf.matrix_set_diag(inv_distances,tf.zeros([inv_distances.shape[0].value],dtype=tf.float64))
         return inv_distances / tf.reduce_sum(inv_distances), inv_distances
 
     def tf_tsne_grad(self,P,Q,W,inv):
@@ -305,7 +305,7 @@ class TSNE_Layer():
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))     
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
 
         return grad
 # ================= LAYER CLASSES =================
@@ -323,7 +323,7 @@ x_data, train_label, test_batch, test_label = mnist.train.images, mnist.train.la
 # for x in range(len(y_data)):
 #     test_batch[x,:,:,:] = np.expand_dims(imresize(y_data[x,:,:,0],(28,28)),axis=3)
 
-# 1. Prepare only one and only zero  
+# 1. Prepare only one and only zero
 numer_images = 100
 only_0_index  = np.asarray(np.where(test_label == 0))[:,:numer_images]
 only_1_index  = np.asarray(np.where(test_label == 1))[:,:numer_images]
@@ -381,7 +381,7 @@ print(train_batch.max(),train_batch.min())
 def neg_distance(X):
     X_sum = np.sum(X**2,1)
     distance = np.reshape(X_sum,[-1,1])
-    return -(distance - 2*X.dot(X.T)+distance.T) 
+    return -(distance - 2*X.dot(X.T)+distance.T)
 
 def softmax_max(X,diag=True):
     X_exp = np.exp(X - X.max(1).reshape([-1, 1]))
@@ -398,7 +398,7 @@ def calc_prob_matrix(distances, sigmas=None):
         return softmax_max(distances)
 
 def perplexity(distances, sigmas):
-    """Wrapper function for quick calculation of 
+    """Wrapper function for quick calculation of
     perplexity over a distance matrix."""
     prob_matrix = calc_prob_matrix(distances, sigmas)
     entropy = -np.sum(prob_matrix * np.log2(prob_matrix + 1e-10), 1)
@@ -431,7 +431,7 @@ def binary_search(distance_vec, target, max_iter=20000,tol=1e-13, lower=1e-10, u
 def find_optimal_sigmas(distances, target_perplexity):
     """For each row of distances matrix, find sigma that results
     in target perplexity for that role."""
-    sigmas = [] 
+    sigmas = []
     # For each row of the matrix (each point in our dataset)
     for i in range(distances.shape[0]):
         # Binary search over sigmas to achieve target perplexity
@@ -526,15 +526,15 @@ with tf.Session() as sess:
         7:'cyan',
         8:'pink',
         9:'skyblue',
-    }  
+    }
     color_mapping = [ color_dict[x] for x in train_label ]
 
     for iter in range(num_epoch):
         sess_results = sess.run([cost,grad_update,layer3] ,feed_dict = {x:train_batch.astype(np.float64)})
         W = sess_results[2]
         print('current iter: ',iter, ' Current Cost:  ',sess_results[0],end='\r')
-        if iter % print_size == 0 : 
-            ttl = plt.text(0.5, 1.0, 'Iter: '+str(iter), horizontalalignment='center', verticalalignment='top')
+        if iter % print_size == 0 :
+            ttl = plt.text(0.0, 0.0, 'Iter: '+str(iter), horizontalalignment='center', verticalalignment='top')
             img = plt.scatter(W[:, 0], W[:, 1], c=color_mapping,marker='^', s=10)
             images.append([img,ttl])
             print('\n-----------------------------\n')

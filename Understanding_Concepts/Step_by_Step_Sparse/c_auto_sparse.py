@@ -11,6 +11,7 @@ import nibabel as nib
 import imgaug as ia
 from scipy.ndimage import zoom
 from sklearn.utils import shuffle
+import matplotlib.animation as animation
 
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -68,9 +69,40 @@ def unpickle(file):
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     return dict
+
+# Func: Display Weights (Soruce: https://github.com/jonsondag/ufldl_templates/blob/master/display_network.py)
+def display_network(A,current_iter=None):
+    opt_normalize = True
+    opt_graycolor = True
+    # Rescale
+    A = A - np.average(A)
+    # Compute rows & cols
+    (row, col) = A.shape
+    sz = int(np.ceil(np.sqrt(row)))
+    buf = 1
+    n = int(np.ceil(np.sqrt(col)))
+    m = int(np.ceil(col / n))
+    image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
+    k = 0
+    for i in range(int(m)):
+        for j in range(int(n)):
+            if k >= col:
+                continue
+            clim = np.max(np.abs(A[:, k]))
+            if opt_normalize:
+                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                    A[:, k].reshape(sz, sz) / clim
+            else:
+                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                    A[:, k].reshape(sz, sz) / np.max(np.abs(A))
+            k += 1
+    plt.axis('off')
+    plt.tight_layout()
+    return [plt.imshow(image,cmap='gray', animated=True),plt.text(0.5, 1.0, 'Current Iter : '+str(current_iter),color='red', fontsize=30,horizontalalignment='center', verticalalignment='top')]
 # ====== miscellaneous =====
 
 # ================= LAYER CLASSES =================
+# Func: Convolutional Layer
 class CNN():
 
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
@@ -112,6 +144,7 @@ class CNN():
 
         return grad_pass,update_w
 
+# Func: 3D Convolutional Layer
 class CNN_3D():
 
     def __init__(self,filter_depth,filter_height,filter_width,in_channels,out_channels,act=tf_elu,d_act=d_tf_elu):
@@ -133,6 +166,7 @@ class CNN_3D():
     def backprop(self):
         raise NotImplementedError("Not Implemented Yet")
 
+# Func: Transpose Convolutional Layer
 class CNN_Trans():
 
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
@@ -177,6 +211,7 @@ class CNN_Trans():
 
         return grad_pass,update_w
 
+# Func: Recurrent Convolutional Layer
 class RNN_CNN():
 
     def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size,act=tf_elu,d_act=d_tf_elu):
@@ -253,6 +288,7 @@ class RNN_CNN():
 
         return grad_pass,update_w
 
+# Func: ZigZag RNN CNN
 class ZigZag_RNN_CNN():
 
     def __init__(self,timestamp,c_in,c_out,x_kernel,h_kernel,size,act=tf_elu,d_act=d_tf_elu):
@@ -323,11 +359,13 @@ class ZigZag_RNN_CNN():
 
         return layerA_1,layerA_2,hidden_assign
 
+# Func: LSTM CNN
 class LSTM_CNN():
 
     def __init__(self):
         raise NotImplementedError("Not Implemented Yet")
 
+# Func: Fully Connected Layer
 class FNN():
 
     def __init__(self,inc,outc,act,d_act,special_init=False):
@@ -336,8 +374,7 @@ class FNN():
             self.w  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=4))
         else:
             self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float64))
-        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
-        self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
     def getw(self): return self.w
@@ -348,27 +385,26 @@ class FNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient=None,l2_regularization=False):
+    def backprop(self,gradient=None,l2_regularization=True):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
-        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)
-        grad_pass = tf.matmul(tf.multiply(grad_part_1,grad_part_2),tf.transpose(self.w))
+        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)/batch_size
+        grad_pass = tf.matmul(grad_middle,tf.transpose(self.w))
+
+        if l2_regularization:
+            grad = grad + lamda * self.w
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
-        update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1)
-        v_hat = self.v_prev / (1-beta2)
-        adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
-
-        if l2_regularization:
-            adam_middle = adam_middle + lamda * self.w
+        v_hat = self.v / (1-beta2)
+        adam_middle = m_hat *  learning_rate/(tf.sqrt(v_hat) + adam_e)
 
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
-
         return grad_pass,update_w
 
 # Func: Layer for Sparse Coding
@@ -393,16 +429,19 @@ class sparse_code_layer():
         self.current_sparsity = tf.reduce_mean(self.layerA, axis=0)
         return self.layerA,self.current_sparsity
 
-    def backprop(self,gradient,l2_regularization=False):
+    def backprop(self,gradient,l2_regularization=True):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
-        grad_part_KL = beta * (- aimed_sparsity / self.current_sparsity + (1 - aimed_sparsity) / (1 - self.current_sparsity))
-        grad_part_1 = grad_part_1 + grad_part_KL
+        grad_part_KL = beta * (- aimed_sparsity / self.current_sparsity + (1.0 - aimed_sparsity) / (1.0 - self.current_sparsity))
+        grad_part_1 = grad_part_1 + grad_part_KL[tf.newaxis,:]
 
-        grad_middle = (grad_part_1 * grad_part_2)
-        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)
+        grad_middle = grad_part_1 * grad_part_2
+        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)/batch_size
         grad_pass = tf.matmul(grad_middle,tf.transpose(self.w))
+
+        if l2_regularization:
+            grad = grad + lamda * self.w
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
@@ -410,9 +449,6 @@ class sparse_code_layer():
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
         adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
-
-        if l2_regularization:
-            adam_middle = adam_middle + lamda * self.w
 
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
 
@@ -586,110 +622,92 @@ class PCA_Layer():
 
         return out_put,update_sigma
 # ================= LAYER CLASSES =================
-
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-training_data = mnist.train.images
-m = 10000 # number of training examples
-training_data = training_data[0:m,:]
+training_data_og = mnist.train.images
+number_of_trainin_images = 10000
+training_data = training_data_og[0:number_of_trainin_images,:]
 
-# Parameters
-beta = 3.0 # sparsity parameter (aimed_sparsity) weight
-aimed_sparsity = 0.1 # sparstiy parameter i.e. target average activation for hidden units
-lamda = 0.003 # regularization weight
+# hyper
+num_epoch = 500
+learning_rate = 0.0008
+batch_size = 100; print_size = 1
 
-num_epoch = 800
-learning_rate = 0.01
-
-batch_size = 2000
-print_size = 1
-
+lamda = 0.003
 beta1,beta2,adam_e = 0.9,0.999,1e-8
+compress_size = 100
+aimed_sparsity = 0.1; beta = 3.0
 
-# class
-s0 = sparse_code_layer(784,100,act=tf_sigmoid,d_act=d_tf_sigmoid)
-l1 = FNN(100,784,act=tf_sigmoid,d_act=d_tf_sigmoid)
+# layers
+l0 = sparse_code_layer(784,compress_size,act=tf_sigmoid,d_act=d_tf_sigmoid,special_init=True)
+l1 = FNN(compress_size,784,act=tf_sigmoid,d_act=d_tf_sigmoid,special_init=True)
 
 # get weigths for reg
-W1,W2 = s0.getw(),l1.getw()
+W1,W2 = l0.getw(),l1.getw()
 
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
-layer0_s,layer0_s_phat  = s0.feedforward(x)
-layer1 = l1.feedforward(layer0_s)
+layer0,layer0_phat = l0.feedforward(x)
+layer1 = l1.feedforward(layer0)
 
-avg_sum_sq_error = tf.reduce_mean(
-    tf.reduce_sum(tf.square(layer1-x), axis = 1) * 0.5
-    )
-regularization_cost =  lamda * 0.5 * (tf.reduce_sum(W1 * W1) + tf.reduce_sum(W2 * W2))
+reconstruction_cost = tf.reduce_mean(tf.reduce_sum(tf.square(layer1-x), axis = 1) * 0.5)
+regularization_cost =  lamda * 0.5 * (tf.reduce_sum(W1 ** 2) + tf.reduce_sum(W2 ** 2))
 KL_div = beta * tf.reduce_sum(
-    aimed_sparsity * tf.log(aimed_sparsity / layer0_s_phat) + \
-    (1 - aimed_sparsity) * tf.log((1-aimed_sparsity) / (1- layer0_s_phat))
-    )
-total_cost = avg_sum_sq_error  +  KL_div  + regularization_cost
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
-# grad_1,grad_1_up = l1.backprop(layer1-x,l2_regularization=True)
-# grad_0,grad_0_up = s0.backprop(grad_1,l2_regularization=True)
-# grad_update = grad_1_up + grad_0_up
+    aimed_sparsity * tf.log(aimed_sparsity / layer0_phat) + \
+    (1 - aimed_sparsity) * tf.log((1-aimed_sparsity) / (1- layer0_phat))
+)
+total_cost = reconstruction_cost + regularization_cost + KL_div
+
+# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
+grad1,grad1_up = l1.backprop(layer1-x,l2_regularization=True)
+grad0,grad0_up = l0.backprop(grad1,l2_regularization=True)
+grad_update = grad1_up + grad0_up
 
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
+    train_cota =0;train_cot = [];image_list = []
+    fig = plt.figure(figsize=(8, 8))
 
+    # train for current iter
     for iter in range(num_epoch):
+
         training_data = shuffle(training_data)
+
         for current_batch_index in range(0,len(training_data),batch_size):
             current_training_data = training_data[current_batch_index:current_batch_index+batch_size]
-            sess_results = sess.run([total_cost,layer0_s_phat,auto_train],feed_dict={x:current_training_data})
-            print("Current Iter : ",iter,' Current cost: ', sess_results[0],' Current Sparse: \n',np.around(sess_results[1],2),end='\r')
-            if iter % print_size == 0 :
-                print('\n---------------------\n')
+            sess_results = sess.run([total_cost,grad_update],feed_dict={x:current_training_data})
+            print("Current Iter : ",iter,' Current cost: ', sess_results[0],end='\r')
+            train_cota = train_cota + sess_results[0]
 
-    def display_network(A):
-        opt_normalize = True
-        opt_graycolor = True
+        if iter % print_size==0:
+            print("\n----------")
+            print('Train Cost overtime : ', train_cota/(len(training_data)/batch_size),end='\n')
+            print("----------")
+            image_list.append(display_network(sess.run(W1),current_iter=iter))
 
-        # Rescale
-        A = A - np.average(A)
+        train_cot.append(train_cota/(len(training_data)/batch_size)); train_cota = 0
 
-        # Compute rows & cols
-        (row, col) = A.shape
-        sz = int(np.ceil(np.sqrt(row)))
-        buf = 1
-        n = int(np.ceil(np.sqrt(col)))
-        m = int(np.ceil(col / n))
+    # save the weights and how they changed over time
+    ani = animation.ArtistAnimation(fig, image_list, interval=50, blit=True,repeat_delay=1000)
+    ani.save('c_case.mp4')
+    plt.show()
+    plt.close('all')
 
-        image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
+    # training done
+    plt.figure()
+    plt.plot(range(len(train_cot)),train_cot,color='green',label='cost OVT')
+    plt.legend()
+    plt.title("Train Average Cost Over Time")
+    plt.show()
+    plt.close('all')
 
-        if not opt_graycolor:
-            image *= 0.1
-
-        k = 0
-        for i in range(int(m)):
-            for j in range(int(n)):
-                if k >= col:
-                    continue
-
-                clim = np.max(np.abs(A[:, k]))
-
-                if opt_normalize:
-                    image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
-                        A[:, k].reshape(sz, sz) / clim
-                else:
-                    image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
-                        A[:, k].reshape(sz, sz) / np.max(np.abs(A))
-                k += 1
-        fig=plt.figure(figsize=(10, 10))
-        plt.axis('off')
-        plt.title('From Function')
-        plt.imshow(image,cmap='gray')
-        plt.show()
-
-    training_data = training_data[:100]
-    training_data_reshape = np.reshape(training_data,(100,28,28))
-    fig=plt.figure(figsize=(10, 10))
-    columns = 10; rows = 10
+    # Display the final Trained Resutls
+    training_data_show = training_data[:compress_size]
+    training_data_reshape = np.reshape(training_data_show,(compress_size,28,28))
+    fig=plt.figure(figsize=(8, 8))
+    columns = int(np.sqrt(compress_size)); rows = int(np.sqrt(compress_size))
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
@@ -697,11 +715,11 @@ with tf.Session() as sess:
     plt.show()
     plt.close('all')
 
+    # Show the reconstruction data
     train_batch = training_data[:batch_size]
-    recon_data = sess.run(layer1,feed_dict={x:train_batch})[:100]
-    recon_data_reshape = np.reshape(recon_data,(100,28,28))
-    fig=plt.figure(figsize=(10, 10))
-    columns = 10; rows = 10
+    recon_data = sess.run(layer1,feed_dict={x:train_batch})[:compress_size]
+    recon_data_reshape = np.reshape(recon_data,(compress_size,28,28))
+    fig=plt.figure(figsize=(8, 8))
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
@@ -709,20 +727,25 @@ with tf.Session() as sess:
     plt.show()
     plt.close('all')
 
-    opt_W1 = sess.run(W1)
-    display_network(opt_W1)
+    # show trainied weigths constrast norm
+    plt.figure(figsize=(8, 8))
+    plt.axis('off')
+    display_network(sess.run(W1))
+    plt.show()
     plt.close('all')
 
-    opt_W1_data_reshape = np.reshape(opt_W1.T,(100,28,28))
-    fig=plt.figure(figsize=(10, 10))
-    columns = 10; rows = 10
+    # Show the trained weights
+    trained_w1 = sess.run(W1)
+    trained_w1_data_reshape = np.reshape(trained_w1.T,(compress_size,28,28))
+    fig=plt.figure(figsize=(8, 8))
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
-        plt.imshow(opt_W1_data_reshape[i-1,:,:],cmap='gray')
-    plt.title('OG')
+        plt.imshow(trained_w1_data_reshape[i-1,:,:],cmap='gray')
     plt.show()
     plt.close('all')
+
+
 
 
 # -- end code --

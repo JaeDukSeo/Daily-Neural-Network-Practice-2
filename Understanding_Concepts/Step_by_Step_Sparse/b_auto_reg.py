@@ -25,7 +25,6 @@ old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
 
-
 # ======= Activation Function  ==========
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
@@ -71,7 +70,7 @@ def unpickle(file):
     return dict
 
 # Func: Display Weights (Soruce: https://github.com/jonsondag/ufldl_templates/blob/master/display_network.py)
-def display_network(A):
+def display_network(A,current_iter=None):
     opt_normalize = True
     opt_graycolor = True
     # Rescale
@@ -96,9 +95,9 @@ def display_network(A):
                 image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
                     A[:, k].reshape(sz, sz) / np.max(np.abs(A))
             k += 1
-    plt.figure(figsize=(10, 10))
     plt.axis('off')
-    return [plt.imshow(image,cmap='gray', animated=True)]
+    plt.tight_layout()
+    return [plt.imshow(image,cmap='gray', animated=True),plt.text(0.5, 1.0, 'Current Iter : '+str(current_iter),color='red', fontsize=30,horizontalalignment='center', verticalalignment='top')]
 # ====== miscellaneous =====
 
 # ================= LAYER CLASSES =================
@@ -391,8 +390,11 @@ class FNN():
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
-        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle) / batch_size
+        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)/batch_size
         grad_pass = tf.matmul(grad_middle,tf.transpose(self.w))
+
+        if l2_regularization:
+            grad = grad + lamda * self.w
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
@@ -400,7 +402,7 @@ class FNN():
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
         adam_middle = m_hat *  learning_rate/(tf.sqrt(v_hat) + adam_e)
-        if l2_regularization: adam_middle = adam_middle + lamda * self.w
+
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
         return grad_pass,update_w
 
@@ -430,12 +432,15 @@ class sparse_code_layer():
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
-        grad_part_KL = beta * (- aimed_sparsity / self.current_sparsity + (1 - aimed_sparsity) / (1 - self.current_sparsity))
-        grad_part_1 = grad_part_1 + grad_part_KL
+        grad_part_KL = beta * (- aimed_sparsity / self.current_sparsity + (1.0 - aimed_sparsity) / (1.0 - self.current_sparsity))
+        grad_part_1 = grad_part_1 + grad_part_KL[tf.newaxis,:]
 
-        grad_middle = (grad_part_1 * grad_part_2)
-        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)
+        grad_middle = grad_part_1 * grad_part_2
+        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)/batch_size
         grad_pass = tf.matmul(grad_middle,tf.transpose(self.w))
+
+        if l2_regularization:
+            grad = grad + lamda * self.w
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
@@ -443,9 +448,6 @@ class sparse_code_layer():
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
         adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
-
-        if l2_regularization:
-            adam_middle = adam_middle + lamda * self.w
 
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
 
@@ -619,6 +621,7 @@ class PCA_Layer():
 
         return out_put,update_sigma
 # ================= LAYER CLASSES =================
+
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 training_data_og = mnist.train.images
@@ -626,9 +629,9 @@ number_of_trainin_images = 10000
 training_data = training_data_og[0:number_of_trainin_images,:]
 
 # hyper
-num_epoch = 20
+num_epoch = 500
 learning_rate = 0.00008
-batch_size = 100; print_size = 10
+batch_size = 100; print_size = 1
 
 lamda = 0.00003
 beta1,beta2,adam_e = 0.9,0.999,1e-8
@@ -659,8 +662,8 @@ grad_update = grad1_up + grad0_up
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-
     train_cota =0;train_cot = [];image_list = []
+    fig = plt.figure(figsize=(8, 8))
 
     # train for current iter
     for iter in range(num_epoch):
@@ -677,14 +680,13 @@ with tf.Session() as sess:
             print("\n----------")
             print('Train Cost overtime : ', train_cota/(len(training_data)/batch_size),end='\n')
             print("----------")
-            image_list.append(display_network(sess.run(W1)))
+            image_list.append(display_network(sess.run(W1),current_iter=iter))
 
         train_cot.append(train_cota/(len(training_data)/batch_size)); train_cota = 0
 
     # save the weights and how they changed over time
-    fig = plt.figure(figsize=(10, 10))
     ani = animation.ArtistAnimation(fig, image_list, interval=50, blit=True,repeat_delay=1000)
-    ani.save('b_case.avi')
+    ani.save('b_case.mp4')
     plt.show()
     plt.close('all')
 
@@ -692,6 +694,7 @@ with tf.Session() as sess:
     plt.figure()
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost OVT')
     plt.legend()
+    plt.tight_layout()
     plt.title("Train Average Cost Over Time")
     plt.show()
     plt.close('all')
@@ -717,6 +720,13 @@ with tf.Session() as sess:
         fig.add_subplot(rows, columns, i)
         plt.axis('off')
         plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
+
+    # show trainied weigths constrast norm
+    plt.figure(figsize=(8, 8))
+    plt.axis('off')
+    display_network(sess.run(W1))
     plt.show()
     plt.close('all')
 

@@ -11,6 +11,7 @@ import nibabel as nib
 import imgaug as ia
 from scipy.ndimage import zoom
 from sklearn.utils import shuffle
+import matplotlib.animation as animation
 
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -23,6 +24,7 @@ import tensorflow as tf
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
+
 
 # ======= Activation Function  ==========
 def tf_elu(x): return tf.nn.elu(x)
@@ -67,6 +69,36 @@ def unpickle(file):
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     return dict
+
+# Func: Display Weights (Soruce: https://github.com/jonsondag/ufldl_templates/blob/master/display_network.py)
+def display_network(A,current_iter=None):
+    opt_normalize = True
+    opt_graycolor = True
+    # Rescale
+    A = A - np.average(A)
+    # Compute rows & cols
+    (row, col) = A.shape
+    sz = int(np.ceil(np.sqrt(row)))
+    buf = 1
+    n = int(np.ceil(np.sqrt(col)))
+    m = int(np.ceil(col / n))
+    image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
+    k = 0
+    for i in range(int(m)):
+        for j in range(int(n)):
+            if k >= col:
+                continue
+            clim = np.max(np.abs(A[:, k]))
+            if opt_normalize:
+                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                    A[:, k].reshape(sz, sz) / clim
+            else:
+                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                    A[:, k].reshape(sz, sz) / np.max(np.abs(A))
+            k += 1
+    plt.axis('off')
+    plt.tight_layout()
+    return [plt.imshow(image,cmap='gray', animated=True),plt.text(0.5, 1.0, 'Current Iter : '+str(current_iter),color='red', fontsize=30,horizontalalignment='center', verticalalignment='top')]
 # ====== miscellaneous =====
 
 # ================= LAYER CLASSES =================
@@ -587,38 +619,6 @@ class PCA_Layer():
 
         return out_put,update_sigma
 # ================= LAYER CLASSES =================
-
-def display_network(A):
-    opt_normalize = True
-    opt_graycolor = True
-    # Rescale
-    A = A - np.average(A)
-    # Compute rows & cols
-    (row, col) = A.shape
-    sz = int(np.ceil(np.sqrt(row)))
-    buf = 1
-    n = int(np.ceil(np.sqrt(col)))
-    m = int(np.ceil(col / n))
-    image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
-    k = 0
-    for i in range(int(m)):
-        for j in range(int(n)):
-            if k >= col:
-                continue
-            clim = np.max(np.abs(A[:, k]))
-            if opt_normalize:
-                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
-                    A[:, k].reshape(sz, sz) / clim
-            else:
-                image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
-                    A[:, k].reshape(sz, sz) / np.max(np.abs(A))
-            k += 1
-    fig=plt.figure(figsize=(10, 10))
-    plt.axis('off')
-    plt.title('From Function')
-    plt.imshow(image,cmap='gray')
-    plt.show()
-
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 training_data_og = mnist.train.images
@@ -626,11 +626,11 @@ number_of_trainin_images = 10000
 training_data = training_data_og[0:number_of_trainin_images,:]
 
 # hyper
-num_epoch = 200
+num_epoch = 500
 learning_rate = 0.00008
-batch_size = 100; print_size = 10
+batch_size = 100; print_size = 1
 
-lamda = 0.0000003
+lamda = 0.00003
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 compress_size = 100
 
@@ -650,7 +650,6 @@ layer1 = l1.feedforward(layer0)
 reconstruction_cost = tf.reduce_mean(tf.reduce_sum(tf.square(layer1-x), axis = 1) * 0.5)
 total_cost = reconstruction_cost
 
-# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
 grad1,grad1_up = l1.backprop(layer1-x)
 grad0,grad0_up  = l0.backprop(grad1)
 grad_update = grad1_up + grad0_up
@@ -658,8 +657,8 @@ grad_update = grad1_up + grad0_up
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-
-    train_cota =0;train_cot = []
+    train_cota =0;train_cot = [];image_list = []
+    fig = plt.figure(figsize=(8, 8))
 
     # train for current iter
     for iter in range(num_epoch):
@@ -676,15 +675,24 @@ with tf.Session() as sess:
             print("\n----------")
             print('Train Cost overtime : ', train_cota/(len(training_data)/batch_size),end='\n')
             print("----------")
+            image_list.append(display_network(sess.run(W1),current_iter=iter))
 
         train_cot.append(train_cota/(len(training_data)/batch_size)); train_cota = 0
 
+    # save the weights and how they changed over time
+    ani = animation.ArtistAnimation(fig, image_list, interval=50, blit=True,repeat_delay=1000)
+    ani.save('a_case.mp4')
+    plt.show()
+    plt.close('all')
+
     # training done
-    plt.figure()
+    plt.figure(figsize=(8, 8))
     plt.plot(range(len(train_cot)),train_cot,color='green',label='cost OVT')
     plt.legend()
     plt.title("Train Average Cost Over Time")
+    plt.tight_layout()
     plt.show()
+    plt.close('all')
 
     # Display the final Trained Resutls
     training_data_show = training_data[:compress_size]
@@ -709,6 +717,13 @@ with tf.Session() as sess:
         plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray')
     plt.show()
     plt.close('all')
+    
+    # show trainied weigths constrast norm
+    plt.figure(figsize=(8, 8))
+    plt.axis('off')
+    display_network(sess.run(W1))
+    plt.show()
+    plt.close('all')
 
     # Show the trained weights
     trained_w1 = sess.run(W1)
@@ -720,6 +735,8 @@ with tf.Session() as sess:
         plt.imshow(trained_w1_data_reshape[i-1,:,:],cmap='gray')
     plt.show()
     plt.close('all')
+
+
 
 
 # -- end code --
