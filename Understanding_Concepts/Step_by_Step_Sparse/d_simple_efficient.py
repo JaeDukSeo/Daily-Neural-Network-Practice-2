@@ -84,8 +84,6 @@ def display_network(A,current_iter=None):
     m = int(np.ceil(col / n))
     image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
     k = 0
-    if not opt_graycolor:
-        image *= 0.1
     for i in range(int(m)):
         for j in range(int(n)):
             if k >= col:
@@ -99,7 +97,8 @@ def display_network(A,current_iter=None):
                     A[:, k].reshape(sz, sz) / np.max(np.abs(A))
             k += 1
     plt.axis('off')
-    return [plt.imshow(image,cmap='gray', animated=True),plt.text(0.5, 1.0, 'Current Iter : '+str(current_iter),color='red', horizontalalignment='center', verticalalignment='top')]
+    plt.tight_layout()
+    return [plt.imshow(image,cmap='gray', animated=True),plt.text(0.5, 1.0, 'Current Iter : '+str(current_iter),color='red', fontsize=30,horizontalalignment='center', verticalalignment='top')]
 # ====== miscellaneous =====
 
 # ================= LAYER CLASSES =================
@@ -482,6 +481,9 @@ class simple_sparse_layer():
         w_update_2 = tf.expand_dims(tf.reduce_sum(tf.sign(self.x_hat),axis=0),0)
         w_update = tf.matmul(tf.transpose(w_update_1),w_update_2)
 
+        if l2_regularization:
+            w_update = w_update + lamda * self.w
+
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (w_update)   ))
         update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (w_update ** 2)   ))
@@ -668,7 +670,7 @@ training_data = training_data_og[0:number_of_trainin_images,:]
 
 # hyper
 num_epoch = 500
-learning_rate = 0.0001
+learning_rate = 0.0008
 batch_size = 100; print_size = 1
 
 lamda = 0.003
@@ -687,7 +689,8 @@ x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
 layer0 = l0.feedforward(x,top_size=batch_size//2)
 reconstruction_cost = tf.reduce_mean(tf.reduce_sum(tf.square(layer0-x), axis = 1) * 0.5)
-total_cost = reconstruction_cost
+regularization_cost =  lamda * 0.5 * (tf.reduce_sum(W1 ** 2))
+total_cost = reconstruction_cost + regularization_cost
 
 grad0,grad0_up = l0.backprop()
 grad_update = grad0_up
