@@ -598,10 +598,10 @@ beta = 3.0 # sparsity parameter (aimed_sparsity) weight
 aimed_sparsity = 0.1 # sparstiy parameter i.e. target average activation for hidden units
 lamda = 0.003 # regularization weight
 
-num_epoch = 800
-learning_rate = 0.01
+num_epoch = 500
+learning_rate = 0.001
 
-batch_size = 2000
+batch_size = 50
 inc,outc = 784,16
 print_size = 1
 
@@ -611,24 +611,114 @@ beta1,beta2,adam_e = 0.9,0.999,1e-8
 b = tf.placeholder(shape=[784,batch_size],dtype=tf.float64)
 
 interval = np.sqrt(6.0 / (784 + 16 + 1.0))
-A  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=4))
+A  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=2))
+m = tf.Variable(tf.zeros_like(A))
+v = tf.Variable(tf.zeros_like(A))
 x = tf.matmul(tf.transpose(A),b)
 
-top_4 = tf.nn.top_k(x, 4)
-kth = tf.reduce_min(top_4.values)
-top_4_mask = tf.cast(tf.greater_equal(x, kth),tf.float64)
-x_hat = top_4_mask * x
+top = tf.nn.top_k(x, 8)
+top_mean = tf.reduce_mean(top.values)
+top_mean_mask = tf.cast(tf.greater_equal(x, top_mean),tf.float64)
+x_hat = top_mean_mask * x
 
-A_update = tf.matmul((b - tf.matmul(A,x_hat)),tf.transpose(tf.sign(x_hat)))
+output = tf.matmul(A,x_hat)
+A_update_1 = tf.expand_dims(tf.reduce_sum(b - tf.matmul(A,x_hat),axis=1),1)
+A_update_2 = tf.expand_dims(tf.reduce_sum(tf.sign(x_hat),axis=1),1)
+A_update = tf.matmul(A_update_1,tf.transpose(A_update_2))
 
-print(A)
-print(A_update)
+grad_update = []
+grad_update.append( tf.assign(m,m*0.9 + (1-0.9) *  A_update))
+grad_update.append( tf.assign(v,v*0.999 + (1-0.999) *  A_update ** 2))
 
+m_hat = m/(1-0.9)
+v_hat = v/(1-0.999)
+adam_middle = learning_rate/(tf.sqrt(v_hat) + 1e-8) * m_hat
+grad_update.append(tf.assign(A,A+adam_middle))
 
+# session
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    for iter in range(num_epoch):
+        training_data = shuffle(training_data)
+        for current_batch_index in range(0,len(training_data),batch_size):
+            current_training_data = training_data[current_batch_index:current_batch_index+batch_size]
+            sess_results = sess.run([x_hat,grad_update],feed_dict={b:current_training_data.T})
+            print("Current Iter : ",iter,' Current cost: ', np.mean(sess_results[0],axis=(0,1)),end='\r')
+        print('\n----------------------')
 
+    def display_network(A):
+        opt_normalize = True
+        opt_graycolor = True
 
+        # Rescale
+        A = A - np.average(A)
 
+        # Compute rows & cols
+        (row, col) = A.shape
+        sz = int(np.ceil(np.sqrt(row)))
+        buf = 1
+        n = int(np.ceil(np.sqrt(col)))
+        m = int(np.ceil(col / n))
 
+        image = np.ones(shape=(buf + m * (sz + buf), buf + n * (sz + buf)))
+
+        if not opt_graycolor:
+            image *= 0.1
+
+        k = 0
+        for i in range(int(m)):
+            for j in range(int(n)):
+                if k >= col:
+                    continue
+
+                clim = np.max(np.abs(A[:, k]))
+
+                if opt_normalize:
+                    image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                        A[:, k].reshape(sz, sz) / clim
+                else:
+                    image[buf + i * (sz + buf):buf + i * (sz + buf) + sz, buf + j * (sz + buf):buf + j * (sz + buf) + sz] = \
+                        A[:, k].reshape(sz, sz) / np.max(np.abs(A))
+                k += 1
+        fig=plt.figure(figsize=(8, 8))
+        plt.axis('off')
+        plt.imshow(image,cmap='gray')
+        plt.show()
+        plt.close('all')
+
+    training_data_reshape = np.reshape(training_data[:16],(16,28,28))
+    fig=plt.figure(figsize=(8, 8))
+    columns,rows = 4,4
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(training_data_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
+
+    train_batch = training_data[:batch_size]
+    recon_data = sess.run(output,feed_dict={b:train_batch.T})[:,:16]
+    recon_data_reshape = np.reshape(recon_data.T,(16,28,28))
+    fig=plt.figure(figsize=(8, 8))
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(recon_data_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
+
+    opt_W1 = sess.run(A)
+    display_network(opt_W1)
+    plt.close('all')
+
+    opt_W1_data_reshape = np.reshape(opt_W1.T,(16,28,28))
+    fig=plt.figure(figsize=(8, 8))
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        plt.axis('off')
+        plt.imshow(opt_W1_data_reshape[i-1,:,:],cmap='gray')
+    plt.show()
+    plt.close('all')
 
 
 
