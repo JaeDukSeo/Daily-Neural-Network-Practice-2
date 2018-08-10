@@ -330,8 +330,12 @@ class LSTM_CNN():
 
 class FNN():
 
-    def __init__(self,input_dim,hidden_dim,act,d_act):
-        self.w = tf.Variable(tf.random_normal([input_dim,hidden_dim], stddev=0.05,seed=2,dtype=tf.float64))
+    def __init__(self,inc,outc,act,d_act,special_init=True):
+        if special_init:
+            interval = np.sqrt(6.0 / (inc + outc + 1.0))
+            self.w  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=4))
+        else:
+            self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.v_hat_prev = tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
@@ -370,14 +374,11 @@ class FNN():
 # Func: Layer for Sparse Coding
 class sparse_code_layer():
 
-    def __init__(self,inc,outc,sparsity=0.1,special_init=False,act=tf_sigmoid,d_act=d_tf_sigmoid):
+    def __init__(self,inc,outc,sparsity=0.1,special_init=True,act=tf_sigmoid,d_act=d_tf_sigmoid):
 
         if special_init:
-            w_max = np.sqrt(6.0 / (inc + outc + 1.0))
-            w_min = -w_max
-            self.w  = tf.Variable(
-                (w_max - w_min) * tf.random_uniform(shape=(inc, outc),maxval=1.0,dtype=tf.float64,seed=4) + w_min
-            )
+            interval = np.sqrt(6.0 / (inc + outc + 1.0))
+            self.w  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=4))
         else:
             self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
@@ -389,7 +390,7 @@ class sparse_code_layer():
         self.input = input
         self.layer = tf.matmul(input,self.w)
         self.layerA = self.act(self.layer)
-        self.current_sparsity = tf.reduce_mean(self.layerA, axis=0)
+        self.current_sparsity = tf.reduce_mean(self.layerA, axis=1)
         return self.layerA,self.current_sparsity
 
     def backprop(self,gradient,l2_regularization=False):
@@ -397,8 +398,9 @@ class sparse_code_layer():
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
         grad_part_KL = beta * (- aimed_sparsity / self.current_sparsity + (1 - aimed_sparsity) / (1 - self.current_sparsity))
+        grad_part_1 = grad_part_1 + grad_part_KL
 
-        grad_middle = (grad_part_1 * grad_part_2)+grad_part_KL
+        grad_middle = (grad_part_1 * grad_part_2)
         grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)
         grad_pass = tf.matmul(grad_middle,tf.transpose(self.w))
 
@@ -588,19 +590,18 @@ class PCA_Layer():
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 training_data = mnist.train.images
-m = 10000 # number of training examples
+m = 3000 # number of training examples
 training_data = training_data[0:m,:]
 
 # Parameters
 aimed_sparsity = 0.1 # sparstiy parameter i.e. target average activation for hidden units
 beta = 3.0 # sparsity parameter (aimed_sparsity) weight
-lamda = 0.003 # regularization weight
+lamda = 0.00003 # regularization weight
 
-num_epoch = 400
-batch_size = 100
+num_epoch = 800
+batch_size = 3000
 print_size = 10
-learning_rate = 0.0001
-
+learning_rate = 0.0009
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # class
@@ -628,19 +629,18 @@ total_cost = avg_sum_sq_error + regularization_cost +  KL_div
 
 # auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta2=0.999).minimize(total_cost)
 
-grad_1,grad_1_up = l1.backprop(layer1-x)
-grad_0,grad_0_up = s0.backprop(grad_1)
-# sparse_gradup = sparse_layer.backprop(error)
+grad_1,grad_1_up = l1.backprop(layer1-x,l2_regularization=True)
+grad_0,grad_0_up = s0.backprop(grad_1,l2_regularization=True)
+grad_update = grad_1_up + grad_0_up
 
-sys.exit()
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     for iter in range(num_epoch):
-        training_data = shuffle(training_data)
+        # training_data = shuffle(training_data)
         for current_batch_index in range(0,len(training_data),batch_size):
             current_input = training_data[current_batch_index:current_batch_index+batch_size]
-            sess_results = sess.run([cost,auto_train],feed_dict={x:current_input})
+            sess_results = sess.run([total_cost,grad_update],feed_dict={x:current_input})
             print("Current Iter : ",iter, " current batch: ",current_batch_index, ' Current cost: ', sess_results[0],end='\r')
         if iter % print_size == 0:
             print('\n-----------')
@@ -685,8 +685,8 @@ with tf.Session() as sess:
         plt.imshow(image,cmap='gray')
         plt.show()
 
-    training_data = training_data[:hidden_side]
-    training_data_reshape = np.reshape(training_data,(hidden_side,28,28))
+    training_data = training_data[:16]
+    training_data_reshape = np.reshape(training_data,(16,28,28))
     fig=plt.figure(figsize=(10, 10))
     columns = 4; rows = 4
     for i in range(1, columns*rows +1):
@@ -696,9 +696,9 @@ with tf.Session() as sess:
     plt.show()
     plt.close('all')
 
-    train_batch = training_data[:hidden_side]
-    recon_data = sess.run(layer1,feed_dict={x:train_batch})[:hidden_side]
-    recon_data_reshape = np.reshape(recon_data,(hidden_side,28,28))
+    train_batch = training_data[:16]
+    recon_data = sess.run(layer1,feed_dict={x:train_batch})[:16]
+    recon_data_reshape = np.reshape(recon_data,(16,28,28))
     fig=plt.figure(figsize=(10, 10))
     columns = 4; rows = 4
     for i in range(1, columns*rows +1):
@@ -712,7 +712,7 @@ with tf.Session() as sess:
     display_network(opt_W1)
     plt.close('all')
 
-    opt_W1_data_reshape = np.reshape(opt_W1.T,(hidden_side,28,28))
+    opt_W1_data_reshape = np.reshape(opt_W1.T,(16,28,28))
     fig=plt.figure(figsize=(10, 10))
     columns = 4; rows = 4
     for i in range(1, columns*rows +1):
