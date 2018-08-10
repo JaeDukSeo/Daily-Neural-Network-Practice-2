@@ -587,7 +587,7 @@ hidden_side = 16 # sqrt of number of hidden units
 visible_size = visible_side * visible_side # number of visible units
 hidden_size = hidden_side  # number of hidden units
 m = 10000 # number of training examples
-batch_size = 50
+batch_size = 10000
 max_iterations = 500 # Maximum number of iterations for numerical solver.
 learning_rate = 0.00008
 print_size = 10
@@ -600,7 +600,7 @@ training_data = training_data[0:m,:]
 # Create instance of autoencoder
 sparse_layer = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
 
-# graph
+# graph 9
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
 sparse_output,sparse_phat = sparse_layer.feedforward(x)
