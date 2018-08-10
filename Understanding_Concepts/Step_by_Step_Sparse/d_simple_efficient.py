@@ -491,7 +491,6 @@ class simple_sparse_layer():
         v_hat = self.v / (1-beta2)
         adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
         update_w.append(tf.assign(self.w,tf.add(self.w,adam_middle )))
-
         return w_update, update_w
 
 class RNN():
@@ -670,7 +669,7 @@ training_data = training_data_og[0:number_of_trainin_images,:]
 
 # hyper
 num_epoch = 500
-learning_rate = 0.0008
+learning_rate = 0.001
 batch_size = 100; print_size = 1
 
 lamda = 0.003
@@ -679,7 +678,7 @@ compress_size = 100
 aimed_sparsity = 0.1; beta = 3.0
 
 # layers
-l0 = simple_sparse_layer(784,compress_size,special_init=False)
+l0 = simple_sparse_layer(784,compress_size,special_init=True)
 
 # get weigths for reg
 W1 = l0.getw()
@@ -692,7 +691,7 @@ reconstruction_cost = tf.reduce_mean(tf.reduce_sum(tf.square(layer0-x), axis = 1
 regularization_cost =  lamda * 0.5 * (tf.reduce_sum(W1 ** 2))
 total_cost = reconstruction_cost + regularization_cost
 
-grad0,grad0_up = l0.backprop()
+grad0,grad0_up = l0.backprop(l2_regularization=True)
 grad_update = grad0_up
 
 with tf.Session() as sess:

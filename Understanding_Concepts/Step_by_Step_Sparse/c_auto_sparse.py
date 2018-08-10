@@ -630,7 +630,7 @@ training_data = training_data_og[0:number_of_trainin_images,:]
 
 # hyper
 num_epoch = 500
-learning_rate = 0.0008
+learning_rate = 0.001
 batch_size = 100; print_size = 1
 
 lamda = 0.003
