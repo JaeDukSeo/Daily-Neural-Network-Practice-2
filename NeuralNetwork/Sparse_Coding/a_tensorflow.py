@@ -344,7 +344,7 @@ class FNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient=None):
+    def backprop(self,gradient=None,l2_regularization=False):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -358,8 +358,12 @@ class FNN():
         update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1)
         v_hat = self.v_prev / (1-beta2)
-        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
+        adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
+
+        if l2_regularization:
+            adam_middle = adam_middle + lamda * self.w
+
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
 
         return grad_pass,update_w
 
@@ -388,8 +392,29 @@ class sparse_code_layer():
         self.current_sparsity = tf.reduce_mean(self.layerA, axis=0)
         return self.layerA,self.current_sparsity
 
-    def backprop(self,grad,reg=False,reg_value = 0.003):
-        pass
+    def backprop(self,gradient,l2_regularization=False):
+        grad_part_1 = gradient
+        grad_part_2 = self.d_act(self.layer)
+        grad_part_3 = self.input
+        grad_part_KL = beta * (- aimed_sparsity / self.current_sparsity + (1 - aimed_sparsity) / (1 - self.current_sparsity))
+
+        grad_middle = (grad_part_1 * grad_part_2)+grad_part_KL
+        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)
+        grad_pass = tf.matmul(grad_middle,tf.transpose(self.w))
+
+        update_w = []
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
+
+        if l2_regularization:
+            adam_middle = adam_middle + lamda * self.w
+
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
+
+        return grad_pass,update_w
 
 class RNN():
 
@@ -500,11 +525,11 @@ class SOM_Layer():
                     tf.expand_dims(self.bmu_locs, axis=1)), 2),
             2)
 
-        self.neighbourhood_func = tf.exp(tf.divide(tf.negative(tf.cast(
+        self.neighbouaimed_sparsityod_func = tf.exp(tf.divide(tf.negative(tf.cast(
                 self.bmu_distance_squares, "float32")), tf.multiply(
                 tf.square(tf.multiply(radius, self.gaussian_std)), 2)))
 
-        self.learning_rate_op = tf.multiply(self.neighbourhood_func, alpha)
+        self.learning_rate_op = tf.multiply(self.neighbouaimed_sparsityod_func, alpha)
 
         self.numerator = tf.reduce_sum(
             tf.multiply(tf.expand_dims(self.learning_rate_op, axis=-1),
@@ -560,53 +585,58 @@ class PCA_Layer():
         return out_put,update_sigma
 # ================= LAYER CLASSES =================
 
-# Parameters
-rho = 0.1 # sparstiy parameter i.e. target average activation for hidden units
-beta = 3.0 # sparsity parameter (rho) weight
-lamda = 0.003 # regularization weight
-
-visible_side = 28 # sqrt of number of visible units
-hidden_side = 16 # sqrt of number of hidden units
-visible_size = visible_side * visible_side # number of visible units
-hidden_size = hidden_side  # number of hidden units
-m = 10000 # number of training examples
-batch_size = 100
-max_iterations = 400 # Maximum number of iterations for numerical solver.
-learning_rate = 0.0001
-print_size = 10
-
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 training_data = mnist.train.images
+m = 10000 # number of training examples
 training_data = training_data[0:m,:]
 
-# Create instance of autoencoder
+# Parameters
+aimed_sparsity = 0.1 # sparstiy parameter i.e. target average activation for hidden units
+beta = 3.0 # sparsity parameter (aimed_sparsity) weight
+lamda = 0.003 # regularization weight
+
+num_epoch = 400
+batch_size = 100
+print_size = 10
+learning_rate = 0.0001
+
+beta1,beta2,adam_e = 0.9,0.999,1e-8
+
+# class
 s0 = sparse_code_layer(784,16,act=tf_sigmoid,d_act=d_tf_sigmoid)
 l1 = FNN(16,784,act=tf_sigmoid,d_act=d_tf_sigmoid)
+
+# get weigths for reg
+W1,W2 = s0.getw(),l1.getw()
 
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
 layer0_s,layer0_s_phat  = s0.feedforward(x)
 layer1 = l1.feedforward(layer0_s)
-W1,W2 = s0.getw(),l1.getw()
 
-# error = -(x - layer1)
-# sum_sq_error =  0.5 * tf.reduce_sum(error * error, axis = 1)
-# avg_sum_sq_error = tf.reduce_mean(sum_sq_error)
-avg_sum_sq_error = tf.reduce_mean(tf.square(layer1-x))
-reg_cost =  lamda * (tf.reduce_sum(W1 * W1) + tf.reduce_sum(W2 * W2)) / 2.0
-KL_div = tf.reduce_sum(rho * tf.log(rho / layer0_s_phat) + \
- (1 - rho) * tf.log((1-rho) / (1- layer0_s_phat)))
-cost = avg_sum_sq_error + reg_cost + beta * KL_div
+avg_sum_sq_error = tf.reduce_mean(
+    tf.reduce_sum(tf.square(layer1-x), axis = 1) * 0.5
+    )
+regularization_cost =  lamda * 0.5 * (tf.reduce_sum(W1 * W1) + tf.reduce_sum(W2 * W2))
+KL_div = beta * tf.reduce_sum(
+    aimed_sparsity * tf.log(aimed_sparsity / layer0_s_phat) + \
+    (1 - aimed_sparsity) * tf.log((1-aimed_sparsity) / (1- layer0_s_phat))
+    )
+total_cost = avg_sum_sq_error + regularization_cost +  KL_div
 
-auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta2=0.9).minimize(cost)
+# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate,beta2=0.999).minimize(total_cost)
+
+grad_1,grad_1_up = l1.backprop(layer1-x)
+grad_0,grad_0_up = s0.backprop(grad_1)
 # sparse_gradup = sparse_layer.backprop(error)
 
+sys.exit()
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-    for iter in range(max_iterations):
+    for iter in range(num_epoch):
         training_data = shuffle(training_data)
         for current_batch_index in range(0,len(training_data),batch_size):
             current_input = training_data[current_batch_index:current_batch_index+batch_size]
