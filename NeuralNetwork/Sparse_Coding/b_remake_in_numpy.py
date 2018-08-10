@@ -49,7 +49,8 @@ class sparse_autoencoder(object):
         m = visible_input.shape[0] # number of training examples
 
         # Calculate the cost.
-        error = -(visible_input - self.output_layer)
+        # error = -(visible_input - self.output_layer)
+        error = self.output_layer - visible_input
         sum_sq_error =  0.5 * np.sum(error * error, axis = 0)
         avg_sum_sq_error = np.mean(sum_sq_error)
         reg_cost =  self.lambda_ * (np.sum(self.W1 * self.W1) + np.sum(self.W2 * self.W2)) / 2.0
@@ -57,7 +58,7 @@ class sparse_autoencoder(object):
         cost = avg_sum_sq_error + reg_cost + KL_div
 
         # Back propagation
-        KL_div_grad = self.beta * (- self.rho / self.rho_bar + (1 - self.rho) / (1 - self.rho_bar))
+        KL_div_grad = self.beta * (-self.rho / self.rho_bar + (1 - self.rho) / (1- self.rho_bar) )
 
         del_3 = error * self.output_layer * (1.0 - self.output_layer)
         W2_grad = self.hidden_layer.transpose().dot(del_3) / m
