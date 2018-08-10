@@ -7,6 +7,7 @@ import time
 import struct
 import array
 import matplotlib.pyplot as plt
+from sklearn.utils import shuffle
 
 import os,sys
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -51,28 +52,27 @@ class sparse_autoencoder(object):
         # Calculate the cost.
         # error = -(visible_input - self.output_layer)
         error = self.output_layer - visible_input
-        sum_sq_error =  0.5 * np.sum(error * error, axis = 0)
+        sum_sq_error =  0.5 * np.sum(error * error, axis = 1)
         avg_sum_sq_error = np.mean(sum_sq_error)
         reg_cost =  self.lambda_ * (np.sum(self.W1 * self.W1) + np.sum(self.W2 * self.W2)) / 2.0
         KL_div = self.beta * np.sum(self.rho * np.log(self.rho / self.rho_bar) +  (1 - self.rho) * np.log((1-self.rho) / (1- self.rho_bar)))
-        cost = avg_sum_sq_error + reg_cost + KL_div
+        cost = avg_sum_sq_error  + KL_div + reg_cost
 
         # Back propagation
-        KL_div_grad = self.beta * (-self.rho / self.rho_bar + (1 - self.rho) / (1- self.rho_bar) )
-
         del_3 = error * self.output_layer * (1.0 - self.output_layer)
         W2_grad = self.hidden_layer.transpose().dot(del_3) / m
         W2_grad += self.lambda_ * self.W2
-
-        del_2 = del_3.dot(self.W2.transpose())+ KL_div_grad[np.newaxis,:]
-        del_2 = del_2 * self.hidden_layer * (1 - self.hidden_layer)
-        W1_grad = visible_input.transpose().dot(del_2) / m
-        W1_grad += self.lambda_ * self.W1 # add reg term
 
         self.m2 = 0.9 * self.m2 + (1.0-0.9) * W2_grad
         self.v2 = 0.999 * self.v2 + (1.0-0.999) * W2_grad ** 2
         m2_hat,v2_hat =  self.m2/(1.0-0.9),self.v2/(1.0-0.999)
         self.W2 = self.W2 - learning_rate / (np.sqrt(v2_hat) + 1e-8) * m2_hat
+
+        KL_div_grad = self.beta * (-self.rho / self.rho_bar + (1 - self.rho) / (1- self.rho_bar) )
+        del_2 = del_3.dot(self.W2.transpose())+ KL_div_grad[np.newaxis,:]
+        del_2 = del_2 * self.hidden_layer * (1 - self.hidden_layer)
+        W1_grad = visible_input.transpose().dot(del_2) / m
+        W1_grad += self.lambda_ * self.W1
 
         self.m1 = 0.9 * self.m1 + (1.0-0.9) * W1_grad
         self.v1 = 0.999 * self.v1 + (1.0-0.999) * W1_grad ** 2
@@ -83,15 +83,16 @@ class sparse_autoencoder(object):
 
 # Parameters
 beta = 3.0 # sparsity parameter (rho) weight
-lamda = 0.003 # regularization weight
 rho = 0.1 # sparstiy parameter i.e. target average activation for hidden units
-visible_side = 28 # sqrt of number of visible units
-hidden_side = 4 # sqrt of number of hidden units
-visible_size = visible_side * visible_side # number of visible units
-hidden_size = hidden_side * hidden_side # number of hidden units
-m = 3000 # number of training examples
+lamda = 0.003 # regularization weight
+
 max_iterations = 800 # Maximum number of iterations for numerical solver.
-learning_rate = 0.09
+learning_rate = 0.01
+
+visible_size = 784 # number of visible units
+hidden_size = 16 # number of hidden units
+m = 10000 # number of training examples
+batch_size = 2000
 
 # data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
@@ -101,9 +102,13 @@ training_data = training_data[0:m,:]
 # Create instance of autoencoder
 sae = sparse_autoencoder(visible_size, hidden_size, lamda, rho, beta)
 for iter in range(max_iterations):
-    sparse_layer,sparse_phat = sae.feedforward(training_data)
-    cost = sae.cost(training_data)
-    print("Current Iter : ",iter,' Current cost: ', cost,'\n Current Sparse: ',np.around(sparse_phat,2),end='\n')
+    training_data = shuffle(training_data)
+    for current_batch_index in range(0,len(training_data),batch_size):
+        current_training_data = training_data[current_batch_index:current_batch_index+batch_size]
+        sparse_layer,sparse_phat = sae.feedforward(current_training_data)
+        cost = sae.cost(current_training_data)
+        print("Current Iter : ",iter,' Current cost: ', cost,' Current Sparse: \n',np.around(sparse_phat,2))
+    print('\n----------------------')
 
 def display_network(A):
     opt_normalize = True
@@ -145,10 +150,10 @@ def display_network(A):
     plt.show()
 
 # train data
-training_data = training_data[:16,:]
-training_data_reshape = np.reshape(training_data,(16,28,28))
+training_data = training_data[:hidden_size,:]
+training_data_reshape = np.reshape(training_data,(hidden_size,28,28))
 fig=plt.figure(figsize=(10, 10))
-columns = 4; rows = 4
+columns = int(np.sqrt(hidden_size)); rows = int(np.sqrt(hidden_size))
 for i in range(1, columns*rows +1):
     fig.add_subplot(rows, columns, i)
     plt.axis('off')
@@ -158,9 +163,8 @@ plt.close('all')
 
 # re con data
 recon_data = sae.feedforward(training_data)[0]
-recon_data_reshape = np.reshape(recon_data,(16,28,28))
+recon_data_reshape = np.reshape(recon_data,(hidden_size,28,28))
 fig=plt.figure(figsize=(10, 10))
-columns = 4; rows = 4
 for i in range(1, columns*rows +1):
     fig.add_subplot(rows, columns, i)
     plt.axis('off')
@@ -174,9 +178,8 @@ current_theta = sae.W1
 display_network(current_theta)
 plt.close('all')
 
-opt_W1_reshape = np.reshape(current_theta.T,(16,28,28))
+opt_W1_reshape = np.reshape(current_theta.T,(hidden_size,28,28))
 fig=plt.figure(figsize=(10, 10))
-columns = 4; rows = 4
 for i in range(1, columns*rows +1):
     fig.add_subplot(rows, columns, i)
     plt.axis('off')
