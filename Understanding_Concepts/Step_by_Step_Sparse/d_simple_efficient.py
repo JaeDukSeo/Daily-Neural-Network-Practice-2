@@ -668,8 +668,8 @@ training_data = training_data_og[0:number_of_trainin_images,:]
 
 # hyper
 num_epoch = 500
-learning_rate = 0.08
-batch_size = 100; print_size = 5
+learning_rate = 0.0001
+batch_size = 100; print_size = 1
 
 lamda = 0.003
 beta1,beta2,adam_e = 0.9,0.999,1e-8
@@ -696,7 +696,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     train_cota =0;train_cot = [];image_list = []
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(8, 8))
 
     # train for current iter
     for iter in range(num_epoch):
