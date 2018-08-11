@@ -493,11 +493,13 @@ class simple_sparse_layer():
         update_w.append(tf.assign(self.w,tf.add(self.w,adam_middle )))
         return w_update, update_w
 
+# Func: Fully Connected RNN Layer
 class RNN():
 
     def __init__(self):
         raise NotImplementedError("Not Implemented Yet")
 
+# Func: Fully Connnected LSTM Layer
 class LSTM():
 
     def __init__(self):
