@@ -730,7 +730,7 @@ W1 = l0.getw()
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
-layer0 = l0.feedforward(x,k_value=70)
+layer0 = l0.feedforward(x,k_value=25)
 reconstruction_cost = tf.reduce_mean(tf.reduce_sum(tf.square(layer0-x), axis = 1) * 0.5)
 regularization_cost =  lamda * 0.5 * (tf.reduce_sum(W1 ** 2))
 total_cost = reconstruction_cost + regularization_cost
@@ -742,7 +742,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     train_cota =0;train_cot = [];image_list = []
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(8, 8))
 
     # train for current iter
     for iter in range(num_epoch):
@@ -765,7 +765,7 @@ with tf.Session() as sess:
 
     # save the weights and how they changed over time
     ani = animation.ArtistAnimation(fig, image_list, interval=50, blit=True,repeat_delay=1000)
-    ani.save('c_case.mp4')
+    ani.save('e_case.mp4')
     plt.show()
     plt.close('all')
 
@@ -791,7 +791,7 @@ with tf.Session() as sess:
 
     # Show the reconstruction data
     train_batch = training_data[:batch_size]
-    recon_data = sess.run(layer1,feed_dict={x:train_batch})[:compress_size]
+    recon_data = sess.run(layer0,feed_dict={x:train_batch})[:compress_size]
     recon_data_reshape = np.reshape(recon_data,(compress_size,28,28))
     fig=plt.figure(figsize=(8, 8))
     for i in range(1, columns*rows +1):
@@ -818,6 +818,7 @@ with tf.Session() as sess:
         plt.imshow(trained_w1_data_reshape[i-1,:,:],cmap='gray')
     plt.show()
     plt.close('all')
+
 
 
 
