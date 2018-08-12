@@ -696,7 +696,20 @@ beta1,beta2,adam_e = 0.9,0.999,1e-8
 compress_size = 100
 aimed_sparsity = 0.1; beta = 3.0
 
+sess = tf.Session()
+a = tf.convert_to_tensor([[40, 30, 20, 10], [10, 20, 30, 40]])
+b = tf.nn.top_k(a, 2)
+kth = tf.reduce_min(b.values)
+top2 = tf.greater_equal(a, kth)
+masked = a * top2
 
+print(a)
+print(b)
+
+print(sess.run(b))
+print(sess.run(b).values)
+print(sess.run(top2))
+print(sess.run(masked))
 
 sys.exit()
 
