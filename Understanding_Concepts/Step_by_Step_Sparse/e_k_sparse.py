@@ -510,12 +510,30 @@ class k_sparse_layer():
         self.input = input
         self.layer = tf.matmul(input,self.w)
         self.topk_value = tf.nn.top_k(self.layer, k_value)
-        self.topk_masks = tf.cast(tf.greater_equal(self.topk_value , tf.reduce_min(self.topk_value.values)),tf.float64)
+        self.topk_masks = tf.cast(tf.greater_equal(self.layer , tf.reduce_min(self.topk_value.values)),tf.float64)
         self.layerA = self.layer * self.topk_masks
-        return self.layerA
+        self.reconstructed_layer = tf.matmul(self.layerA,tf.transpose(self.w))
+        return self.reconstructed_layer
 
-    def backprop(self,gradient):
-        pass
+    def backprop(self,gradient,l2_regularization=False):
+        grad_part_1 = gradient
+        grad_part_3 = self.layerA
+
+        grad_middle = grad_part_1
+        grad = tf.matmul(tf.transpose(grad_middle),grad_part_3)/batch_size
+
+        if l2_regularization:
+            grad = grad + lamda * self.w
+
+        update_w = []
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
+
+        return grad,update_w
 
 # Func: Fully Connected RNN Layer
 class RNN():
@@ -704,7 +722,7 @@ compress_size = 100
 aimed_sparsity = 0.1; beta = 3.0
 
 # layers
-l0 = simple_sparse_layer(784,compress_size,special_init=True)
+l0 = k_sparse_layer(784,compress_size,special_init=True)
 
 # get weigths for reg
 W1 = l0.getw()
@@ -712,15 +730,14 @@ W1 = l0.getw()
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
-layer0 = l0.feedforward(x,top_size=batch_size//2)
+layer0 = l0.feedforward(x,k_value=70)
 reconstruction_cost = tf.reduce_mean(tf.reduce_sum(tf.square(layer0-x), axis = 1) * 0.5)
 regularization_cost =  lamda * 0.5 * (tf.reduce_sum(W1 ** 2))
 total_cost = reconstruction_cost + regularization_cost
 
-grad0,grad0_up = l0.backprop(l2_regularization=True)
+grad0,grad0_up = l0.backprop(layer0-x,l2_regularization=True)
 grad_update = grad0_up
 
-sys.exit()
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
