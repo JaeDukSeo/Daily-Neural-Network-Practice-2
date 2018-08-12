@@ -504,8 +504,15 @@ class k_sparse_layer():
             self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float64))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
 
+    def getw(self): return self.w
+
     def feedforward(self,input,k_value = 1):
         self.input = input
+        self.layer = tf.matmul(input,self.w)
+        self.topk_value = tf.nn.top_k(self.layer, k_value)
+        self.topk_masks = tf.cast(tf.greater_equal(self.topk_value , tf.reduce_min(self.topk_value.values)),tf.float64)
+        self.layerA = self.layer * self.topk_masks
+        return self.layerA
 
     def backprop(self,gradient):
         pass
@@ -688,56 +695,32 @@ training_data = training_data_og[0:number_of_trainin_images,:]
 
 # hyper
 num_epoch = 500
-learning_rate = 0.008
-batch_size = 100; print_size = 5
+learning_rate = 0.001
+batch_size = 100; print_size = 1
 
 lamda = 0.003
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 compress_size = 100
 aimed_sparsity = 0.1; beta = 3.0
 
-sess = tf.Session()
-a = tf.convert_to_tensor([[40, 30, 20, 10], [10, 20, 30, 40]])
-b = tf.nn.top_k(a, 2)
-kth = tf.reduce_min(b.values)
-top2 = tf.cast(tf.greater_equal(a, kth),tf.int32)
-masked = a * top2
-
-print(a)
-print(b)
-print(sess.run(b))
-print(sess.run(b).values)
-print(sess.run(top2))
-print(sess.run(masked))
-
-sys.exit()
-
 # layers
-l0 = sparse_code_layer(784,compress_size,act=tf_sigmoid,d_act=d_tf_sigmoid,special_init=True)
-l1 = FNN(compress_size,784,act=tf_sigmoid,d_act=d_tf_sigmoid,special_init=True)
+l0 = simple_sparse_layer(784,compress_size,special_init=True)
 
 # get weigths for reg
-W1,W2 = l0.getw(),l1.getw()
+W1 = l0.getw()
 
 # graph
 x = tf.placeholder(shape=[None,784],dtype=tf.float64)
 
-layer0,layer0_phat = l0.feedforward(x)
-layer1 = l1.feedforward(layer0)
+layer0 = l0.feedforward(x,top_size=batch_size//2)
+reconstruction_cost = tf.reduce_mean(tf.reduce_sum(tf.square(layer0-x), axis = 1) * 0.5)
+regularization_cost =  lamda * 0.5 * (tf.reduce_sum(W1 ** 2))
+total_cost = reconstruction_cost + regularization_cost
 
-reconstruction_cost = tf.reduce_mean(tf.reduce_sum(tf.square(layer1-x), axis = 1) * 0.5)
-regularization_cost =  lamda * 0.5 * (tf.reduce_sum(W1 ** 2) + tf.reduce_sum(W2 ** 2))
-KL_div = beta * tf.reduce_sum(
-    aimed_sparsity * tf.log(aimed_sparsity / layer0_phat) + \
-    (1 - aimed_sparsity) * tf.log((1-aimed_sparsity) / (1- layer0_phat))
-)
-total_cost = reconstruction_cost + regularization_cost + KL_div
+grad0,grad0_up = l0.backprop(l2_regularization=True)
+grad_update = grad0_up
 
-# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(total_cost)
-grad1,grad1_up = l1.backprop(layer1-x,l2_regularization=True)
-grad0,grad0_up = l0.backprop(grad1,l2_regularization=True)
-grad_update = grad1_up + grad0_up
-
+sys.exit()
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
