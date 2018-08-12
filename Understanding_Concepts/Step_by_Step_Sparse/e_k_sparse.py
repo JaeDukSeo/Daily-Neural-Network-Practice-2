@@ -700,12 +700,11 @@ sess = tf.Session()
 a = tf.convert_to_tensor([[40, 30, 20, 10], [10, 20, 30, 40]])
 b = tf.nn.top_k(a, 2)
 kth = tf.reduce_min(b.values)
-top2 = tf.greater_equal(a, kth)
+top2 = tf.cast(tf.greater_equal(a, kth),tf.int32)
 masked = a * top2
 
 print(a)
 print(b)
-
 print(sess.run(b))
 print(sess.run(b).values)
 print(sess.run(top2))
