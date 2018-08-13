@@ -25,6 +25,7 @@ old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
 
+
 # ======= Activation Function  ==========
 def tf_elu(x): return tf.nn.elu(x)
 def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
@@ -384,7 +385,7 @@ class FNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient=None,l2_regularization=False):
+    def backprop(self,gradient=None,l2_regularization=True):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -428,7 +429,7 @@ class sparse_code_layer():
         self.current_sparsity = tf.reduce_mean(self.layerA, axis=0)
         return self.layerA,self.current_sparsity
 
-    def backprop(self,gradient,l2_regularization=False):
+    def backprop(self,gradient,l2_regularization=True):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -448,16 +449,99 @@ class sparse_code_layer():
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
         adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
-
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
 
         return grad_pass,update_w
 
+# Func: Simple Sparse
+class simple_sparse_layer():
+
+    def __init__(self,inc,outc,special_init=False):
+        if special_init:
+            interval = np.sqrt(6.0 / (inc + outc + 1.0))
+            self.w  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=4))
+        else:
+            self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float64))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+
+    def getw(self): return self.w
+
+    def feedforward(self,input,top_size=1):
+        self.input = input
+        self.layer = tf.matmul(input,self.w)
+        self.top = tf.nn.top_k(self.layer, top_size)
+        self.top_mean = tf.reduce_mean(self.top.values)
+        self.top_mean_mask = tf.cast(tf.greater_equal(self.layer, self.top_mean),tf.float64)
+        self.x_hat = self.top_mean_mask * self.layer
+        self.reconstructed_layer = tf.matmul(self.x_hat,tf.transpose(self.w))
+        return self.reconstructed_layer
+
+    def backprop(self,l2_regularization=False):
+        w_update_1 = tf.expand_dims(tf.reduce_sum(self.input - self.reconstructed_layer,axis=0),0)
+        w_update_2 = tf.expand_dims(tf.reduce_sum(tf.sign(self.x_hat),axis=0),0)
+        w_update = tf.matmul(tf.transpose(w_update_1),w_update_2)
+
+        if l2_regularization:
+            w_update = w_update + lamda * self.w
+
+        update_w = []
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (w_update)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (w_update ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
+        update_w.append(tf.assign(self.w,tf.add(self.w,adam_middle )))
+        return w_update, update_w
+
+# Func: k sparse auto encoders
+class k_sparse_layer():
+
+    def __init__(self,inc,outc,special_init=False):
+        if special_init:
+            interval = np.sqrt(6.0 / (inc + outc + 1.0))
+            self.w  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=4))
+        else:
+            self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float64))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+
+    def getw(self): return self.w
+
+    def feedforward(self,input,k_value = 1):
+        self.input = input
+        self.layer = tf.matmul(input,self.w)
+        self.topk_value = tf.nn.top_k(self.layer, k_value)
+        self.topk_masks = tf.cast(tf.greater_equal(self.layer , tf.reduce_min(self.topk_value.values)),tf.float64)
+        self.layerA = self.layer * self.topk_masks
+        self.reconstructed_layer = tf.matmul(self.layerA,tf.transpose(self.w))
+        return self.reconstructed_layer
+
+    def backprop(self,gradient,l2_regularization=False):
+        grad_part_1 = gradient
+        grad_part_3 = self.layerA
+
+        grad_middle = grad_part_1
+        grad = tf.matmul(tf.transpose(grad_middle),grad_part_3)/batch_size
+
+        if l2_regularization:
+            grad = grad + lamda * self.w
+
+        update_w = []
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
+
+        return grad,update_w
+
+# Func: Fully Connected RNN Layer
 class RNN():
 
     def __init__(self):
         raise NotImplementedError("Not Implemented Yet")
 
+# Func: Fully Connnected LSTM Layer
 class LSTM():
 
     def __init__(self):
@@ -630,12 +714,13 @@ training_data = training_data_og[0:number_of_trainin_images,:]
 
 # hyper
 num_epoch = 500
-learning_rate = 0.00008
+learning_rate = 0.001
 batch_size = 100; print_size = 1
 
-lamda = 0.00003
+lamda = 0.003
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 compress_size = 100
+aimed_sparsity = 0.1; beta = 3.0
 
 # layers
 l0 = FNN(784,compress_size,act=tf_sigmoid,d_act=d_tf_sigmoid)
