@@ -10,12 +10,21 @@ from imgaug import augmenters as iaa
 import nibabel as nib
 import imgaug as ia
 from scipy.ndimage import zoom
+from sklearn.utils import shuffle
+import matplotlib.animation as animation
 
 plt.style.use('seaborn-white')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 np.random.seed(6278)
 tf.set_random_seed(6728)
 ia.seed(6278)
+
+# Generate training data
+import tensorflow as tf
+old_v = tf.logging.get_verbosity()
+tf.logging.set_verbosity(tf.logging.ERROR)
+from tensorflow.examples.tutorials.mnist import input_data
+
 
 # ======= Activation Function  ==========
 def tf_elu(x): return tf.nn.elu(x)
@@ -483,6 +492,48 @@ class simple_sparse_layer():
         adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
         update_w.append(tf.assign(self.w,tf.add(self.w,adam_middle )))
         return w_update, update_w
+
+# Func: k sparse auto encoders
+class k_sparse_layer():
+
+    def __init__(self,inc,outc,special_init=False):
+        if special_init:
+            interval = np.sqrt(6.0 / (inc + outc + 1.0))
+            self.w  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=4))
+        else:
+            self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float64))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+
+    def getw(self): return self.w
+
+    def feedforward(self,input,k_value = 1):
+        self.input = input
+        self.layer = tf.matmul(input,self.w)
+        self.topk_value = tf.nn.top_k(self.layer, k_value)
+        self.topk_masks = tf.cast(tf.greater_equal(self.layer , tf.reduce_min(self.topk_value.values)),tf.float64)
+        self.layerA = self.layer * self.topk_masks
+        self.reconstructed_layer = tf.matmul(self.layerA,tf.transpose(self.w))
+        return self.reconstructed_layer
+
+    def backprop(self,gradient,l2_regularization=False):
+        grad_part_1 = gradient
+        grad_part_3 = self.layerA
+
+        grad_middle = grad_part_1
+        grad = tf.matmul(tf.transpose(grad_middle),grad_part_3)/batch_size
+
+        if l2_regularization:
+            grad = grad + lamda * self.w
+
+        update_w = []
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middle = learning_rate/(tf.sqrt(v_hat) + adam_e) * m_hat
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
+
+        return grad,update_w
 
 # Func: Fully Connected RNN Layer
 class RNN():
