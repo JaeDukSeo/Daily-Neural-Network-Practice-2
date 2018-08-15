@@ -550,24 +550,26 @@ class LSTM():
 # Func: Layer for Independent component analysis
 class ICA_Layer():
 
-    def __init__(self,inc):
-        self.w_ica = tf.Variable(tf.random_normal([inc,inc],stddev=0.05,seed=2))
+    def __init__(self,inc,outc,act,d_act):
+        self.w = tf.Variable(tf.random_normal([inc,outc],stddev=0.05,seed=2,dtype=tf.float64))
+        self.m = tf.Variable(tf.zeros_like(self.w));self.v = tf.Variable(tf.zeros_like(self.w));
+        self.act = act; self.d_act = d_act
 
     def feedforward(self,input):
         self.input = input
-        self.ica_est = tf.matmul(input,self.w_ica)
-        self.ica_est_act = tf_atan(self.ica_est)
+        self.ica_est = tf.matmul(input,self.w)
+        self.ica_est_act = self.act(self.ica_est)
         return self.ica_est_act
 
     def backprop(self):
-        grad_part_2 = d_tf_atan(self.ica_est)
+        grad_part_2 = self.d_act(self.ica_est)
         grad_part_3 = self.input
 
         grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w_ica))
         g_tf = tf.linalg.inv(tf.transpose(self.w_ica)) - (2/batch_size) * tf.matmul(tf.transpose(self.input),self.ica_est_act)
 
         update_w = []
-        update_w.append(tf.assign(self.w_ica,self.w_ica+0.2*g_tf))
+        update_w.append(tf.assign(self.w_ica,self.w_ica+learning_rate*g_tf))
 
         return grad_pass,update_w
 
@@ -729,10 +731,8 @@ print(train_batch.shape)
 print(train_batch.max())
 print(train_batch.min())
 
-for x in range(20):
-    plt.imshow(np.squeeze(train_batch[x]),cmap='gray')
-    plt.show()
-
+# hyper
+num_epoch = 1000; learning_rate = 0.0001
 
 
 
