@@ -722,9 +722,37 @@ for file_index in range(len(train_images)):
     train_images[file_index,:,:]   = np.expand_dims(imresize(imread(train_data[file_index],mode='L'),(image_resize_px,image_resize_px)),2)
 
 # normalize
-train_batch= train_images/255.0
+train_batch = (train_images-train_images.min())/(train_images.max()-train_images.min())
 
 # print out the data shape and the max and min value
 print(train_batch.shape)
 print(train_batch.max())
 print(train_batch.min())
+
+for x in range(20):
+    plt.imshow(np.squeeze(train_batch[x]),cmap='gray')
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -- end code --
