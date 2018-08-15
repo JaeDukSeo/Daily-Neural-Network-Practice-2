@@ -228,7 +228,7 @@ class RNN_CNN():
         self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.h,dtype=tf.float64))
 
-    def feedfoward(self,input,timestamp):
+    def feedforward(self,input,timestamp):
 
         # assign the input for back prop
         hidden_assign = []
@@ -550,8 +550,8 @@ class LSTM():
 # Func: Layer for Independent component analysis
 class ICA_Layer():
 
-    def __init__(self,inc,outc,act,d_act):
-        self.w = tf.Variable(tf.random_normal([inc,outc],stddev=0.05,seed=2,dtype=tf.float64))
+    def __init__(self,inc,act,d_act):
+        self.w = tf.Variable(tf.random_normal([inc,inc],stddev=0.05,seed=2,dtype=tf.float64))
         self.m = tf.Variable(tf.zeros_like(self.w));self.v = tf.Variable(tf.zeros_like(self.w));
         self.act = act; self.d_act = d_act
 
@@ -565,12 +565,18 @@ class ICA_Layer():
         grad_part_2 = self.d_act(self.ica_est)
         grad_part_3 = self.input
 
-        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w_ica))
-        g_tf = tf.linalg.inv(tf.transpose(self.w_ica)) - (2/batch_size) * tf.matmul(tf.transpose(self.input),self.ica_est_act)
+        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w))
+        grad_sum_1 = tf.expand_dims(tf.reduce_sum(tf.transpose(self.input),1),1)
+        grad_sum_2 = tf.expand_dims(tf.reduce_sum(self.ica_est_act,0),0)
+        grad = tf.linalg.inv(tf.transpose(self.w)) - (2.0/batch_size) * tf.matmul(grad_sum_1,grad_sum_2)
 
         update_w = []
-        update_w.append(tf.assign(self.w_ica,self.w_ica+learning_rate*g_tf))
-
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middle = m_hat *  learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,self.w+adam_middle))
         return grad_pass,update_w
 
 # Func: Layer for Sparse Filtering
@@ -717,7 +723,7 @@ for dirName, subdirList, fileList in sorted(os.walk(data_location)):
         if ".png" in filename.lower() :
             train_data.append(os.path.join(dirName,filename))
 
-image_resize_px = 128
+image_resize_px = 96
 train_images = np.zeros(shape=(len(train_data),image_resize_px,image_resize_px,1))
 
 for file_index in range(len(train_images)):
@@ -733,15 +739,34 @@ print(train_batch.min())
 
 # hyper
 num_epoch = 1000; learning_rate = 0.0001
+batch_size = 50
+
+beta1,beta2,adam_e = 0.9,0.999,1e-8
+
+# class
+l0 = CNN(3,1,3,act=tf_elu,d_act=d_tf_elu)
+l1 = CNN(3,3,6,act=tf_elu,d_act=d_tf_elu)
+l2 = CNN(3,6,12,act=tf_elu,d_act=d_tf_elu)
+l3 = ICA_Layer(6912,act=tf_tanh,d_act=d_tf_tanh)
+
+# graph
+x = tf.placeholder(shape=[batch_size,96,96,1],dtype=tf.float64)
+
+layer0 = l0.feedforward(x)
+layer1_input = tf.nn.avg_pool(layer0,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+layer1 = l1.feedforward(layer1_input)
+layer2_input = tf.nn.avg_pool(layer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+layer2 = l2.feedforward(layer2_input)
+layer3_input = tf.reshape(layer2,[batch_size,-1])
+layer3 = l3.feedforward(layer3_input)
+
+grad3,grad3_up = l3.backprop()
 
 
 
-
-
-
-
-
-
+# session
+# with tf.Session() as sess:
+    # sess.run(tf.global_variables_initializer())
 
 
 

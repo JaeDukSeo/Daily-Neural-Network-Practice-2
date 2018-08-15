@@ -1,4 +1,4 @@
-import numpy as np,sys 
+import numpy as np,sys
 import matplotlib.pylab as plt
 from sklearn.datasets import make_classification
 from sklearn.svm import SVC
@@ -29,7 +29,7 @@ def load_data_not_so_clear():
     return X,Y
 
 # -------- clear cut difference in data ---------
-# show the original data 
+# show the original data
 X,Y = load_data_clear_cut()
 fig = plt.figure()
 ax = Axes3D(fig)
