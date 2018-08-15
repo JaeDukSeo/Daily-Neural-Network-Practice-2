@@ -718,31 +718,13 @@ for dirName, subdirList, fileList in sorted(os.walk(data_location)):
 image_resize_px = 128
 train_images = np.zeros(shape=(len(train_data),image_resize_px,image_resize_px,1))
 
-print(train_images.mean())
-print(train_images.sum())
-
 for file_index in range(len(train_images)):
-    train_images[file_index,:,:]   = imresize(np.expand_dims(imread(train_data[file_index],mode='L'),2),(image_resize_px,image_resize_px))
-
-print(train_images.mean())
-print(train_images.sum())
-
-sys.exit()
+    train_images[file_index,:,:]   = np.expand_dims(imresize(imread(train_data[file_index],mode='L'),(image_resize_px,image_resize_px)),2)
 
 # normalize
-train_batch= test_batch/255.0
-test_batch = test_batch/255.0
+train_batch= train_images/255.0
 
 # print out the data shape and the max and min value
 print(train_batch.shape)
 print(train_batch.max())
 print(train_batch.min())
-print(train_label.shape)
-print(train_label.max())
-print(train_label.min())
-print(test_batch.shape)
-print(test_batch.max())
-print(test_batch.min())
-print(test_label.shape)
-print(test_label.max())
-print(test_label.min())
