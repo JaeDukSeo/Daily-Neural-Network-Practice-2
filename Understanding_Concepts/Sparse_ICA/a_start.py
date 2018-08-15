@@ -722,7 +722,7 @@ for dirName, subdirList, fileList in sorted(os.walk(data_location)):
         if ".png" in filename.lower() :
             train_data.append(os.path.join(dirName,filename))
 
-image_resize_px = 96
+image_resize_px = 28
 train_images = np.zeros(shape=(len(train_data),image_resize_px,image_resize_px,1))
 
 for file_index in range(len(train_images)):
@@ -737,38 +737,40 @@ print(train_batch.max())
 print(train_batch.min())
 
 # hyper
-num_epoch = 1000; learning_rate = 0.0001
+num_epoch = 800; learning_rate = 0.0001
 batch_size = 5; print_size = 10
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # class
 l0 = CNN(3,1,3,act=tf_elu,d_act=d_tf_elu)
-l1 = CNN(3,3,6,act=tf_elu,d_act=d_tf_elu)
-l2 = CNN(3,6,12,act=tf_elu,d_act=d_tf_elu)
-l3 = ICA_Layer(6912,act=tf_tanh,d_act=d_tf_tanh)
+l1 = CNN(3,3,3,act=tf_elu,d_act=d_tf_elu)
+l2 = CNN(3,3,1,act=tf_elu,d_act=d_tf_elu)
+l3 = ICA_Layer(22*22*1,act=tf_tanh,d_act=d_tf_tanh)
 
 # graph
-x = tf.placeholder(shape=[batch_size,96,96,1],dtype=tf.float64)
+x = tf.placeholder(shape=[batch_size,28,28,1],dtype=tf.float64)
 
-layer0 = l0.feedforward(x)
-layer1_input = tf.nn.avg_pool(layer0,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
-layer1 = l1.feedforward(layer1_input)
-layer2_input = tf.nn.avg_pool(layer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
-layer2 = l2.feedforward(layer2_input)
+layer0 = l0.feedforward(x,padding='VALID')
+# layer1_input = tf.nn.avg_pool(layer0,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+layer1 = l1.feedforward(layer0,padding='VALID')
+# layer2_input = tf.nn.avg_pool(layer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
+layer2 = l2.feedforward(layer1,padding='VALID')
+print(layer2)
 layer3_input = tf.reshape(layer2,[batch_size,-1])
+print(layer3_input)
 layer3,layer3_w = l3.feedforward(layer3_input)
 
 cost = tf.reduce_mean(tf.reduce_sum(tf.log(d_tf_tanh(layer3)),0)) + \
 tf.reduce_mean(tf.log(tf.abs(layer3_w)))
 
 grad3,grad3_up = l3.backprop()
-grad2_input = tf.reshape(grad3,[batch_size,24,24,12])
-grad2,grad2_up = l2.backprop(grad2_input)
-grad1_input = tf.tile(grad2,[1,2,2,1])
-grad1,grad1_up = l1.backprop(grad1_input)
-grad0_input = tf.tile(grad1,[1,2,2,1])
-grad0,grad0_up = l0.backprop(grad0_input)
+grad2_input = tf.reshape(grad3,[batch_size,22,22,1])
+grad2,grad2_up = l2.backprop(grad2_input,padding='VALID')
+# grad1_input = tf.tile(grad2,[1,2,2,1])
+grad1,grad1_up = l1.backprop(grad2,padding='VALID')
+# grad0_input = tf.tile(grad1,[1,2,2,1])
+grad0,grad0_up = l0.backprop(grad1,padding='VALID')
 
 grad_update = grad3_up + grad2_up + grad1_up + grad0_up
 # session
