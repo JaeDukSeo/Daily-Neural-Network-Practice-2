@@ -28,7 +28,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 # ======= Activation Function  ==========
 def tf_elu(x): return tf.nn.elu(x)
-def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
+def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float64) * x) + 1.0)
 
 def tf_tanh(x): return tf.nn.tanh(x)
 def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
@@ -228,7 +228,7 @@ class RNN_CNN():
         self.m_x,self.v_x = tf.Variable(tf.zeros_like(self.w,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.w,dtype=tf.float64))
         self.m_h,self.v_h = tf.Variable(tf.zeros_like(self.h,dtype=tf.float64)),tf.Variable(tf.zeros_like(self.h,dtype=tf.float64))
 
-    def feedfoward(self,input,timestamp):
+    def feedforward(self,input,timestamp):
 
         # assign the input for back prop
         hidden_assign = []
@@ -550,25 +550,33 @@ class LSTM():
 # Func: Layer for Independent component analysis
 class ICA_Layer():
 
-    def __init__(self,inc):
-        self.w_ica = tf.Variable(tf.random_normal([inc,inc],stddev=0.05,seed=2))
+    def __init__(self,inc,act,d_act):
+        self.w = tf.Variable(tf.random_normal([inc,inc],stddev=0.05,seed=2,dtype=tf.float64))
+        self.m = tf.Variable(tf.zeros_like(self.w));self.v = tf.Variable(tf.zeros_like(self.w));
+        self.act = act; self.d_act = d_act
 
     def feedforward(self,input):
         self.input = input
-        self.ica_est = tf.matmul(input,self.w_ica)
-        self.ica_est_act = tf_atan(self.ica_est)
-        return self.ica_est_act
+        self.ica_est = tf.matmul(input,self.w)
+        self.ica_est_act = self.act(self.ica_est)
+        return self.ica_est_act,self.w
 
     def backprop(self):
-        grad_part_2 = d_tf_atan(self.ica_est)
+        grad_part_2 = self.d_act(self.ica_est)
         grad_part_3 = self.input
 
-        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w_ica))
-        g_tf = tf.linalg.inv(tf.transpose(self.w_ica)) - (2/batch_size) * tf.matmul(tf.transpose(self.input),self.ica_est_act)
+        grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w))
+        grad_sum_1 = tf.expand_dims(tf.reduce_sum(tf.transpose(self.input),1),1)
+        grad_sum_2 = tf.expand_dims(tf.reduce_sum(self.ica_est_act,0),0)
+        grad = tf.linalg.inv(tf.transpose(self.w)) - (2.0/batch_size) * tf.matmul(grad_sum_1,grad_sum_2)
 
         update_w = []
-        update_w.append(tf.assign(self.w_ica,self.w_ica+0.2*g_tf))
-
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middle = m_hat *  learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,self.w+adam_middle))
         return grad_pass,update_w
 
 # Func: Layer for Sparse Filtering

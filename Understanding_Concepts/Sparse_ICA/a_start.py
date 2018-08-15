@@ -28,7 +28,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 # ======= Activation Function  ==========
 def tf_elu(x): return tf.nn.elu(x)
-def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float32)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float32) * x) + 1.0)
+def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float64) * x) + 1.0)
 
 def tf_tanh(x): return tf.nn.tanh(x)
 def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
@@ -559,7 +559,7 @@ class ICA_Layer():
         self.input = input
         self.ica_est = tf.matmul(input,self.w)
         self.ica_est_act = self.act(self.ica_est)
-        return self.ica_est_act
+        return self.ica_est_act,self.w
 
     def backprop(self):
         grad_part_2 = self.d_act(self.ica_est)
@@ -714,7 +714,6 @@ class PCA_Layer():
         return out_put,update_sigma
 # ================= LAYER CLASSES =================
 
-
 # data
 data_location = "../../Dataset/Faces_Att/att_faces_all/png/"
 train_data = []  # create an empty list
@@ -739,7 +738,7 @@ print(train_batch.min())
 
 # hyper
 num_epoch = 1000; learning_rate = 0.0001
-batch_size = 50
+batch_size = 5; print_size = 10
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
@@ -758,19 +757,52 @@ layer1 = l1.feedforward(layer1_input)
 layer2_input = tf.nn.avg_pool(layer1,strides=[1,2,2,1],ksize=[1,2,2,1],padding='VALID')
 layer2 = l2.feedforward(layer2_input)
 layer3_input = tf.reshape(layer2,[batch_size,-1])
-layer3 = l3.feedforward(layer3_input)
+layer3,layer3_w = l3.feedforward(layer3_input)
+
+cost = tf.reduce_mean(tf.reduce_sum(tf.log(d_tf_tanh(layer3)),0)) + \
+tf.reduce_mean(tf.log(tf.abs(layer3_w)))
 
 grad3,grad3_up = l3.backprop()
+grad2_input = tf.reshape(grad3,[batch_size,24,24,12])
+grad2,grad2_up = l2.backprop(grad2_input)
+grad1_input = tf.tile(grad2,[1,2,2,1])
+grad1,grad1_up = l1.backprop(grad1_input)
+grad0_input = tf.tile(grad1,[1,2,2,1])
+grad0,grad0_up = l0.backprop(grad0_input)
 
-
-
+grad_update = grad3_up + grad2_up + grad1_up + grad0_up
 # session
-# with tf.Session() as sess:
-    # sess.run(tf.global_variables_initializer())
+with tf.Session() as sess:
 
+    sess.run(tf.global_variables_initializer())
 
+    train_cota = 0
+    train_cot = []
 
+    for iter in range(num_epoch):
+        train_batch = shuffle(train_batch)
 
+        for batch_size_index in range(0,len(train_batch),batch_size):
+            current_batch = train_batch[batch_size_index:batch_size_index+batch_size]
+            sess_result = sess.run([cost,grad_update],feed_dict={x:current_batch})
+            print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],end='\r')
+            train_cota = train_cota + sess_result[0]
+
+        if iter % print_size==0:
+            print("\n----------")
+            print('Train Current cost: ', train_cota/(len(train_batch)/batch_size),end='\n')
+            print("----------")
+
+        train_cot.append(train_cota/(len(train_batch)/batch_size))
+        train_cota = 0
+
+    # training done
+    plt.figure()
+    plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
+    plt.legend()
+    plt.title("Train Average Cost Over Time")
+    # plt.savefig('case b train.png')
+    plt.show()
 
 
 
