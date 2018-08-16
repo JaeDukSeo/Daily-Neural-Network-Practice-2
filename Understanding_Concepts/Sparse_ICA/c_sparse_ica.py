@@ -561,9 +561,8 @@ class ICA_Layer():
         self.ica_est = tf.matmul(input,self.w)
 
         self.top = tf.nn.top_k(self.ica_est, top_size)
-        self.top_mean = tf.reduce_mean(self.top.values)
-        self.top_mean_mask = tf.cast(tf.greater_equal(self.ica_est, self.top_mean),tf.float64)
-        self.ica_est_top = self.top_mean_mask * self.ica_est
+        self.topk_masks = tf.cast(tf.greater_equal(self.ica_est , tf.reduce_min(self.top.values)),tf.float64)
+        self.ica_est_top = self.topk_masks * self.ica_est
 
         self.ica_est_act = self.act(self.ica_est_top)
 
@@ -737,21 +736,21 @@ print(train_batch.max())
 print(train_batch.min())
 
 # hyper
-num_epoch = 500; learning_rate = 0.0008; lamda = 0.0003
+num_epoch = 500; learning_rate = 0.003; lamda = 0.0003
 batch_size = 100; print_size = 1
 
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
 # class
-l0 = FNN(784,16*16,act=tf_sigmoid,d_act=d_tf_sigmoid)
-l1 = ICA_Layer(16*16,act=tf_tanh,d_act=d_tf_tanh)
+l0 = FNN(784,15*15,act=tf_sigmoid,d_act=d_tf_sigmoid)
+l1 = ICA_Layer(15*15,act=tf_sigmoid,d_act=d_tf_sigmoid)
 w0,w1 = l0.getw(),l1.getw()
 
 # graph
 x = tf.placeholder(shape=[batch_size,784],dtype=tf.float64)
 
 layer0 = l0.feedforward(x)
-layer1,layer1_w = l1.feedforward(layer0,top_size=batch_size//2)
+layer1,layer1_w = l1.feedforward(layer0,top_size=int(15*10) )
 
 cost = tf.reduce_mean(tf.reduce_sum(tf.log(d_tf_tanh(layer1)),0)) + tf.reduce_mean(tf.log(tf.abs(layer1_w)))
 
@@ -794,9 +793,9 @@ with tf.Session() as sess:
     plt.close('all')
 
     # Show the trained weights
-    columns,rows = 16,16
+    columns,rows = 15,15
     trained_w1 = sess.run(w1)
-    trained_w1_data_reshape = np.reshape(trained_w1.T,(256,16,16))
+    trained_w1_data_reshape = np.reshape(trained_w1.T,(15*15,15,15))
     fig=plt.figure(figsize=(8, 8))
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
@@ -812,7 +811,7 @@ with tf.Session() as sess:
     plt.show()
     plt.close('all')
 
-    trained_w1_data_reshape = np.reshape(trained_w1,(256,16,16))
+    trained_w1_data_reshape = np.reshape(trained_w1,(15*15,15,15))
     fig=plt.figure(figsize=(8, 8))
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
@@ -828,7 +827,19 @@ with tf.Session() as sess:
     plt.show()
     plt.close('all')
 
+    # show trainied weigths constrast norm
+    plt.figure(figsize=(8, 8))
+    plt.axis('off')
+    plt.imshow(trained_w1)
+    plt.show()
+    plt.close('all')
 
+        # show trainied weigths constrast norm
+    plt.figure(figsize=(8, 8))
+    plt.axis('off')
+    plt.imshow(trained_w1.T)
+    plt.show()
+    plt.close('all')
 
 
 
