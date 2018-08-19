@@ -49,7 +49,6 @@ x_data_added = x_data_added.reshape(-1, 28, 28, 1)
 
 x_data = np.vstack((x_data,x_data_added))
 train_label = np.vstack((train_label,x_data_added_label))
-
 train_batch = np.zeros((60000,28,28,1))
 test_batch = np.zeros((10000,28,28,1))
 
