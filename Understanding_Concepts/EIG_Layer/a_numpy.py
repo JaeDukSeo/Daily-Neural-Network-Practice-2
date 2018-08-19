@@ -71,5 +71,13 @@ print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
 
+def np_sig(x): return np
+def d_np_sig(x): return
+
+class FNN_numpy():
+
+    def __init__(self,inc,outc):
+        pass
+
 
 # -- end code --
