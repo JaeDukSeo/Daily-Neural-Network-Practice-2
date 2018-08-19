@@ -71,13 +71,47 @@ print(test_label.shape)
 print(test_label.max())
 print(test_label.min())
 
-def np_sig(x): return np
-def d_np_sig(x): return
+np.seed.random(789)
+
+def np_sig(x): return 1.0/(1.0+np.exp(-x))
+def d_np_sig(x): return np_sig(x) * (1.0 - np_sig(x))
 
 class FNN_numpy():
 
     def __init__(self,inc,outc):
-        pass
+        self.w = np.random.randn((inc,outc))
+
+    def feedforward(self,input):
+        self.input = input
+        self.layer = self.w.dot(input)
+        self.layerA = np_sig(self.layer)
+        return self.layerA
+
+    def backprop(self,grad):
+        grad_part_1 = grad
+        grad_part_2 = d_np_sig(self.layer)
+        grad_part_3 = self.input
+
+        grad_middle = grad_part_1 * grad_part_2
+        grad = grad_part_3.T.dot(grad_middle)
+        grad_pass = grad_middle.dot(self.w.T)
+
+        print(grad.shape)
+        print(grad_pass.shape)
+
+# def whitening_layer():
+
+
+# hyper
+
+# class
+l0 = FNN_numpy(784,256)
+
+# graph
+temp = np.ones((50,784))
+
+layer0 = l0.feedforward(temp)
+
 
 
 # -- end code --
