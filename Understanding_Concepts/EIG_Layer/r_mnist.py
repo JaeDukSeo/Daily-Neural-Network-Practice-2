@@ -155,8 +155,8 @@ class Decorrelated_Batch_Norm():
         K_matrix = 1./(E + EPS) - np.eye(self.n)
 
         np.fill_diagonal(d_eig_value,0.0)
-        d_sigma = self.eigvector.dot(
-                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
+        d_sigma = np.linalg.pinv(self.eigvector.T).dot(
+                    d_eig_value + K_matrix.T * (self.eigvector.T.dot(d_eig_vector))
                     ).dot(self.eigvector.T)
         d_simg_sym = (0.5) * (d_sigma.T + d_sigma)
 
@@ -196,7 +196,7 @@ num_epoch = 100
 batch_size = 100
 print_size = 1
 
-learning_rate = 0.007
+learning_rate = 0.0003
 beta1,beta2,adam_e = 0.9,0.9,1e-10
 
 # class
