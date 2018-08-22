@@ -142,11 +142,11 @@ class Decorrelated_Batch_Norm():
 
     def backprop(self,grad,EPS=1e-10):
 
+        d_eig_value  = self.eigvector.T.dot((self.input-self.mean).T.dot(grad.dot(self.eigvector.T))) \
+                     * (-1/2) * np.diag(1. / (self.eigenval+EPS) ** 1.5 )
+
         d_eig_vector = self.whiten.T.dot(grad) + \
               (self.input-self.mean).T.dot(grad.dot(self.eigvector.T)).dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T)
-
-        d_eig_value  = (self.input-self.mean).T.dot(grad.dot(self.eigvector.T)) \
-                     * (-1/2) * np.diag(1. / (self.eigenval+EPS) ** 1.5 )
 
         E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
                    np.expand_dims(self.eigenval,1).dot(np.ones((1,self.n)))
