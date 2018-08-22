@@ -196,12 +196,12 @@ num_epoch = 100
 batch_size = 100
 print_size = 1
 
-learning_rate = 0.007
+learning_rate = 0.0009
 beta1,beta2,adam_e = 0.9,0.9,1e-10
 
 # class
 l0 = np_FNN(784,400)
-# l1 = Batch_Normalization_layer(batch_size,400)
+l1 = Batch_Normalization_layer(batch_size,400)
 l2 = np_FNN(400,200)
 
 l3_1 = Decorrelated_Batch_Norm(batch_size,50)
@@ -210,7 +210,7 @@ l3_3 = Decorrelated_Batch_Norm(batch_size,50)
 l3_4 = Decorrelated_Batch_Norm(batch_size,50)
 
 l4 = np_FNN(200,100)
-# l5 = Batch_Normalization_layer(batch_size,100)
+l5 = Batch_Normalization_layer(batch_size,100)
 l6 = np_FNN(100,10)
 
 # train
@@ -228,8 +228,8 @@ for iter in range(num_epoch):
 
         # feed forward
         layer0 = l0.feedforward(current_train_data)
-        # layer1 = l1.feedforward(layer0)
-        layer2 = l2.feedforward(layer0)
+        layer1 = l1.feedforward(layer0)
+        layer2 = l2.feedforward(layer1)
 
         layer3_1 = l3_1.feedforward(layer2[:,:50])
         layer3_2 = l3_2.feedforward(layer2[:,50:100])
@@ -238,8 +238,8 @@ for iter in range(num_epoch):
         layer3_full = np.hstack([layer3_1,layer3_2,layer3_3,layer3_4])
 
         layer4 = l4.feedforward(layer3_full)
-        # layer5 = l5.feedforward(layer4)
-        layer6 = l6.feedforward(layer4)
+        layer5 = l5.feedforward(layer4)
+        layer6 = l6.feedforward(layer5)
 
         # cost
         final_soft = stable_softmax(layer6)
@@ -259,8 +259,8 @@ for iter in range(num_epoch):
 
         # back prop
         grad6 = l6.backprop(final_soft-current_train_data_label)
-        # grad5 = l5.backprop(grad6)
-        grad4 = l4.backprop(grad6)
+        grad5 = l5.backprop(grad6)
+        grad4 = l4.backprop(grad5)
 
         grad3_1 = l3_1.backprop(grad4[:,:50])
         grad3_2 = l3_2.backprop(grad4[:,50:100])
@@ -269,8 +269,8 @@ for iter in range(num_epoch):
         grad3_full = np.hstack([grad3_1,grad3_2,grad3_3,grad3_4])
 
         grad2 = l2.backprop(grad3_full)
-        # grad1 = l1.backprop(grad2)
-        grad0 = l0.backprop(grad2)
+        grad1 = l1.backprop(grad2)
+        grad0 = l0.backprop(grad1)
 
     if iter % print_size==0:
         print("\n----------")
