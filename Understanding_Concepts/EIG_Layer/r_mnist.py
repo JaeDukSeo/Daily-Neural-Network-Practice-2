@@ -203,7 +203,10 @@ l6 = np_FNN(100,10)
 # train
 for iter in range(num_epoch):
 
-    train_data,train_label = shuffle(train_data,train_label )
+    train_cota,train_acca = 0,0
+    train_cot,train_acc = [],[]
+
+    train_data,train_label = shuffle(train_data,train_label)
 
     for current_batch_index in range(0,len(train_data),batch_size):
 
@@ -225,6 +228,8 @@ for iter in range(num_epoch):
         correct_prediction = np.equal(np.argmax(final_soft, 1), np.argmax(current_train_data_label, 1))
         accuracy = np.mean(correct_prediction)
         print('Current Iter: ', iter,' batch index: ', current_batch_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
+        train_cota = train_cota + cost
+        train_acca = train_acca + accuracy
 
         # back prop
         grad6 = l6.backprop(final_soft-current_train_data_label)
@@ -235,13 +240,14 @@ for iter in range(num_epoch):
         # grad1 = l1.backprop(grad2)
         grad0 = l0.backprop(grad2)
 
-    # if it's printing size
-    if iter % print_size == 0 :
-        print('\n---------------')
-        print('Current Iter: ', iter, ' accuracy: ',accuracy, ' cost: ',cost,end='\n')
-        print('---------------\n')
+    if iter % print_size==0:
+        print("\n----------")
+        print('Train Current cost: ', train_cota/(len(train_data)/batch_size),' Current Acc: ', train_acca/(len(train_data)/batch_size),end='\n')
+        print("----------")
 
-
+    train_acc.append(train_acca/(len(train_data)/batch_size))
+    train_cot.append(train_cota/(len(train_data)/batch_size))
+    train_cota,train_acca = 0,0
 
 
 
