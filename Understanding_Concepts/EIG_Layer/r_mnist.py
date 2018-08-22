@@ -132,6 +132,7 @@ class Decorrelated_Batch_Norm():
     def feedforward(self,input,EPS=1e-10):
         self.input = input
         self.mean = (1./self.m) * np.sum(input,axis=0)
+
         self.sigma = (1./self.m) * (input - self.mean).T.dot(input - self.mean)
         self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
         self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))
@@ -151,10 +152,10 @@ class Decorrelated_Batch_Norm():
                    np.expand_dims(self.eigenval,1).dot(np.ones((1,self.n)))
 
         K_matrix = 1./(E + np.eye(self.n)) - np.eye(self.n)
-        d_sigma = self.eigvector.dot(
+        d_sigma = self.eigvector.T.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + \
                     d_eig_value
-                    ).dot(self.eigvector.T)
+                    ).dot(self.eigvector)
 
         d_simg_sym = (0.5) * (d_sigma.T + d_sigma)
         d_mean = np.sum(grad.dot(self.eigvector.T).dot(self.U.T) * (-1),0) + \
@@ -187,7 +188,7 @@ class Batch_Normalization_layer():
 
 # hyper
 num_epoch = 100
-batch_size = 100
+batch_size = 25
 print_size = 1
 
 learning_rate = 0.0003
@@ -195,11 +196,11 @@ beta1,beta2,adam_e = 0.9,0.9,1e-10
 
 # class
 l0 = np_FNN(784,400)
-l1 = zca_whiten_layer(batch_size,400)
+l1 = Decorrelated_Batch_Norm(batch_size,400)
 l2 = np_FNN(400,256)
-l3 = zca_whiten_layer(batch_size,256)
+l3 = Decorrelated_Batch_Norm(batch_size,256)
 l4 = np_FNN(256,100)
-l5 = zca_whiten_layer(batch_size,100)
+l5 = Decorrelated_Batch_Norm(batch_size,100)
 l6 = np_FNN(100,10)
 
 # train
