@@ -195,11 +195,11 @@ beta1,beta2,adam_e = 0.9,0.9,1e-10
 
 # class
 l0 = np_FNN(784,400)
-l1 = Batch_Normalization_layer(batch_size,400)
+l1 = zca_whiten_layer(batch_size,400)
 l2 = np_FNN(400,256)
-l3 = Batch_Normalization_layer(batch_size,256)
+l3 = zca_whiten_layer(batch_size,256)
 l4 = np_FNN(256,100)
-l5 = Batch_Normalization_layer(batch_size,100)
+l5 = zca_whiten_layer(batch_size,100)
 l6 = np_FNN(100,10)
 
 # train
