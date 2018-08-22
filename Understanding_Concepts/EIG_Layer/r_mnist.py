@@ -142,28 +142,34 @@ class Decorrelated_Batch_Norm():
     def backprop(self,grad,EPS=1e-10):
 
         d_white = grad.dot(self.eigvector.T)
-        # d_U = (self.input-self.mean).T.dot(d_white)
-        d_U = np.sum(self.input-self.mean,axis=0)[np.newaxis,:].T.dot(np.sum(d_white,axis=0)[np.newaxis,:])
+
+        d_U = (self.input-self.mean).T.dot(d_white)
+        # Paper Approach Sum and Dot Product
+        # d_U = np.sum(self.input-self.mean,axis=0)[np.newaxis,:].T.dot(np.sum(d_white,axis=0)[np.newaxis,:])
 
         d_eig_value = self.eigvector.T.dot(d_U) * (-1/2) * np.diag(1. / (self.eigenval+EPS) ** 1.5 )
-        # d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + self.whiten.T.dot(grad)
-        d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + \
-        np.sum(self.whiten,0)[np.newaxis,:].T.dot( np.sum(grad,0)[np.newaxis,:] )
+
+        d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + self.whiten.T.dot(grad)
+        # Paper Approach Sum and Dot Product
+        # d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + \
+        # np.sum(self.whiten,0)[np.newaxis,:].T.dot( np.sum(grad,0)[np.newaxis,:] )
 
         E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
             np.expand_dims(self.eigenval  ,1).dot(np.ones((1,self.n)))
-        K_matrix = 1./(E + EPS) - np.eye(self.n)
+        K_matrix = 1./(E + np.eye(self.n)) - np.eye(self.n)
 
         np.fill_diagonal(d_eig_value,0.0)
-        d_sigma = np.linalg.pinv(self.eigvector.T).dot(
-                    d_eig_value + K_matrix.T * (self.eigvector.T.dot(d_eig_vector))
+        d_sigma = self.eigvector.dot(
+                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
         d_simg_sym = (0.5) * (d_sigma.T + d_sigma)
 
-        # d_mean = np.sum(d_white.dot(self.U.T) * -1.0,0) + \
-        #          (-2./self.m) * np.sum( (self.input - self.mean).dot(d_simg_sym), 0  )
-        d_mean = np.sum(d_white,0).dot(self.U.T) * -1.0 + \
-                 (-2./self.m) * np.sum( (self.input - self.mean), 0).dot(d_simg_sym)
+        d_mean = np.sum(d_white.dot(self.U.T) * -1.0,0) + \
+                 (-2./self.m) * np.sum( (self.input - self.mean).dot(d_simg_sym), 0  )
+
+        # Paper Approach Sum and Dot Product
+        # d_mean = np.sum(d_white,0).dot(self.U.T) * -1.0 + \
+                 # (-2./self.m) * np.sum( (self.input - self.mean), 0).dot(d_simg_sym)
 
         d_x = d_white.dot(self.U.T) + \
               (2./self.m) * (self.input - self.mean).dot(d_simg_sym) + \
@@ -197,19 +203,18 @@ batch_size = 100
 print_size = 1
 
 learning_rate = 0.0003
-beta1,beta2,adam_e = 0.9,0.9,1e-10
+beta1,beta2,adam_e = 0.9,0.9,1e-8
+
+smaller_size = 2
 
 # class
 l0 = np_FNN(784,400)
 # l1 = Batch_Normalization_layer(batch_size,400)
-l2 = np_FNN(400,200)
+l2 = np_FNN(400,144)
 
-l3_1 = Decorrelated_Batch_Norm(batch_size,50)
-l3_2 = Decorrelated_Batch_Norm(batch_size,50)
-l3_3 = Decorrelated_Batch_Norm(batch_size,50)
-l3_4 = Decorrelated_Batch_Norm(batch_size,50)
+l3 = Decorrelated_Batch_Norm(batch_size,smaller_size)
 
-l4 = np_FNN(200,100)
+l4 = np_FNN(144,100)
 # l5 = Batch_Normalization_layer(batch_size,100)
 l6 = np_FNN(100,10)
 
@@ -231,11 +236,16 @@ for iter in range(num_epoch):
         # layer1 = l1.feedforward(layer0)
         layer2 = l2.feedforward(layer0)
 
-        layer3_1 = l3_1.feedforward(layer2[:,:50])
-        layer3_2 = l3_2.feedforward(layer2[:,50:100])
-        layer3_3 = l3_3.feedforward(layer2[:,100:150])
-        layer3_4 = l3_4.feedforward(layer2[:,150:])
-        layer3_full = np.hstack([layer3_1,layer3_2,layer3_3,layer3_4])
+        layer3_full = l3.feedforward(layer2[:,:smaller_size])
+        for patches in range(smaller_size,144,smaller_size):
+            layer3_full_temp = l3.feedforward(layer2[:,patches:patches+smaller_size])
+            layer3_full = np.hstack([layer3_full,layer3_full_temp])
+
+        # layer3_1 = l3.feedforward(layer2[:,:50])
+        # layer3_2 = l3.feedforward(layer2[:,50:100])
+        # layer3_3 = l3.feedforward(layer2[:,100:150])
+        # layer3_4 = l3.feedforward(layer2[:,150:])
+        # layer3_full = np.hstack([layer3_1,layer3_2,layer3_3,layer3_4])
 
         layer4 = l4.feedforward(layer3_full)
         # layer5 = l5.feedforward(layer4)
@@ -262,11 +272,16 @@ for iter in range(num_epoch):
         # grad5 = l5.backprop(grad6)
         grad4 = l4.backprop(grad6)
 
-        grad3_1 = l3_1.backprop(grad4[:,:50])
-        grad3_2 = l3_2.backprop(grad4[:,50:100])
-        grad3_3 = l3_3.backprop(grad4[:,100:150])
-        grad3_4 = l3_4.backprop(grad4[:,150:])
-        grad3_full = np.hstack([grad3_1,grad3_2,grad3_3,grad3_4])
+        # grad3_1 = l3.backprop(grad4[:,:50])
+        # grad3_2 = l3.backprop(grad4[:,50:100])
+        # grad3_3 = l3.backprop(grad4[:,100:150])
+        # grad3_4 = l3.backprop(grad4[:,150:])
+        # grad3_full = np.hstack([grad3_1,grad3_2,grad3_3,grad3_4])
+
+        grad3_full = l3.backprop(grad4[:,:smaller_size])
+        for patches in range(smaller_size,144,smaller_size):
+            grad3_full_temp = l3.backprop(grad4[:,patches:patches+smaller_size])
+            grad3_full = np.hstack([grad3_full,grad3_full_temp])
 
         grad2 = l2.backprop(grad3_full)
         # grad1 = l1.backprop(grad2)
