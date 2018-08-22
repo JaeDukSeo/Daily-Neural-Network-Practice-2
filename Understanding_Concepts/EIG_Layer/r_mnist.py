@@ -11,10 +11,11 @@ import imgaug as ia
 from scipy.ndimage import zoom
 import seaborn as sns
 
+np.random.seed(0)
+np.set_printoptions(precision = 3,suppress =True)
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
-np.random.seed(789)
 
 # import data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
@@ -35,18 +36,19 @@ print('-----------------------')
 def np_sigmoid(x): return 1.0 / (1.0+np.exp(-x))
 def d_np_sigmoid(x): return np_sigmoid(x) * (1.0 - np_sigmoid(x))
 
-# soft max function
-def stable_softmax(X):
-    exps = np.exp(X - np.max(X,axis=1)[:,np.newaxis])
-    return exps / np.sum(exps)
+# soft max function for 2D
+def stable_softmax(x,axis=None ):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x,axis=1)[:,np.newaxis])
+    return e_x / e_x.sum(axis=1)[:,np.newaxis]
 
 # fully connected layer
 class np_FNN():
 
     def __init__(self,inc,outc):
-        self.w = np.random.randn(inc,outc)
+        self.w = 1.0 * np.random.randn(inc,outc) + 0.0
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
-
+    def getw(self): return self.w
     def feedforward(self,input):
         self.input  = input
         self.layer  = self.input.dot(self.w)
@@ -67,7 +69,6 @@ class np_FNN():
         m_hat,v_hat = self.m/(1.-beta1), self.v/(1.-beta2)
         adam_middle = learning_rate / (np.sqrt(v_hat) + adam_e) * m_hat
         self.w = self.w - adam_middle
-
         return grad_pass
 
 # def: centering layer
@@ -148,6 +149,7 @@ class Decorrelated_Batch_Norm():
 
         E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
                    np.expand_dims(self.eigenval,1).dot(np.ones((1,self.n)))
+
         K_matrix = 1./(E + np.eye(self.n)) - np.eye(self.n)
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + \
@@ -185,19 +187,19 @@ class Batch_Normalization_layer():
 
 # hyper
 num_epoch = 100
-batch_size = 50
+batch_size = 100
 print_size = 1
 
-learning_rate = 0.001
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+learning_rate = 0.0003
+beta1,beta2,adam_e = 0.9,0.9,1e-10
 
 # class
 l0 = np_FNN(784,400)
-# l1 = Decorrelated_Batch_Norm(batch_size,400)
+l1 = Batch_Normalization_layer(batch_size,400)
 l2 = np_FNN(400,256)
-# l3 = Decorrelated_Batch_Norm(batch_size,256)
+l3 = Batch_Normalization_layer(batch_size,256)
 l4 = np_FNN(256,100)
-# l5 = Decorrelated_Batch_Norm(batch_size,100)
+l5 = Batch_Normalization_layer(batch_size,100)
 l6 = np_FNN(100,10)
 
 # train
@@ -215,34 +217,40 @@ for iter in range(num_epoch):
 
         # feed forward
         layer0 = l0.feedforward(current_train_data)
-        # layer1 = l1.feedforward(layer0)
-        layer2 = l2.feedforward(layer0)
-        # layer3 = l3.feedforward(layer2)
-        layer4 = l4.feedforward(layer2)
-        # layer5 = l5.feedforward(layer4)
-        layer6 = l6.feedforward(layer4)
+        layer1 = l1.feedforward(layer0)
+        layer2 = l2.feedforward(layer1)
+        layer3 = l3.feedforward(layer2)
+        layer4 = l4.feedforward(layer3)
+        layer5 = l5.feedforward(layer4)
+        layer6 = l6.feedforward(layer5)
 
         # cost
         final_soft = stable_softmax(layer6)
-        cost = - np.mean(current_train_data_label * np.log(final_soft + 1e-10) + (1.0-current_train_data_label) * np.log(1.0-final_soft + 1e-10))
+        cost = - np.mean(current_train_data_label * np.log(final_soft + 1e-20) + (1.0-current_train_data_label) * np.log(1.0-final_soft + 1e-20))
         correct_prediction = np.equal(np.argmax(final_soft, 1), np.argmax(current_train_data_label, 1))
         accuracy = np.mean(correct_prediction)
         print('Current Iter: ', iter,' batch index: ', current_batch_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         train_cota = train_cota + cost
         train_acca = train_acca + accuracy
 
+        # print('\n--------------------')
+        # print( (final_soft-current_train_data_label).sum() )
+        # print( (final_soft-current_train_data_label).mean() )
+        # input()
+        # print('--------------------\n')
+
         # back prop
         grad6 = l6.backprop(final_soft-current_train_data_label)
-        # grad5 = l5.backprop(grad6)
-        grad4 = l4.backprop(grad6)
-        # grad3 = l3.backprop(grad4)
-        grad2 = l2.backprop(grad4)
-        # grad1 = l1.backprop(grad2)
-        grad0 = l0.backprop(grad2)
+        grad5 = l5.backprop(grad6)
+        grad4 = l4.backprop(grad5)
+        grad3 = l3.backprop(grad4)
+        grad2 = l2.backprop(grad3)
+        grad1 = l1.backprop(grad2)
+        grad0 = l0.backprop(grad1)
 
     if iter % print_size==0:
         print("\n----------")
-        print('Train Current cost: ', train_cota/(len(train_data)/batch_size),' Current Acc: ', train_acca/(len(train_data)/batch_size),end='\n')
+        print('Train Current Acc: ', train_acca/(len(train_data)/batch_size),' Current cost: ', train_cota/(len(train_data)/batch_size),end='\n')
         print("----------")
 
     train_acc.append(train_acca/(len(train_data)/batch_size))
