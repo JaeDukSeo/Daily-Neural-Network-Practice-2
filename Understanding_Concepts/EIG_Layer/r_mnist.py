@@ -204,20 +204,15 @@ print_size = 1
 
 learning_rate = 0.0003
 beta1,beta2,adam_e = 0.9,0.9,1e-8
-
-patch_per_row = 4
-sess = tf.Session()
+small_batch_size = 2
 
 # class
 l0 = np_FNN(784,400)
-# l1 = Batch_Normalization_layer(batch_size,400)
-
-l2 = np_FNN(400,144)
-l3 = Decorrelated_Batch_Norm(batch_size,9)
-
-l4 = np_FNN(144,100)
-# l5 = Batch_Normalization_layer(batch_size,100)
-
+l1 = Batch_Normalization_layer(batch_size,small_batch_size)
+l2 = np_FNN(400,256)
+l3 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
+l4 = np_FNN(256,100)
+l5 = Batch_Normalization_layer(batch_size,100)
 l6 = np_FNN(100,10)
 
 # train
@@ -235,22 +230,24 @@ for iter in range(num_epoch):
 
         # feed forward
         layer0 = l0.feedforward(current_train_data)
-        # layer1 = l1.feedforward(layer0)
+        layer1_full = l1.feedforward(layer0[:,:small_batch_size])
+        for patches in range(small_batch_size,400,small_batch_size):
+            layer1_full_temp = l1.feedforward(layer0[:,patches:patches+small_batch_size])
+            layer1_full = np.hstack([layer1_full,layer1_full_temp])
 
-        layer2 = l2.feedforward(layer0)
-        layer2_reshape  = layer2.reshape([batch_size,12,12])[:,:,:,np.newaxis] # [1 12 12 1]
-        # [batchsize 4 4 9]
-        layer2_reshape_patchs = tf.extract_image_patches(images = layer2_reshape,ksizes=[1, 3, 3, 1],strides=[1, 3, 3, 1], rates=[1, 1, 1, 1], padding='VALID').eval(session=sess)
-        layer2_reshape_patchs_shape = tf.reshape(layer2_reshape_patchs,[batch_size,16,9]).eval(session=sess) # [batchsize 16 9]
-
-        layer3_full = l3.feedforward(layer2_reshape_patchs_shape[:,0,:])
-        for patches in range(1,16):
-            layer3_full_temp = l3.feedforward(layer2_reshape_patchs_shape[:,patches,:])
+        layer2 = l2.feedforward(layer1_full)
+        layer3_full = l3.feedforward(layer2[:,:small_batch_size])
+        for patches in range(small_batch_size,256,small_batch_size):
+            layer3_full_temp = l3.feedforward(layer2[:,patches:patches+small_batch_size])
             layer3_full = np.hstack([layer3_full,layer3_full_temp])
 
         layer4 = l4.feedforward(layer3_full)
-        # layer5 = l5.feedforward(layer4)
-        layer6 = l6.feedforward(layer4)
+        layer5_full = l5.feedforward(layer4[:,:small_batch_size])
+        for patches in range(small_batch_size,100,small_batch_size):
+            layer5_full_temp = l5.feedforward(layer4[:,patches:patches+small_batch_size])
+            layer5_full = np.hstack([layer5_full,layer5_full_temp])
+
+        layer6 = l6.feedforward(layer5_full)
 
         # cost
         final_soft = stable_softmax(layer6)
@@ -270,22 +267,24 @@ for iter in range(num_epoch):
 
         # back prop
         grad6 = l6.backprop(final_soft-current_train_data_label)
-        # grad5 = l5.backprop(grad6)
-        grad4 = l4.backprop(grad6)
 
-        grad4_reshape  = grad4.reshape([batch_size,12,12])[:,:,:,np.newaxis] # [1 12 12 1]
-        # [batchsize 4 4 9]
-        grad4_reshape_patchs = tf.extract_image_patches(images = grad4_reshape,ksizes=[1, 3, 3, 1],strides=[1, 3, 3, 1],rates=[1, 1, 1, 1], padding='VALID').eval(session=sess)
-        grad4_reshape_patchs_shape = tf.reshape(grad4_reshape_patchs,[batch_size,16,9]).eval(session=sess) # [batchsize 16 9]
+        grad5_full = l5.backprop(grad6[:,:small_batch_size])
+        for patches in range(small_batch_size,100,small_batch_size):
+            grad5_full_temp = l5.backprop(grad6[:,patches:patches+small_batch_size])
+            grad5_full = np.hstack([grad5_full,grad5_full_temp])
+        grad4 = l4.backprop(grad5_full)
 
-        grad3_full = l3.backprop(grad4_reshape_patchs_shape[:,0,:])
-        for patches in range(1,16):
-            grad3_full_temp = l3.backprop(grad4_reshape_patchs_shape[:,patches,:])
+        grad3_full = l3.backprop(grad4[:,:small_batch_size])
+        for patches in range(small_batch_size,256,small_batch_size):
+            grad3_full_temp = l3.backprop(grad4[:,patches:patches+small_batch_size])
             grad3_full = np.hstack([grad3_full,grad3_full_temp])
-
         grad2 = l2.backprop(grad3_full)
-        # grad1 = l1.backprop(grad2)
-        grad0 = l0.backprop(grad2)
+
+        grad1_full = l1.backprop(grad2[:,:small_batch_size])
+        for patches in range(small_batch_size,400,small_batch_size):
+            grad1_full_temp = l1.backprop(grad2[:,patches:patches+small_batch_size])
+            grad1_full = np.hstack([grad1_full,grad1_full_temp])
+        grad0 = l0.backprop(grad1_full)
 
     if iter % print_size==0:
         print("\n----------")
