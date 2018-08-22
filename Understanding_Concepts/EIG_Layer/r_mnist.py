@@ -236,6 +236,20 @@ for iter in range(num_epoch):
         # layer1 = l1.feedforward(layer0)
         layer2 = l2.feedforward(layer0)
 
+        layer2_reshape  = layer2.reshape([batch_size,12,12])
+        print(layer2_reshape.shape)
+
+        from skimage.util.shape import view_as_windows
+
+        # plt.imshow(layer2_reshape[0],cmap='gray')
+        # plt.show()
+
+        B = view_as_windows(layer2_reshape[0], (2,2))
+        print(B.shape)
+
+
+        sys.exit()
+
         layer3_full = l3.feedforward(layer2[:,:smaller_size])
         for patches in range(smaller_size,144,smaller_size):
             layer3_full_temp = l3.feedforward(layer2[:,patches:patches+smaller_size])
