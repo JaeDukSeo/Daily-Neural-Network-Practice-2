@@ -36,6 +36,11 @@ print('-----------------------')
 def np_sigmoid(x): return 1.0 / (1.0+np.exp(-x))
 def d_np_sigmoid(x): return np_sigmoid(x) * (1.0 - np_sigmoid(x))
 
+# soft max function
+def stable_softmax(X):
+    exps = np.exp(X - np.max(X,axis=1)[:,np.newaxis])
+    return exps / np.sum(exps)
+
 # fully connected layer
 class np_FNN():
 
@@ -47,7 +52,7 @@ class np_FNN():
         self.input  = input
         self.layer  = self.input.dot(self.w)
         self.layerA = np_sigmoid(self.layer)
-        return serf.layerA
+        return self.layerA
 
     def backprop(self,grad):
         grad_1 = grad
@@ -179,8 +184,46 @@ class Batch_Normalization_layer():
         d_x = self.m * grad - np.sum(grad,axis = 0) - self.x_hat*np.sum(grad*self.x_hat, axis=0)
         return d_x * dem
 
+# hyper
+num_epoch = 100
+batch_size = 50
+
+learning_rate = 0.00001
+beta1,beta2,adam_e = 0.9,0.999,1e-8
+
+l0 = np_FNN(784,400)
+l1 = Decorrelated_Batch_Norm(batch_size,400)
+l2 = np_FNN(400,256)
+l3 = Decorrelated_Batch_Norm(batch_size,256)
+l4 = np_FNN(256,100)
+l5 = Decorrelated_Batch_Norm(batch_size,100)
+l6 = np_FNN(100,10)
+
+testing = train_data[:batch_size]
+testing_label = train_label[:batch_size]
+
+layer0 = l0.feedforward(testing)
+layer1 = l1.feedforward(layer0)
+layer2 = l2.feedforward(layer1)
+layer3 = l3.feedforward(layer2)
+layer4 = l4.feedforward(layer3)
+layer5 = l5.feedforward(layer4)
+layer6 = l6.feedforward(layer5)
+
+final_soft = stable_softmax(layer6)
+cost = np.mean(
+  testing_label * np.log(final_soft + 1e-10) + \
+  (1.0-testing_label) * np.log(1.0-final_soft + 1e-10)
+  )
+correct_prediction = np.equal(np.argmax(final_soft, 1), np.argmax(testing_label, 1))
+accuracy = np.mean(correct_prediction)
 
 
+print(layer6.shape)
+print(final_soft.shape)
+print(cost.shape)
+print(correct_prediction.shape)
+print(accuracy.shape)
 
 
 
