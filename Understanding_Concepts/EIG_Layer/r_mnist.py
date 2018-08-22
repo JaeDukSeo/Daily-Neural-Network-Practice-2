@@ -205,17 +205,19 @@ print_size = 1
 learning_rate = 0.0003
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 
-smaller_size = 2
+patch_per_row = 4
+sess = tf.Session()
 
 # class
 l0 = np_FNN(784,400)
 # l1 = Batch_Normalization_layer(batch_size,400)
-l2 = np_FNN(400,144)
 
-l3 = Decorrelated_Batch_Norm(batch_size,smaller_size)
+l2 = np_FNN(400,144)
+l3 = Decorrelated_Batch_Norm(batch_size,9)
 
 l4 = np_FNN(144,100)
 # l5 = Batch_Normalization_layer(batch_size,100)
+
 l6 = np_FNN(100,10)
 
 # train
@@ -234,32 +236,17 @@ for iter in range(num_epoch):
         # feed forward
         layer0 = l0.feedforward(current_train_data)
         # layer1 = l1.feedforward(layer0)
+
         layer2 = l2.feedforward(layer0)
+        layer2_reshape  = layer2.reshape([batch_size,12,12])[:,:,:,np.newaxis] # [1 12 12 1]
+        # [batchsize 4 4 9]
+        layer2_reshape_patchs = tf.extract_image_patches(images = layer2_reshape,ksizes=[1, 3, 3, 1],strides=[1, 3, 3, 1], rates=[1, 1, 1, 1], padding='VALID').eval(session=sess)
+        layer2_reshape_patchs_shape = tf.reshape(layer2_reshape_patchs,[batch_size,16,9]).eval(session=sess) # [batchsize 16 9]
 
-        layer2_reshape  = layer2.reshape([batch_size,12,12])
-        print(layer2_reshape.shape)
-
-        from skimage.util.shape import view_as_windows
-
-        # plt.imshow(layer2_reshape[0],cmap='gray')
-        # plt.show()
-
-        B = view_as_windows(layer2_reshape[0], (2,2))
-        print(B.shape)
-
-
-        sys.exit()
-
-        layer3_full = l3.feedforward(layer2[:,:smaller_size])
-        for patches in range(smaller_size,144,smaller_size):
-            layer3_full_temp = l3.feedforward(layer2[:,patches:patches+smaller_size])
+        layer3_full = l3.feedforward(layer2_reshape_patchs_shape[:,0,:])
+        for patches in range(1,16):
+            layer3_full_temp = l3.feedforward(layer2_reshape_patchs_shape[:,patches,:])
             layer3_full = np.hstack([layer3_full,layer3_full_temp])
-
-        # layer3_1 = l3.feedforward(layer2[:,:50])
-        # layer3_2 = l3.feedforward(layer2[:,50:100])
-        # layer3_3 = l3.feedforward(layer2[:,100:150])
-        # layer3_4 = l3.feedforward(layer2[:,150:])
-        # layer3_full = np.hstack([layer3_1,layer3_2,layer3_3,layer3_4])
 
         layer4 = l4.feedforward(layer3_full)
         # layer5 = l5.feedforward(layer4)
@@ -286,15 +273,14 @@ for iter in range(num_epoch):
         # grad5 = l5.backprop(grad6)
         grad4 = l4.backprop(grad6)
 
-        # grad3_1 = l3.backprop(grad4[:,:50])
-        # grad3_2 = l3.backprop(grad4[:,50:100])
-        # grad3_3 = l3.backprop(grad4[:,100:150])
-        # grad3_4 = l3.backprop(grad4[:,150:])
-        # grad3_full = np.hstack([grad3_1,grad3_2,grad3_3,grad3_4])
+        grad4_reshape  = grad4.reshape([batch_size,12,12])[:,:,:,np.newaxis] # [1 12 12 1]
+        # [batchsize 4 4 9]
+        grad4_reshape_patchs = tf.extract_image_patches(images = grad4_reshape,ksizes=[1, 3, 3, 1],strides=[1, 3, 3, 1],rates=[1, 1, 1, 1], padding='VALID').eval(session=sess)
+        grad4_reshape_patchs_shape = tf.reshape(grad4_reshape_patchs,[batch_size,16,9]).eval(session=sess) # [batchsize 16 9]
 
-        grad3_full = l3.backprop(grad4[:,:smaller_size])
-        for patches in range(smaller_size,144,smaller_size):
-            grad3_full_temp = l3.backprop(grad4[:,patches:patches+smaller_size])
+        grad3_full = l3.backprop(grad4_reshape_patchs_shape[:,0,:])
+        for patches in range(1,16):
+            grad3_full_temp = l3.backprop(grad4_reshape_patchs_shape[:,patches,:])
             grad3_full = np.hstack([grad3_full,grad3_full_temp])
 
         grad2 = l2.backprop(grad3_full)
