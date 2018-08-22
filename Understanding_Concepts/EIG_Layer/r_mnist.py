@@ -111,7 +111,7 @@ class zca_whiten_layer():
 
         E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
                    np.expand_dims(self.eigenval,1).dot(np.ones((1,self.n)))
-        K_matrix = 1./(E + np.eye(self.n)) - np.eye(self.n)
+        K_matrix = 1./(E + EPS) - np.eye(self.n)
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + \
                     d_eig_value
@@ -152,7 +152,7 @@ class Decorrelated_Batch_Norm():
 
         E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
             np.expand_dims(self.eigenval  ,1).dot(np.ones((1,self.n)))
-        K_matrix = 1./(E + np.eye(self.n)) - np.eye(self.n)
+        K_matrix = 1./(E + EPS) - np.eye(self.n)
 
         np.fill_diagonal(d_eig_value,0.0)
         d_sigma = self.eigvector.dot(
