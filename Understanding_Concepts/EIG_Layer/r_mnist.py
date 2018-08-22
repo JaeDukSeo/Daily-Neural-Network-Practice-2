@@ -31,7 +31,6 @@ print(test_label.shape)
 print(test_label.min(),test_label.max())
 print('-----------------------')
 
-
 # create layer
 def np_sigmoid(x): return 1.0 / (1.0+np.exp(-x))
 def d_np_sigmoid(x): return np_sigmoid(x) * (1.0 - np_sigmoid(x))
@@ -187,45 +186,60 @@ class Batch_Normalization_layer():
 # hyper
 num_epoch = 100
 batch_size = 50
+print_size = 1
 
-learning_rate = 0.00001
+learning_rate = 0.001
 beta1,beta2,adam_e = 0.9,0.999,1e-8
 
+# class
 l0 = np_FNN(784,400)
-l1 = Decorrelated_Batch_Norm(batch_size,400)
+# l1 = Decorrelated_Batch_Norm(batch_size,400)
 l2 = np_FNN(400,256)
-l3 = Decorrelated_Batch_Norm(batch_size,256)
+# l3 = Decorrelated_Batch_Norm(batch_size,256)
 l4 = np_FNN(256,100)
-l5 = Decorrelated_Batch_Norm(batch_size,100)
+# l5 = Decorrelated_Batch_Norm(batch_size,100)
 l6 = np_FNN(100,10)
 
-testing = train_data[:batch_size]
-testing_label = train_label[:batch_size]
+# train
+for iter in range(num_epoch):
 
-layer0 = l0.feedforward(testing)
-layer1 = l1.feedforward(layer0)
-layer2 = l2.feedforward(layer1)
-layer3 = l3.feedforward(layer2)
-layer4 = l4.feedforward(layer3)
-layer5 = l5.feedforward(layer4)
-layer6 = l6.feedforward(layer5)
+    train_data,train_label = shuffle(train_data,train_label )
 
-final_soft = stable_softmax(layer6)
-cost = np.mean(
-  testing_label * np.log(final_soft + 1e-10) + \
-  (1.0-testing_label) * np.log(1.0-final_soft + 1e-10)
-  )
-correct_prediction = np.equal(np.argmax(final_soft, 1), np.argmax(testing_label, 1))
-accuracy = np.mean(correct_prediction)
+    for current_batch_index in range(0,len(train_data),batch_size):
 
+        current_train_data = train_data[current_batch_index:current_batch_index + batch_size]
+        current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
 
-print(layer6.shape)
-print(final_soft.shape)
-print(cost.shape)
-print(correct_prediction.shape)
-print(accuracy.shape)
+        # feed forward
+        layer0 = l0.feedforward(current_train_data)
+        # layer1 = l1.feedforward(layer0)
+        layer2 = l2.feedforward(layer0)
+        # layer3 = l3.feedforward(layer2)
+        layer4 = l4.feedforward(layer2)
+        # layer5 = l5.feedforward(layer4)
+        layer6 = l6.feedforward(layer4)
 
+        # cost
+        final_soft = stable_softmax(layer6)
+        cost = - np.mean(current_train_data_label * np.log(final_soft + 1e-10) + (1.0-current_train_data_label) * np.log(1.0-final_soft + 1e-10))
+        correct_prediction = np.equal(np.argmax(final_soft, 1), np.argmax(current_train_data_label, 1))
+        accuracy = np.mean(correct_prediction)
+        print('Current Iter: ', iter,' batch index: ', current_batch_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
 
+        # back prop
+        grad6 = l6.backprop(final_soft-current_train_data_label)
+        # grad5 = l5.backprop(grad6)
+        grad4 = l4.backprop(grad6)
+        # grad3 = l3.backprop(grad4)
+        grad2 = l2.backprop(grad4)
+        # grad1 = l1.backprop(grad2)
+        grad0 = l0.backprop(grad2)
+
+    # if it's printing size
+    if iter % print_size == 0 :
+        print('\n---------------')
+        print('Current Iter: ', iter, ' accuracy: ',accuracy, ' cost: ',cost,end='\n')
+        print('---------------\n')
 
 
 
