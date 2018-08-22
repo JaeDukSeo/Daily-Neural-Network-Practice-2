@@ -208,11 +208,11 @@ small_batch_size = 2
 
 # class
 l0 = np_FNN(784,400)
-l1 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
+l1 = Batch_Normalization_layer(batch_size,small_batch_size)
 l2 = np_FNN(400,256)
-l3 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
+l3 = Batch_Normalization_layer(batch_size,small_batch_size)
 l4 = np_FNN(256,100)
-l5 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
+l5 = Batch_Normalization_layer(batch_size,small_batch_size)
 l6 = np_FNN(100,10)
 
 # train
