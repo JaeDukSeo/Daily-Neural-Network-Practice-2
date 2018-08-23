@@ -125,6 +125,26 @@ class zca_whiten_layer():
               (2./self.m) * self.input.dot(d_simg_sym.T)
         return d_x
 
+# class Batch Normalization
+class Batch_Normalization_layer():
+
+    def __init__(self,batch_size,feature_dim):
+        self.m = batch_size
+        self.moving_mean = np.zeros(feature_dim)
+        self.moving_std  = np.zeros(feature_dim)
+
+    def feedforward(self,input,EPS=1e-10):
+        self.input = input
+        self.mean  = (1./self.m) * np.sum(input,axis = 0 )
+        self.std   = (1./self.m) * np.sum((self.input-self.mean) ** 2,axis = 0 )
+        self.x_hat = (input - self.mean) / np.sqrt(self.std + EPS)
+        return self.x_hat
+
+    def backprop(self,grad,EPS=1e-10):
+        dem = 1./(self.m * np.sqrt(self.std + EPS ) )
+        d_x = self.m * grad - np.sum(grad,axis = 0) - self.x_hat*np.sum(grad*self.x_hat, axis=0)
+        return d_x * dem
+
 # def: Decorrelated Batch Normalization
 class Decorrelated_Batch_Norm():
 
@@ -150,11 +170,9 @@ class Decorrelated_Batch_Norm():
         # d_U = np.sum(self.input-self.mean,axis=0)[np.newaxis,:].T.dot(np.sum(d_white,axis=0)[np.newaxis,:])
 
         d_eig_value = self.eigvector.T.dot(d_U) * (-1/2) * np.diag(1. / (self.eigenval+EPS) ** 1.5 )
-
         d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + self.whiten.T.dot(grad)
         # Paper Approach Sum and Dot Product
-        # d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + \
-        # np.sum(self.whiten,0)[np.newaxis,:].T.dot( np.sum(grad,0)[np.newaxis,:] )
+        # d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + np.sum(self.whiten,0)[np.newaxis,:].T.dot( np.sum(grad,0)[np.newaxis,:] )
 
         E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
             np.expand_dims(self.eigenval  ,1).dot(np.ones((1,self.n)))
@@ -166,38 +184,15 @@ class Decorrelated_Batch_Norm():
                     ).dot(self.eigvector.T)
         d_simg_sym = (0.5) * (d_sigma.T + d_sigma)
 
-        d_mean = np.sum(d_white.dot(self.U.T) * -1.0,0) + \
-                 (-2./self.m) * np.sum( (self.input - self.mean).dot(d_simg_sym), 0  )
+        d_mean = np.sum(d_white.dot(self.U.T) * -1.0,0) + (-2./self.m) * np.sum( (self.input - self.mean).dot(d_simg_sym), 0  )
 
         # Paper Approach Sum and Dot Product
-        # d_mean = np.sum(d_white,0).dot(self.U.T) * -1.0 + \
-                 # (-2./self.m) * np.sum( (self.input - self.mean), 0).dot(d_simg_sym)
-
+        # d_mean = np.sum(d_white,0).dot(self.U.T) * -1.0 + (-2./self.m) * np.sum( (self.input - self.mean), 0).dot(d_simg_sym)
         d_x = d_white.dot(self.U.T) + \
               (2./self.m) * (self.input - self.mean).dot(d_simg_sym) + \
               (1./self.m) * d_mean
 
         return d_x
-
-# class Batch Normalization
-class Batch_Normalization_layer():
-
-    def __init__(self,batch_size,feature_dim):
-        self.m = batch_size
-        self.moving_mean = np.zeros(feature_dim)
-        self.moving_std  = np.zeros(feature_dim)
-
-    def feedforward(self,input,EPS=1e-10):
-        self.input = input
-        self.mean  = (1./self.m) * np.sum(input,axis = 0 )
-        self.std   = (1./self.m) * np.sum((self.input-self.mean) ** 2,axis = 0 )
-        self.x_hat = (input - self.mean) / np.sqrt(self.std + EPS)
-        return self.x_hat
-
-    def backprop(self,grad,EPS=1e-10):
-        dem = 1./(self.m * np.sqrt(self.std + EPS ) )
-        d_x = self.m * grad - np.sum(grad,axis = 0) - self.x_hat*np.sum(grad*self.x_hat, axis=0)
-        return d_x * dem
 
 # hyper
 num_epoch = 100
