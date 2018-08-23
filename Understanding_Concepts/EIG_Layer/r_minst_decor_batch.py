@@ -209,13 +209,13 @@ beta1,beta2,adam_e = 0.9,0.9,1e-8
 small_batch_size = 100
 
 # class
-l0_test = Batch_Normalization_layer(batch_size,784)
+l0_test = Decorrelated_Batch_Norm(batch_size,784)
 l0 = np_FNN(784,400)
-l1 = Batch_Normalization_layer(batch_size,small_batch_size)
+l1 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
 l2 = np_FNN(400,300)
-l3 = Batch_Normalization_layer(batch_size,small_batch_size)
+l3 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
 l4 = np_FNN(300,100)
-l5 = Batch_Normalization_layer(batch_size,small_batch_size)
+l5 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
 l6 = np_FNN(100,10)
 
 def zca_whiten(X):
