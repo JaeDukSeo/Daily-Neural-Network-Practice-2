@@ -37,7 +37,7 @@ def np_sigmoid(x): return 1.0 / (1.0+np.exp(-x))
 def d_np_sigmoid(x): return np_sigmoid(x) * (1.0 - np_sigmoid(x))
 
 # soft max function for 2D
-def stable_softmax(x,axis=None ):
+def stable_softmax(x,axis=None):
     """Compute softmax values for each sets of scores in x."""
     e_x = np.exp(x - np.max(x,axis=1)[:,np.newaxis])
     return e_x / e_x.sum(axis=1)[:,np.newaxis]
@@ -45,19 +45,21 @@ def stable_softmax(x,axis=None ):
 # fully connected layer
 class np_FNN():
 
-    def __init__(self,inc,outc):
+    def __init__(self,inc,outc,act=np_sigmoid,d_act = d_np_sigmoid):
         self.w = 1.0 * np.random.randn(inc,outc) + 0.0
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
+        self.act = act; self.d_act = d_act
+
     def getw(self): return self.w
     def feedforward(self,input):
         self.input  = input
         self.layer  = self.input.dot(self.w)
-        self.layerA = np_sigmoid(self.layer)
+        self.layerA = self.act(self.layer)
         return self.layerA
 
     def backprop(self,grad):
         grad_1 = grad
-        grad_2 = d_np_sigmoid(self.layer)
+        grad_2 = self.d_act(self.layer)
         grad_3 = self.input
 
         grad_middle = grad_1 * grad_2
@@ -129,7 +131,7 @@ class Decorrelated_Batch_Norm():
         self.m = batch_size
         self.n = feature_size
 
-    def feedforward(self,input,EPS=1e-10):
+    def feedforward(self,input,EPS=1e-5):
         self.input = input
         self.mean = (1./self.m) * np.sum(input,axis=0)
         self.sigma = (1./self.m) * (input - self.mean).T.dot(input - self.mean)
@@ -139,7 +141,7 @@ class Decorrelated_Batch_Norm():
         self.zca = self.whiten.dot(self.eigvector)
         return self.zca
 
-    def backprop(self,grad,EPS=1e-10):
+    def backprop(self,grad,EPS=1e-5):
 
         d_white = grad.dot(self.eigvector.T)
 
@@ -199,23 +201,49 @@ class Batch_Normalization_layer():
 
 # hyper
 num_epoch = 100
-batch_size = 100
+batch_size = 5
 print_size = 1
 
-# learning_rate = 0.0003
-learning_rate = 0.0003
-beta1,beta2,adam_e = 0.9,0.999,1e-8
+learning_rate = 0.000001
+# learning_rate = 0.003
+beta1,beta2,adam_e = 0.9,0.9,1e-8
 # small_batch_size = 2
-small_batch_size = 2
+small_batch_size = 100
 
 # class
 l0 = np_FNN(784,400)
-l1 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
+l1 = Decorrelated_Batch_Norm(batch_size,784)
 l2 = np_FNN(400,300)
-l3 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
+l3 = Decorrelated_Batch_Norm(batch_size,300)
 l4 = np_FNN(300,100)
-l5 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
+l5 = Decorrelated_Batch_Norm(batch_size,100)
 l6 = np_FNN(100,10)
+
+def zca_whiten(X):
+    """
+    Applies ZCA whitening to the data (X)
+    http://xcorr.net/2011/05/27/whiten-a-matrix-matlab-code/
+
+    X: numpy 2d array
+        input data, rows are data points, columns are features
+
+    Returns: ZCA whitened 2d array
+    """
+    assert(X.ndim == 2)
+    EPS = 10e-5
+
+    #   covariance matrix
+    cov = np.dot(X.T, X)
+    #   d = (lambda1, lambda2, ..., lambdaN)
+    d, E = np.linalg.eigh(cov)
+    #   D = diag(d) ^ (-1/2)
+    D = np.diag(1. / np.sqrt(d + EPS))
+    #   W_zca = E * D * E.T
+    W = np.dot(np.dot(E, D), E.T)
+
+    X_white = np.dot(X, W)
+
+    return X_white
 
 # train
 for iter in range(num_epoch):
@@ -229,24 +257,77 @@ for iter in range(num_epoch):
         current_train_data = train_data[current_batch_index:current_batch_index + batch_size]
         current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
 
+        # ======== COMPARE WITH NUMPY =======
+        cov = np.cov(current_train_data, rowvar=False,ddof=0)
+        U,S,V = np.linalg.svd(cov)
+        epsilon = 1e-5
+        zca_matrix = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + epsilon)), U.T))
+        # zca = np.dot(zca_matrix, current_train_data)
+        zca = np.dot(current_train_data, zca_matrix)
+        zca = zca_whiten(current_train_data)
+
+        # layer1_full = l1.feedforward(current_train_data)
+        layer1_full = zca_whiten(current_train_data)
+        m_shape = current_train_data.shape[0]
+        mean =  (1./m_shape) * np.sum(current_train_data,axis=0)
+        sigma = (1./m_shape) * (current_train_data-mean).T.dot(current_train_data-mean)
+        eigenval,eigvector = np.linalg.eigh(sigma)
+
+        print('---- my sigma value ----')
+        print(eigvector.shape)
+        print(eigvector.mean())
+        print(eigvector.sum())
+        print(eigvector.std())
+        print(eigenval.shape)
+        print(eigenval.mean())
+        print(eigenval.sum())
+        print(eigenval.std())
+
+        print('---- numpy value ----')
+        print(U.shape)
+        print(U.mean())
+        print(U.sum())
+        print(U.std())
+        print(S.shape)
+        print(S.mean())
+        print(S.sum())
+        print(S.std())
+
+
+        plt.subplot(1, 2, 1)
+        plt.imshow(zca[0].reshape((28,28)),cmap='gray')
+        plt.subplot(1, 2, 2)
+        plt.imshow(layer1_full[0].reshape((28,28)),cmap='gray')
+        plt.show()
+        # ======== COMPARE WITH NUMPY =======
+
+        sys.exit()
+
+
         # feed forward
         layer0 = l0.feedforward(current_train_data)
-        layer1_full = l1.feedforward(layer0[:,:small_batch_size])
-        for patches in range(small_batch_size,400,small_batch_size):
-            layer1_full_temp = l1.feedforward(layer0[:,patches:patches+small_batch_size])
-            layer1_full = np.hstack([layer1_full,layer1_full_temp])
+        layer1_full = l1.feedforward(layer0)
+
+        # layer1_full = l1.feedforward(layer0[:,:small_batch_size])
+        # for patches in range(small_batch_size,400,small_batch_size):
+        #     layer1_full_temp = l1.feedforward(layer0[:,patches:patches+small_batch_size])
+        #     layer1_full = np.hstack([layer1_full,layer1_full_temp])
 
         layer2 = l2.feedforward(layer1_full)
-        layer3_full = l3.feedforward(layer2[:,:small_batch_size])
-        for patches in range(small_batch_size,300,small_batch_size):
-            layer3_full_temp = l3.feedforward(layer2[:,patches:patches+small_batch_size])
-            layer3_full = np.hstack([layer3_full,layer3_full_temp])
+        layer3_full = l3.feedforward(layer2)
+
+        # layer3_full = l3.feedforward(layer2[:,:small_batch_size])
+        # for patches in range(small_batch_size,300,small_batch_size):
+        #     layer3_full_temp = l3.feedforward(layer2[:,patches:patches+small_batch_size])
+        #     layer3_full = np.hstack([layer3_full,layer3_full_temp])
 
         layer4 = l4.feedforward(layer3_full)
-        layer5_full = l5.feedforward(layer4[:,:small_batch_size])
-        for patches in range(small_batch_size,100,small_batch_size):
-            layer5_full_temp = l5.feedforward(layer4[:,patches:patches+small_batch_size])
-            layer5_full = np.hstack([layer5_full,layer5_full_temp])
+        layer5_full = l5.feedforward(layer4)
+
+        # layer5_full = l5.feedforward(layer4[:,:small_batch_size])
+        # for patches in range(small_batch_size,100,small_batch_size):
+        #     layer5_full_temp = l5.feedforward(layer4[:,patches:patches+small_batch_size])
+        #     layer5_full = np.hstack([layer5_full,layer5_full_temp])
 
         layer6 = l6.feedforward(layer5_full)
 
@@ -255,7 +336,7 @@ for iter in range(num_epoch):
         cost = - np.mean(current_train_data_label * np.log(final_soft + 1e-20) + (1.0-current_train_data_label) * np.log(1.0-final_soft + 1e-20))
         correct_prediction = np.equal(np.argmax(final_soft, 1), np.argmax(current_train_data_label, 1))
         accuracy = np.mean(correct_prediction)
-        print('Current Iter: ', iter,' batch index: ', current_batch_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
+        print('Current Iter: ', iter,' batch index: ', current_batch_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\n')
         train_cota = train_cota + cost
         train_acca = train_acca + accuracy
 
@@ -268,23 +349,26 @@ for iter in range(num_epoch):
 
         # back prop
         grad6 = l6.backprop(final_soft-current_train_data_label)
+        grad5_full = l5.backprop(grad6)
 
-        grad5_full = l5.backprop(grad6[:,:small_batch_size])
-        for patches in range(small_batch_size,100,small_batch_size):
-            grad5_full_temp = l5.backprop(grad6[:,patches:patches+small_batch_size])
-            grad5_full = np.hstack([grad5_full,grad5_full_temp])
+        # grad5_full = l5.backprop(grad6[:,:small_batch_size])
+        # for patches in range(small_batch_size,100,small_batch_size):
+        #     grad5_full_temp = l5.backprop(grad6[:,patches:patches+small_batch_size])
+        #     grad5_full = np.hstack([grad5_full,grad5_full_temp])
         grad4 = l4.backprop(grad5_full)
+        grad3_full = l3.backprop(grad4)
 
-        grad3_full = l3.backprop(grad4[:,:small_batch_size])
-        for patches in range(small_batch_size,300,small_batch_size):
-            grad3_full_temp = l3.backprop(grad4[:,patches:patches+small_batch_size])
-            grad3_full = np.hstack([grad3_full,grad3_full_temp])
+        # grad3_full = l3.backprop(grad4[:,:small_batch_size])
+        # for patches in range(small_batch_size,300,small_batch_size):
+        #     grad3_full_temp = l3.backprop(grad4[:,patches:patches+small_batch_size])
+        #     grad3_full = np.hstack([grad3_full,grad3_full_temp])
         grad2 = l2.backprop(grad3_full)
+        grad1_full = l1.backprop(grad2)
 
-        grad1_full = l1.backprop(grad2[:,:small_batch_size])
-        for patches in range(small_batch_size,400,small_batch_size):
-            grad1_full_temp = l1.backprop(grad2[:,patches:patches+small_batch_size])
-            grad1_full = np.hstack([grad1_full,grad1_full_temp])
+        # grad1_full = l1.backprop(grad2[:,:small_batch_size])
+        # for patches in range(small_batch_size,400,small_batch_size):
+        #     grad1_full_temp = l1.backprop(grad2[:,patches:patches+small_batch_size])
+        #     grad1_full = np.hstack([grad1_full,grad1_full_temp])
         grad0 = l0.backprop(grad1_full)
 
     if iter % print_size==0:
