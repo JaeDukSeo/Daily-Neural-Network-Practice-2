@@ -156,7 +156,7 @@ class Decorrelated_Batch_Norm():
         self.input = input
         self.mean = (1./self.m) * np.sum(input,axis=0)
         self.sigma = (1./self.m) * (input - self.mean).T.dot(input - self.mean)
-        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
+        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma+EPS)
         self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
         self.whiten = (input-self.mean).dot(self.U)
         return self.whiten
@@ -199,7 +199,7 @@ num_epoch = 100
 batch_size = 50
 print_size = 1
 
-learning_rate = 0.003
+learning_rate = 0.001
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 small_batch_size = 100
 
@@ -212,35 +212,6 @@ l3 = Decorrelated_Batch_Norm(batch_size,300)
 l4 = np_FNN(300,100)
 l5 = Decorrelated_Batch_Norm(batch_size,100)
 l6 = np_FNN(100,10)
-
-def zca_whiten(X):
-    """
-    Applies ZCA whitening to the data (X)
-    http://xcorr.net/2011/05/27/whiten-a-matrix-matlab-code/
-
-    X: numpy 2d array
-        input data, rows are data points, columns are features
-
-    Returns: ZCA whitened 2d array
-    """
-    assert(X.ndim == 2)
-    EPS = 10e-5
-
-    #   covariance matrix
-    cov = np.dot(X.T, X)
-    #   d = (lambda1, lambda2, ..., lambdaN)
-    d, E = np.linalg.eigh(cov)
-    #   D = diag(d) ^ (-1/2)
-    D = np.diag(1. / np.sqrt(d + EPS))
-    #   W_zca = E * D * E.T
-    W = np.dot(np.dot(E, D), E.T)
-    # W = E.dot(D.dot(E.T))
-    X_white = np.dot(X, W)
-
-    # X_white = X.dot(np.dot(E, D))
-    # X_white = X_white.dot(E)
-
-    return X_white
 
 # train
 for iter in range(num_epoch):
