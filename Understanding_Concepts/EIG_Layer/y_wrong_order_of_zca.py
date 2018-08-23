@@ -136,8 +136,9 @@ class Decorrelated_Batch_Norm():
         self.mean = (1./self.m) * np.sum(input,axis=0)
         self.sigma = (1./self.m) * (input - self.mean).T.dot(input - self.mean)
         self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
-        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
+        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))
         self.whiten = (input-self.mean).dot(self.U)
+        self.whiten = self.whiten.dot(self.eigvector)
         return self.whiten
 
     def backprop(self,grad,EPS=1e-5):
@@ -278,12 +279,12 @@ for iter in range(num_epoch):
         plt.imshow(
         zca[0].reshape((28,28)),cmap='gray'
         )
-        plt.title('not mine')
+        plt.title('proper')
         plt.subplot(1, 2, 2)
         plt.imshow(
         layer0_test[0].reshape((28,28)),cmap='gray'
         )
-        plt.title('mine')
+        plt.title('authors')
         plt.show()
         sys.exit()
 
