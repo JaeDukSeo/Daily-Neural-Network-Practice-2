@@ -202,16 +202,18 @@ num_epoch = 100
 batch_size = 100
 print_size = 1
 
+# learning_rate = 0.0003
 learning_rate = 0.0003
-beta1,beta2,adam_e = 0.9,0.9,1e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-8
+# small_batch_size = 2
 small_batch_size = 2
 
 # class
 l0 = np_FNN(784,400)
 l1 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
-l2 = np_FNN(400,256)
+l2 = np_FNN(400,300)
 l3 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
-l4 = np_FNN(256,100)
+l4 = np_FNN(300,100)
 l5 = Decorrelated_Batch_Norm(batch_size,small_batch_size)
 l6 = np_FNN(100,10)
 
@@ -220,8 +222,7 @@ for iter in range(num_epoch):
 
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
-
-    # train_data,train_label = shuffle(train_data,train_label)
+    train_data,train_label = shuffle(train_data,train_label)
 
     for current_batch_index in range(0,len(train_data),batch_size):
 
@@ -237,7 +238,7 @@ for iter in range(num_epoch):
 
         layer2 = l2.feedforward(layer1_full)
         layer3_full = l3.feedforward(layer2[:,:small_batch_size])
-        for patches in range(small_batch_size,256,small_batch_size):
+        for patches in range(small_batch_size,300,small_batch_size):
             layer3_full_temp = l3.feedforward(layer2[:,patches:patches+small_batch_size])
             layer3_full = np.hstack([layer3_full,layer3_full_temp])
 
@@ -275,7 +276,7 @@ for iter in range(num_epoch):
         grad4 = l4.backprop(grad5_full)
 
         grad3_full = l3.backprop(grad4[:,:small_batch_size])
-        for patches in range(small_batch_size,256,small_batch_size):
+        for patches in range(small_batch_size,300,small_batch_size):
             grad3_full_temp = l3.backprop(grad4[:,patches:patches+small_batch_size])
             grad3_full = np.hstack([grad3_full,grad3_full_temp])
         grad2 = l2.backprop(grad3_full)
