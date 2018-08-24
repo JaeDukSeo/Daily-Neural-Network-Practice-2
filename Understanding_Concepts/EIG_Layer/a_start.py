@@ -137,7 +137,8 @@ class Batch_Normalization_layer():
         self.input = input
         self.mean  = (1./self.m) * np.sum(input,axis = 0 )
         self.std   = (1./self.m) * np.sum((self.input-self.mean) ** 2,axis = 0 )
-        self.x_hat = (input - self.mean) / np.sqrt(self.std + EPS)
+        # self.x_hat = (input - self.mean) / np.sqrt(self.std + EPS)
+        self.x_hat = (input - self.mean) / (input.std(0)+EPS)
         return self.x_hat
 
     def backprop(self,grad,EPS=1e-10):
@@ -265,14 +266,15 @@ for iter in range(num_epoch):
         current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
 
         # ====
-        # train_center = l0_center.feedforward(current_train_data)
-        train_center = current_train_data
+        train_center = l0_center.feedforward(current_train_data)
+        # train_center = current_train_data
 
-        # train_decor  = l0_decor.feedforward(current_train_data)
-        train_decor = zca_temp(current_train_data.T).T
-        # train_decor = (current_train_data-np.mean(current_train_data,0) ) / (np.std(current_train_data,0)+1e-5)
+        # train_batch  = l0_batch.feedforward(current_train_data)
+        # train_batch = (current_train_data-np.mean(current_train_data,0) ) / (np.std(current_train_data,0)+1e-5)
+        # train_batch = current_train_data-current_train_data.mean(0)
+        train_batch = (current_train_data - np.mean(current_train_data,0)) / (np.std(current_train_data,0)+1e-10)
 
-        train_batch  = l0_batch.feedforward(current_train_data)
+        train_decor  = l0_decor.feedforward(current_train_data)
 
         testing = current_train_data.T
         current_temp = testing - (testing-testing.mean(0))/testing.std(0)
@@ -280,14 +282,15 @@ for iter in range(num_epoch):
         S,U = np.linalg.eigh(cov_temp)
         zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
         train_final = current_temp.dot(zca_matrix).T
+        # train_final = zca_temp(current_train_data.T).T
 
         for ii in range(10):
             plt.subplot(2,4,5)
             plt.hist(train_center[ii], bins='auto')  # problem
             plt.subplot(2,4,6)
-            plt.hist(train_decor[ii], bins='auto')
-            plt.subplot(2,4,7)
             plt.hist(train_batch[ii], bins='auto')
+            plt.subplot(2,4,7)
+            plt.hist(train_decor[ii], bins='auto')
             plt.subplot(2,4,8)
             plt.hist(train_final[ii], bins='auto') # problem
 
@@ -301,19 +304,19 @@ for iter in range(num_epoch):
 
             plt.subplot(2,4,2)
             plt.title(
-            'mean: ' + str(np.around(train_decor[ii].mean(),4)) + '\n' +
-            'std: ' + str(np.around(train_decor[ii].std(),4))
-             )
-            train_decor[ii] = (train_decor[ii]-train_decor[ii].min())/(train_decor[ii].max()-train_decor[ii].min())
-            plt.imshow(train_decor[ii].reshape((28,28)),cmap='gray')
-
-            plt.subplot(2,4,3)
-            plt.title(
             'mean: ' + str(np.around(train_batch[ii].mean(),4)) + '\n' +
             'std: ' + str(np.around(train_batch[ii].std(),4))
              )
             train_batch[ii] = (train_batch[ii]-train_batch[ii].min())/(train_batch[ii].max()-train_batch[ii].min())
             plt.imshow(train_batch[ii].reshape((28,28)),cmap='gray')
+
+            plt.subplot(2,4,3)
+            plt.title(
+            'mean: ' + str(np.around(train_decor[ii].mean(),4)) + '\n' +
+            'std: ' + str(np.around(train_decor[ii].std(),4))
+             )
+            train_decor[ii] = (train_decor[ii]-train_decor[ii].min())/(train_decor[ii].max()-train_decor[ii].min())
+            plt.imshow(train_decor[ii].reshape((28,28)),cmap='gray')
 
             plt.subplot(2,4,4)
             plt.title(
