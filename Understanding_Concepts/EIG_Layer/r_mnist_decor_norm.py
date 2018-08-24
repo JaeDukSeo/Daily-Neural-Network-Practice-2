@@ -164,48 +164,52 @@ class Decorrelated_Batch_Norm():
     def backprop(self,grad,EPS=1e-5):
 
         # d_U = (self.input-self.mean).T.dot(grad)
-        #
-        # d_eig_value  = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
-        # d_eig_vector =d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + \
-        #               self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(d_U)
-        #
-        # E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
-        #     np.expand_dims(self.eigenval  ,1).dot(np.ones((1,self.n)))
-        # K_matrix = 1./(E + EPS) - np.eye(self.n)
-        # np.fill_diagonal(d_eig_value,0.0)
-        #
-        # d_sigma = self.eigvector.dot(
-        #             K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
-        #             ).dot(self.eigvector.T)
-        # d_mean =  (-1)*np.sum(grad.dot(self.U.T),0) + (-2./self.m) * np.sum((self.input-self.mean).dot(d_sigma),0) * 2.0
-        #
-        # d_x = grad.dot(self.U.T) + (1./self.m) * d_mean + (2./self.m) * (self.input-self.mean).dot(d_sigma) * 2.0
+        d_U = np.sum((self.input-self.mean),axis=0)[np.newaxis,:].T.dot(np.sum(grad,axis=0)[np.newaxis,:])
 
-        # Paper Approach Sum and Dot Product
-        d_U = np.sum(self.input-self.mean,axis=0)[np.newaxis,:].T.dot(np.sum(grad,axis=0)[np.newaxis,:])
-
-        d_eig_value = self.eigvector.T.dot(d_U) * (-1/2) * np.diag(1. / (self.eigenval+EPS) ** 1.5 )
-        # d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + self.whiten.T.dot(grad)
-        # Paper Approach Sum and Dot Product
-        d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + np.sum(self.whiten,0)[np.newaxis,:].T.dot( np.sum(grad,0)[np.newaxis,:] )
+        d_eig_value  = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
+        d_eig_vector =d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + \
+                      self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(d_U)
 
         E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
             np.expand_dims(self.eigenval  ,1).dot(np.ones((1,self.n)))
-        K_matrix = 1./(E + np.eye(self.n)) - np.eye(self.n)
+        K_matrix = 1./(E + EPS) - np.eye(self.n)
         np.fill_diagonal(d_eig_value,0.0)
 
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
-        d_simg_sym = (0.5) * (d_sigma.T + d_sigma)
+        d_mean =  (-1)*np.sum(grad.dot(self.U.T),0) + (-2./self.m) * np.sum((self.input-self.mean),0).dot(d_sigma) * 2.0
 
-        # d_mean = np.sum(grad.dot(self.U.T) * -1.0,0) + (-2./self.m) * np.sum( (self.input - self.mean).dot(d_simg_sym), 0  )
-        # Paper Approach Sum and Dot Product
-        d_mean = np.sum(grad,0).dot(self.U.T) * -1.0 + (-2./self.m) * np.sum( (self.input - self.mean), 0).dot(d_simg_sym)
+        d_x = grad.dot(self.U.T) + (1./self.m) * d_mean + (2./self.m) * (self.input-self.mean).dot(d_sigma) * 2.0
 
-        d_x = grad.dot(self.U.T) + \
-              (2./self.m) * (self.input - self.mean).dot(d_simg_sym) + \
-              (1./self.m) * d_mean
+        # ========= ========
+        # # Paper Approach Sum and Dot Product
+        # d_U = np.sum(self.input-self.mean,axis=0)[np.newaxis,:].T.dot(np.sum(grad,axis=0)[np.newaxis,:])
+        #
+        # d_eig_value = self.eigvector.T.dot(d_U) * (-1/2) * np.diag(1. / (self.eigenval+EPS) ** 1.5 )
+        # # d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) + self.whiten.T.dot(grad)
+        # # Paper Approach Sum and Dot Product
+        # d_eig_vector = d_U.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T) +
+        # np.sum(self.whiten,0)[np.newaxis,:].T.dot( np.sum(grad,0)[np.newaxis,:] )
+
+        # E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
+        #     np.expand_dims(self.eigenval  ,1).dot(np.ones((1,self.n)))
+        # K_matrix = 1./(E + np.eye(self.n)) - np.eye(self.n)
+        # np.fill_diagonal(d_eig_value,0.0)
+        #
+        # d_sigma = self.eigvector.dot(
+        #             K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
+        #             ).dot(self.eigvector.T)
+        # d_simg_sym = (0.5) * (d_sigma.T + d_sigma)
+        #
+        # # d_mean = np.sum(grad.dot(self.U.T) * -1.0,0) + (-2./self.m) * np.sum( (self.input - self.mean).dot(d_simg_sym), 0  )
+        # # Paper Approach Sum and Dot Product
+        # d_mean = np.sum(grad,0).dot(self.U.T) * -1.0 + (-2./self.m) * np.sum( (self.input - self.mean), 0).dot(d_simg_sym)
+        #
+        # d_x = grad.dot(self.U.T) + \
+        #       (2./self.m) * (self.input - self.mean).dot(d_simg_sym) + \
+        #       (1./self.m) * d_mean
+        # ========= ========
 
         return d_x
 
