@@ -178,7 +178,7 @@ class Decorrelated_Batch_Norm():
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
-        d_mean =  (-1)*np.sum(grad.dot(self.U.T),0) + (-2./self.m) * np.sum((self.input-self.mean),0).dot(d_sigma) * 2.0
+        d_mean =  (-1)*np.sum(grad,0).dot(self.U.T) + (-2./self.m) * np.sum((self.input-self.mean),0).dot(d_sigma) * 2.0
 
         d_x = grad.dot(self.U.T) + (1./self.m) * d_mean + (2./self.m) * (self.input-self.mean).dot(d_sigma) * 2.0
 
@@ -215,22 +215,20 @@ class Decorrelated_Batch_Norm():
 
 # hyper
 num_epoch = 100
-batch_size = 100
+batch_size = 20
 print_size = 1
 
-learning_rate = 0.003
+learning_rate = 0.0005
 beta1,beta2,adam_e = 0.9,0.9,1e-8
-small_batch_size = 100
+small_image_patch = 100
 
+one,two = 14,7
 # class
-l0_test = Decorrelated_Batch_Norm(batch_size,784)
-l0 = np_FNN(784,400)
-l1 = Decorrelated_Batch_Norm(batch_size,400)
-l2 = np_FNN(400,300)
-l3 = Decorrelated_Batch_Norm(batch_size,300)
-l4 = np_FNN(300,100)
-l5 = Decorrelated_Batch_Norm(batch_size,100)
-l6 = np_FNN(100,10)
+l0 = np_FNN(784,one*one)
+l1 = Decorrelated_Batch_Norm(batch_size,one*one)
+l2 = np_FNN(one*one,two*two)
+l3 = Decorrelated_Batch_Norm(batch_size,two*two)
+l4 = np_FNN(two*two,10)
 
 # train
 for iter in range(num_epoch):
@@ -252,12 +250,9 @@ for iter in range(num_epoch):
         layer3_full = l3.feedforward(layer2)
 
         layer4 = l4.feedforward(layer3_full)
-        layer5_full = l5.feedforward(layer4)
-
-        layer6 = l6.feedforward(layer5_full)
 
         # cost
-        final_soft = stable_softmax(layer6)
+        final_soft = stable_softmax(layer4)
         cost = - np.mean(current_train_data_label * np.log(final_soft + 1e-20) + (1.0-current_train_data_label) * np.log(1.0-final_soft + 1e-20))
         correct_prediction = np.equal(np.argmax(final_soft, 1), np.argmax(current_train_data_label, 1))
         accuracy = np.mean(correct_prediction)
@@ -273,10 +268,7 @@ for iter in range(num_epoch):
         # print('--------------------\n')
 
         # back prop
-        grad6 = l6.backprop(final_soft-current_train_data_label)
-
-        grad5_full = l5.backprop(grad6)
-        grad4 = l4.backprop(grad5_full)
+        grad4 = l4.backprop(final_soft-current_train_data_label)
 
         grad3_full = l3.backprop(grad4)
         grad2 = l2.backprop(grad3_full)
