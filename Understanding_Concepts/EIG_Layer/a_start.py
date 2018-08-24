@@ -156,7 +156,8 @@ class Decorrelated_Batch_Norm():
     def feedforward(self,input,EPS=1e-5):
         self.input = input
         self.mean = (1./self.m) * np.sum(input,axis=0)
-        self.sigma = (1./self.m) * (input - self.mean).T.dot(input - self.mean)
+        # self.sigma = (1./self.m) * (input - self.mean).T.dot(input - self.mean)
+        self.sigma = np.cov(input-self.mean,ddof=0,rowvar=False)
         self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
         self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
         self.whiten = (self.input-self.mean).dot(self.U)
@@ -231,6 +232,33 @@ def zca_temp(X):
     zca = np.dot(X,zca_matrix)    # zca is (N, 3072)
     return zca
 
+
+def zca_whiten(X):
+    """
+    Applies ZCA whitening to the data (X)
+    http://xcorr.net/2011/05/27/whiten-a-matrix-matlab-code/
+
+    X: numpy 2d array
+        input data, rows are data points, columns are features
+
+    Returns: ZCA whitened 2d array
+    """
+    assert(X.ndim == 2)
+    EPS = 10e-5
+
+    #   covariance matrix
+    cov = np.dot(X.T, X)
+    #   d = (lambda1, lambda2, ..., lambdaN)
+    d, E = np.linalg.eigh(cov)
+    #   D = diag(d) ^ (-1/2)
+    D = np.diag(1. / np.sqrt(d + EPS))
+    #   W_zca = E * D * E.T
+    W = np.dot(np.dot(E, D), E.T)
+
+    X_white = np.dot(X, W)
+
+    return X_white
+
 def batchnorm_forward(x,eps=1e-5):
     N, D = x.shape
 
@@ -284,7 +312,7 @@ for iter in range(num_epoch):
 
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
-    # train_data,train_label = shuffle(train_data,train_label)
+    train_data,train_label = shuffle(train_data,train_label)
 
     for current_batch_index in range(0,len(train_data),batch_size):
 
@@ -299,17 +327,25 @@ for iter in range(num_epoch):
         # train_batch = train_batch.T
         train_batch = batchnorm_forward(current_train_data.T).T
 
-        train_decor  = l0_decor.feedforward(current_train_data.T).T
+        # train_decor  = zca_whiten(current_train_data.T-current_train_data.T.mean(0)).T
+        testing = current_train_data.T  #( 784 100 )
+        current_temp =testing-testing.mean(0)
+        cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
+        S,U = np.linalg.eigh(cov_temp)
+        zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
+        train_decor = current_temp.dot(zca_matrix).T
+        # train_decor  = zca_whiten(current_train_data-current_train_data.mean(0))
 
-        testing = current_train_data.T
-        current_temp = testing - (testing-testing.mean(0))/testing.std(0)
+        testing = current_train_data.T  #( 784 100 )
+        current_temp = testing-(testing)/testing.std(0)
+        current_temp = current_temp - current_temp.mean(0)
         cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
         S,U = np.linalg.eigh(cov_temp)
         zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
         train_final = current_temp.dot(zca_matrix).T
         # train_final = zca_temp(current_train_data.T).T
 
-        for ii in range(20):
+        for ii in range(15):
 
             plt.figure(figsize=(15,5))
 
