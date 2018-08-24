@@ -19,8 +19,8 @@ from tensorflow.examples.tutorials.mnist import input_data
 from tensorflow.examples.tutorials.mnist import input_data
 
 # import data
-# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+# mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
 # Show some details and vis some of them
@@ -215,9 +215,9 @@ class Decorrelated_Batch_Norm():
 
 def zca_temp(X):
     X = X-(X-X.mean(axis=0)) / X.std(0)
-    # X = X-X.mean(axis=0)
+
     # compute the covariance of the image data
-    cov = np.cov(X,bias=False, ddof=0,rowvar=False)   # cov is (N, N)
+    cov = np.cov(X,bias=True, ddof=0,rowvar=False)   # cov is (N, N)
     # cov = X.T.dot(X)
     # singular value decomposition
     S,U = np.linalg.eigh(cov)     # U is (N, N), S is (N,)
@@ -265,15 +265,21 @@ for iter in range(num_epoch):
         current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
 
         # ====
-        train_center = l0_center.feedforward(current_train_data)
-        # train_center = current_train_data
+        # train_center = l0_center.feedforward(current_train_data)
+        train_center = current_train_data
 
         # train_decor  = l0_decor.feedforward(current_train_data)
-        # train_decor = zca_temp(current_train_data.T).T
-        train_decor = (current_train_data-np.mean(current_train_data) ) / (np.std(current_train_data)+1e-5)
+        train_decor = zca_temp(current_train_data.T).T
+        # train_decor = (current_train_data-np.mean(current_train_data,0) ) / (np.std(current_train_data,0)+1e-5)
 
         train_batch  = l0_batch.feedforward(current_train_data)
-        train_final  = l0_zca_white.feedforward(current_train_data-train_batch)
+
+        testing = current_train_data.T
+        current_temp = testing - (testing-testing.mean(0))/testing.std(0)
+        cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
+        S,U = np.linalg.eigh(cov_temp)
+        zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
+        train_final = current_temp.dot(zca_matrix).T
 
         for ii in range(10):
             plt.subplot(2,4,5)
@@ -284,9 +290,6 @@ for iter in range(num_epoch):
             plt.hist(train_batch[ii], bins='auto')
             plt.subplot(2,4,8)
             plt.hist(train_final[ii], bins='auto') # problem
-
-
-
 
             plt.subplot(2,4,1)
             plt.title(
