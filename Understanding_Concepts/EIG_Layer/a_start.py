@@ -299,7 +299,7 @@ for iter in range(num_epoch):
         # train_batch = train_batch.T
         train_batch = batchnorm_forward(current_train_data.T).T
 
-        train_decor  = l0_decor.feedforward(current_train_data)
+        train_decor  = l0_decor.feedforward(current_train_data.T).T
 
         testing = current_train_data.T
         current_temp = testing - (testing-testing.mean(0))/testing.std(0)
@@ -309,63 +309,73 @@ for iter in range(num_epoch):
         train_final = current_temp.dot(zca_matrix).T
         # train_final = zca_temp(current_train_data.T).T
 
-        for ii in range(10):
+        for ii in range(20):
 
-            plt.figure(figsize=(8,4))
-            plt.subplot(2,5,6)
+            plt.figure(figsize=(15,5))
+
+            plt.subplot(3,5,6)
             plt.hist(train_center[ii], bins='auto')  # problem
-            plt.subplot(2,5,7)
+            plt.subplot(3,5,7)
             plt.hist(train_batch[ii], bins='auto')
-            plt.subplot(2,5,8)
+            plt.subplot(3,5,8)
             plt.hist(train_decor[ii], bins='auto')
-            plt.subplot(2,5,9)
+            plt.subplot(3,5,9)
             plt.hist(train_final[ii], bins='auto') # problem
-            plt.subplot(2,5,10)
-            # plt.hist(current_train_data[ii], bins='auto') # problem
-            sns.heatmap(np.cov(current_train_data[ii].T,current_train_data[ii]))
+            plt.subplot(3,5,10)
+            plt.hist(current_train_data[ii], bins='auto') # problem
 
-            plt.subplot(2,5,1)
+            plt.subplot(3,5,11)
+            plt.axis('off')
+            sns.heatmap(np.cov(train_center))
+            plt.subplot(3,5,12)
+            plt.axis('off')
+            sns.heatmap(np.cov(train_batch))
+            plt.subplot(3,5,13)
+            plt.axis('off')
+            sns.heatmap(np.cov(train_decor))
+            plt.subplot(3,5,14)
+            plt.axis('off')
+            sns.heatmap(np.cov(train_final))
+            plt.subplot(3,5,15)
+            plt.axis('off')
+            sns.heatmap(np.cov(current_train_data))
+
+            plt.subplot(3,5,1)
             plt.title(
             'mean: ' + str(np.around(train_center[ii].mean(),4)) + '\n' +
             'std: ' + str(np.around(train_center[ii].std(),4))
              )
-            train_center[ii] = (train_center[ii]-train_center[ii].min())/(train_center[ii].max()-train_center[ii].min())
-            plt.imshow(train_center[ii].reshape((28,28)),cmap='gray')
+            plt.imshow( ((train_center[ii]-train_center[ii].min())/(train_center[ii].max()-train_center[ii].min()) ).reshape((28,28)),cmap='gray')
 
-            plt.subplot(2,5,2)
+            plt.subplot(3,5,2)
             plt.title(
             'mean: ' + str(np.around(train_batch[ii].mean(),4)) + '\n' +
             'std: ' + str(np.around(train_batch[ii].std(),4))
              )
-            train_batch[ii] = (train_batch[ii]-train_batch[ii].min())/(train_batch[ii].max()-train_batch[ii].min())
-            plt.imshow(train_batch[ii].reshape((28,28)),cmap='gray')
+            plt.imshow(((train_batch[ii]-train_batch[ii].min())/(train_batch[ii].max()-train_batch[ii].min())).reshape((28,28)),cmap='gray')
 
-            plt.subplot(2,5,3)
+            plt.subplot(3,5,3)
             plt.title(
             'mean: ' + str(np.around(train_decor[ii].mean(),4)) + '\n' +
             'std: ' + str(np.around(train_decor[ii].std(),4))
              )
-            train_decor[ii] = (train_decor[ii]-train_decor[ii].min())/(train_decor[ii].max()-train_decor[ii].min())
-            plt.imshow(train_decor[ii].reshape((28,28)),cmap='gray')
+            plt.imshow(((train_decor[ii]-train_decor[ii].min())/(train_decor[ii].max()-train_decor[ii].min())).reshape((28,28)),cmap='gray')
 
-            plt.subplot(2,5,4)
+            plt.subplot(3,5,4)
             plt.title(
             'mean: ' + str(np.around(train_final[ii].mean(),4)) + '\n' +
             'std: ' + str(np.around(train_final[ii].std(),4))
              )
-            train_final[ii] = (train_final[ii]-train_final[ii].min())/(train_final[ii].max()-train_final[ii].min())
-            plt.imshow(train_final[ii].reshape((28,28)),cmap='gray')
+            plt.imshow(((train_final[ii]-train_final[ii].min())/(train_final[ii].max()-train_final[ii].min())).reshape((28,28)),cmap='gray')
 
-            plt.subplot(2,5,5)
+            plt.subplot(3,5,5)
             plt.title(
             'mean: ' + str(np.around(current_train_data[ii].mean(),4)) + '\n' +
             'std: ' + str(np.around(current_train_data[ii].std(),4))
              )
-            current_train_data[ii] = (current_train_data[ii]-current_train_data[ii].min())/(current_train_data[ii].max()-current_train_data[ii].min())
-            plt.imshow(current_train_data[ii].reshape((28,28)),cmap='gray')
-
-
+            plt.imshow( ((current_train_data[ii]-current_train_data[ii].min())/(current_train_data[ii].max()-current_train_data[ii].min())).reshape((28,28)),cmap='gray')
             plt.show()
+            plt.close('all')
         sys.exit()
         # ====
 
