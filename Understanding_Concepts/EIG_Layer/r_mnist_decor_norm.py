@@ -178,9 +178,9 @@ class Decorrelated_Batch_Norm():
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
-        d_mean =  (-1)*np.sum(grad,0).dot(self.U.T) + (-2./self.m) * np.sum((self.input-self.mean),0).dot(d_sigma) * 2.0
+        d_mean =  (-1)*np.sum(grad,0).dot(self.U.T) + (-2./self.m) * np.sum((self.input-self.mean),0).dot(d_sigma) 
 
-        d_x = grad.dot(self.U.T) + (1./self.m) * d_mean + (2./self.m) * (self.input-self.mean).dot(d_sigma) * 2.0
+        d_x = grad.dot(self.U.T) + (1./self.m) * d_mean + (2./self.m) * (self.input-self.mean).dot(d_sigma)
 
         # ========= ========
         # # Paper Approach Sum and Dot Product
@@ -222,8 +222,9 @@ learning_rate = 0.0005
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 small_image_patch = 100
 
-one,two = 14,7
+one,two = 20,10
 # class
+l0_start = Decorrelated_Batch_Norm(784,784)
 l0 = np_FNN(784,one*one)
 l1 = Decorrelated_Batch_Norm(batch_size,one*one)
 l2 = np_FNN(one*one,two*two)
@@ -243,7 +244,8 @@ for iter in range(num_epoch):
         current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
 
         # feed forward
-        layer0 = l0.feedforward(current_train_data)
+        layer0_start =l0_start.feedforward(current_train_data)
+        layer0 = l0.feedforward(layer0_start)
         layer1_full = l1.feedforward(layer0)
 
         layer2 = l2.feedforward(layer1_full)
