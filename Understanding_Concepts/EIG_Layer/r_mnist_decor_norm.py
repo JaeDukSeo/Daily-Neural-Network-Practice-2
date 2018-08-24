@@ -16,10 +16,11 @@ np.set_printoptions(precision = 3,suppress =True)
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
+from tensorflow.examples.tutorials.mnist import input_data
 
 # import data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-# mnist = input_data.read_data_sets('../../Dataset/fashionmnist/', one_hot=True)
+# mnist = input_data.read_data_sets('../../Dataset/fashionmnist/', source_url='http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/')
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
 # Show some details and vis some of them
@@ -96,16 +97,15 @@ class zca_whiten_layer():
         self.moving_sigma = 0
         self.moving_mean = 0
 
-    def feedforward(self,input,EPS=1e-10):
+    def feedforward(self,input,EPS=1e-5):
         self.input = input
-        self.sigma =  (1./self.m) * input.T.dot(input)
+        self.sigma = (1./self.m) * (input).T.dot(input)
         self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
-        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))
-        self.whiten = input.dot(self.U)
-        self.zca = self.whiten.dot(self.eigvector)
-        return self.zca
+        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
+        self.whiten = (self.input).dot(self.U)
+        return self.whiten
 
-    def backprop(self,grad,EPS=1e-10):
+    def backprop(self,grad,EPS=1e-5):
         d_eig_vector = self.whiten.T.dot(grad) + \
                        self.input.T.dot(grad.dot(self.eigvector.T)).dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T)
 
@@ -156,7 +156,7 @@ class Decorrelated_Batch_Norm():
         self.input = input
         self.mean = (1./self.m) * np.sum(input,axis=0)
         self.sigma = (1./self.m) * (input - self.mean).T.dot(input - self.mean)
-        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma+EPS)
+        self.eigenval,self.eigvector = np.linalg.eig(self.sigma)
         self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
         self.whiten = (self.input-self.mean).dot(self.U)
         return self.whiten
@@ -178,9 +178,9 @@ class Decorrelated_Batch_Norm():
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
-        d_mean =  (-1)*np.sum(grad,0).dot(self.U.T) + (-2./self.m) * np.sum((self.input-self.mean),0).dot(d_sigma) 
+        d_mean =  (-1)*np.sum(grad,0).dot(self.U.T) + (-2./self.m) * np.sum((self.input-self.mean),0).dot(d_sigma) * 2
 
-        d_x = grad.dot(self.U.T) + (1./self.m) * d_mean + (2./self.m) * (self.input-self.mean).dot(d_sigma)
+        d_x = grad.dot(self.U.T) + (1./self.m) * d_mean + (2./self.m) * (self.input-self.mean).dot(d_sigma) * 2
 
         # ========= ========
         # # Paper Approach Sum and Dot Product
@@ -213,39 +213,102 @@ class Decorrelated_Batch_Norm():
 
         return d_x
 
+def zca_temp(X):
+    X = X-(X-X.mean(axis=0)) / X.std(0)
+    # X = X-X.mean(axis=0)
+    # compute the covariance of the image data
+    cov = np.cov(X,bias=False, ddof=0,rowvar=False)   # cov is (N, N)
+    # cov = X.T.dot(X)
+    # singular value decomposition
+    S,U = np.linalg.eigh(cov)     # U is (N, N), S is (N,)
+    # build the ZCA matrix
+    epsilon = 1e-5
+    # zca_matrix = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + epsilon)), U.T))
+    zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + epsilon))).dot(U.T)
+    # transform the image data       zca_matrix is (N,N)
+    # zca = np.dot(zca_matrix, X)    # zca is (N, 3072)
+    zca = np.dot(X,zca_matrix)    # zca is (N, 3072)
+    return zca
+
 # hyper
 num_epoch = 100
-batch_size = 20
+batch_size = 100
 print_size = 1
 
 learning_rate = 0.0005
 beta1,beta2,adam_e = 0.9,0.9,1e-8
 small_image_patch = 100
 
-one,two = 20,10
+one,two = 20,15
 # class
-l0_start = Decorrelated_Batch_Norm(784,784)
+l0_start = Decorrelated_Batch_Norm(batch_size,784)
+l0_start_2 = zca_whiten_layer(batch_size,784)
 l0 = np_FNN(784,one*one)
 l1 = Decorrelated_Batch_Norm(batch_size,one*one)
 l2 = np_FNN(one*one,two*two)
 l3 = Decorrelated_Batch_Norm(batch_size,two*two)
 l4 = np_FNN(two*two,10)
+c = centering_layer(batch_size)
 
 # train
 for iter in range(num_epoch):
 
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
-    # train_data,train_label = shuffle(train_data,train_label)
+    train_data,train_label = shuffle(train_data,train_label)
 
     for current_batch_index in range(0,len(train_data),batch_size):
 
         current_train_data = train_data[current_batch_index:current_batch_index + batch_size]
         current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
 
+        # ====
+        # testing0 = c.feedforward(current_train_data)
+        testing0 = l0_start.feedforward(current_train_data.T).T
+        # testing1 = l0_start_2.feedforward(testing0_cen.T).T
+        testing1 = zca_temp(current_train_data.T).T
+
+        for ii in range(15):
+            print('=======')
+            print(testing0[ii].max())
+            print(testing0[ii].min())
+            print(testing0[ii].mean())
+            print(testing0[ii].std())
+
+            print('--------')
+            print(testing1[ii].max())
+            print(testing1[ii].min())
+            print(testing1[ii].mean())
+            print(testing1[ii].std())
+            print('=======')
+
+            plt.subplot(2,3,4)
+            plt.hist(testing0[ii], bins='auto')
+            plt.subplot(2,3,5)
+            plt.hist(testing1[ii], bins='auto')
+            plt.subplot(2,3,6)
+            plt.hist(current_train_data[ii], bins='auto')
+
+            testing0[ii] = (testing0[ii]-testing0[ii].min())/(testing0[ii].max()-testing0[ii].min())
+            testing1[ii] = (testing1[ii]-testing1[ii].min())/(testing1[ii].max()-testing1[ii].min())
+
+            plt.subplot(2,3,1)
+            plt.title(str(testing0[ii].mean()))
+            plt.imshow(testing0[ii].reshape((28,28)),cmap='gray')
+            plt.subplot(2,3,2)
+            plt.title(str(testing1[ii].mean()))
+            plt.imshow(testing1[ii].reshape((28,28)),cmap='gray')
+            plt.subplot(2,3,3)
+            plt.imshow(current_train_data[ii].reshape((28,28)),cmap='gray')
+
+
+            plt.show()
+        sys.exit()
+        # ====
+
+
         # feed forward
-        layer0_start =l0_start.feedforward(current_train_data)
-        layer0 = l0.feedforward(layer0_start)
+        layer0 = l0.feedforward(current_train_data)
         layer1_full = l1.feedforward(layer0)
 
         layer2 = l2.feedforward(layer1_full)
