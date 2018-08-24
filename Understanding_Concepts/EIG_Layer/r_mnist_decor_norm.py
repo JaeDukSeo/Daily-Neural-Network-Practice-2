@@ -19,8 +19,8 @@ from tensorflow.examples.tutorials.mnist import input_data
 from tensorflow.examples.tutorials.mnist import input_data
 
 # import data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-# mnist = input_data.read_data_sets('../../Dataset/fashionmnist/', source_url='http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/')
+# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
 # Show some details and vis some of them
@@ -156,7 +156,7 @@ class Decorrelated_Batch_Norm():
         self.input = input
         self.mean = (1./self.m) * np.sum(input,axis=0)
         self.sigma = (1./self.m) * (input - self.mean).T.dot(input - self.mean)
-        self.eigenval,self.eigvector = np.linalg.eig(self.sigma)
+        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
         self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
         self.whiten = (self.input-self.mean).dot(self.U)
         return self.whiten
@@ -241,21 +241,23 @@ small_image_patch = 100
 
 one,two = 20,15
 # class
-l0_start = Decorrelated_Batch_Norm(batch_size,784)
-l0_start_2 = zca_whiten_layer(batch_size,784)
+l0_center = centering_layer(batch_size)
+l0_decor = Decorrelated_Batch_Norm(batch_size,784)
+l0_batch = Batch_Normalization_layer(batch_size,784)
+l0_zca_white = zca_whiten_layer(batch_size,784)
+
 l0 = np_FNN(784,one*one)
 l1 = Decorrelated_Batch_Norm(batch_size,one*one)
 l2 = np_FNN(one*one,two*two)
 l3 = Decorrelated_Batch_Norm(batch_size,two*two)
 l4 = np_FNN(two*two,10)
-c = centering_layer(batch_size)
 
 # train
 for iter in range(num_epoch):
 
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
-    train_data,train_label = shuffle(train_data,train_label)
+    # train_data,train_label = shuffle(train_data,train_label)
 
     for current_batch_index in range(0,len(train_data),batch_size):
 
@@ -263,43 +265,60 @@ for iter in range(num_epoch):
         current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
 
         # ====
-        # testing0 = c.feedforward(current_train_data)
-        testing0 = l0_start.feedforward(current_train_data.T).T
-        # testing1 = l0_start_2.feedforward(testing0_cen.T).T
-        testing1 = zca_temp(current_train_data.T).T
+        train_center = l0_center.feedforward(current_train_data)
+        # train_center = current_train_data
 
-        for ii in range(15):
-            print('=======')
-            print(testing0[ii].max())
-            print(testing0[ii].min())
-            print(testing0[ii].mean())
-            print(testing0[ii].std())
+        # train_decor  = l0_decor.feedforward(current_train_data)
+        # train_decor = zca_temp(current_train_data.T).T
+        train_decor = (current_train_data-np.mean(current_train_data) ) / (np.std(current_train_data)+1e-5)
 
-            print('--------')
-            print(testing1[ii].max())
-            print(testing1[ii].min())
-            print(testing1[ii].mean())
-            print(testing1[ii].std())
-            print('=======')
+        train_batch  = l0_batch.feedforward(current_train_data)
+        train_final  = l0_zca_white.feedforward(current_train_data-train_batch)
 
-            plt.subplot(2,3,4)
-            plt.hist(testing0[ii], bins='auto')
-            plt.subplot(2,3,5)
-            plt.hist(testing1[ii], bins='auto')
-            plt.subplot(2,3,6)
-            plt.hist(current_train_data[ii], bins='auto')
+        for ii in range(10):
+            plt.subplot(2,4,5)
+            plt.hist(train_center[ii], bins='auto')  # problem
+            plt.subplot(2,4,6)
+            plt.hist(train_decor[ii], bins='auto')
+            plt.subplot(2,4,7)
+            plt.hist(train_batch[ii], bins='auto')
+            plt.subplot(2,4,8)
+            plt.hist(train_final[ii], bins='auto') # problem
 
-            testing0[ii] = (testing0[ii]-testing0[ii].min())/(testing0[ii].max()-testing0[ii].min())
-            testing1[ii] = (testing1[ii]-testing1[ii].min())/(testing1[ii].max()-testing1[ii].min())
 
-            plt.subplot(2,3,1)
-            plt.title(str(testing0[ii].mean()))
-            plt.imshow(testing0[ii].reshape((28,28)),cmap='gray')
-            plt.subplot(2,3,2)
-            plt.title(str(testing1[ii].mean()))
-            plt.imshow(testing1[ii].reshape((28,28)),cmap='gray')
-            plt.subplot(2,3,3)
-            plt.imshow(current_train_data[ii].reshape((28,28)),cmap='gray')
+
+
+            plt.subplot(2,4,1)
+            plt.title(
+            'mean: ' + str(np.around(train_center[ii].mean(),4)) + '\n' +
+            'std: ' + str(np.around(train_center[ii].std(),4))
+             )
+            train_center[ii] = (train_center[ii]-train_center[ii].min())/(train_center[ii].max()-train_center[ii].min())
+            plt.imshow(train_center[ii].reshape((28,28)),cmap='gray')
+
+            plt.subplot(2,4,2)
+            plt.title(
+            'mean: ' + str(np.around(train_decor[ii].mean(),4)) + '\n' +
+            'std: ' + str(np.around(train_decor[ii].std(),4))
+             )
+            train_decor[ii] = (train_decor[ii]-train_decor[ii].min())/(train_decor[ii].max()-train_decor[ii].min())
+            plt.imshow(train_decor[ii].reshape((28,28)),cmap='gray')
+
+            plt.subplot(2,4,3)
+            plt.title(
+            'mean: ' + str(np.around(train_batch[ii].mean(),4)) + '\n' +
+            'std: ' + str(np.around(train_batch[ii].std(),4))
+             )
+            train_batch[ii] = (train_batch[ii]-train_batch[ii].min())/(train_batch[ii].max()-train_batch[ii].min())
+            plt.imshow(train_batch[ii].reshape((28,28)),cmap='gray')
+
+            plt.subplot(2,4,4)
+            plt.title(
+            'mean: ' + str(np.around(train_final[ii].mean(),4)) + '\n' +
+            'std: ' + str(np.around(train_final[ii].std(),4))
+             )
+            train_final[ii] = (train_final[ii]-train_final[ii].min())/(train_final[ii].max()-train_final[ii].min())
+            plt.imshow(train_final[ii].reshape((28,28)),cmap='gray')
 
 
             plt.show()
