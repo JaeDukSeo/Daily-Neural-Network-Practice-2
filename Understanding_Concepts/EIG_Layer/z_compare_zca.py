@@ -297,7 +297,7 @@ class standardization_layer():
     def feedforward(self,input):
         self.input_mean = input.mean(0)
         self.input_std  = np.sqrt(np.mean(abs(input - self.input_mean) ** 2,0))
-        return (input-self.input_mean) / self.input_std
+        return (input-self.input_mean) / (self.input_std+10e-5)
 
     def backprop(self,grad):
         pass
@@ -305,7 +305,7 @@ class standardization_layer():
 
 # hyper
 num_epoch = 100
-batch_size = 200
+batch_size = 100
 print_size = 1
 
 learning_rate = 0.0005
@@ -347,8 +347,8 @@ for iter in range(num_epoch):
         train_center_D = current_train_data - current_train_data.mean(axis=0)
         train_center_N = current_train_data - current_train_data.mean(axis=1)[:,np.newaxis]
 
-        train_batch_norm_D = (current_train_data - current_train_data.mean(axis=0))/(current_train_data.std(0)+1e-5)
-        train_batch_norm_N = (current_train_data - current_train_data.mean(axis=1)[:,np.newaxis])/(current_train_data.std(1)[:,np.newaxis]+1e-5)
+        train_batch_norm_D = (current_train_data - current_train_data.mean(axis=0))/(current_train_data.std(0)+10e-5)
+        train_batch_norm_N = (current_train_data - current_train_data.mean(axis=1)[:,np.newaxis])/(current_train_data.std(1)[:,np.newaxis]+10e-5)
 
         white_D = current_train_data - current_train_data.mean(axis=0)
         eigenval,eigvector = np.linalg.eigh(white_D.T.dot(white_D))
@@ -360,14 +360,11 @@ for iter in range(num_epoch):
         white_N_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
         train_whiten_N = white_N_matrix.dot(white_N)
 
-        white_Best = (current_train_data - current_train_data.mean(axis=1)[:,np.newaxis])/current_train_data.std(1)[:,np.newaxis]
-        cov_temp = np.cov(white_Best,bias=True, ddof=0,rowvar=True)
-        eigenval,eigvector = np.linalg.eigh(cov_temp)
-        white_Best_Matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
-        train_white_Best = white_Best_Matrix.dot(white_Best)
+        train_std_1 = stand_layer.feedforward(current_train_data)
+        train_white_Best = zca_layer.feedforward(train_std_1)
 
-        train_std = stand_layer.feedforward(current_train_data.T).T
-        train_white_compare = zca_layer.feedforward(train_std.T).T
+        train_std_2 = stand_layer.feedforward(current_train_data.T).T
+        train_white_compare = zca_layer.feedforward(train_std_2.T).T
 
         for ii in range(5):
             plt.figure(figsize=(15,5))
@@ -395,10 +392,10 @@ for iter in range(num_epoch):
             plt.title('Whiten N\nmean: ' + str(np.around(train_whiten_N[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_whiten_N[ii].std(),4)))
             plt.imshow(simple_scale(train_whiten_N[ii]).reshape((28,28)),cmap='gray')
             plt.subplot(3,9,8)
-            plt.title('Best \nmean: ' + str(np.around(train_white_Best[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_white_Best[ii].std(),4)))
+            plt.title('STD whiten D\nmean: ' + str(np.around(train_white_Best[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_white_Best[ii].std(),4)))
             plt.imshow(simple_scale(train_white_Best[ii]).reshape((28,28)),cmap='gray')
             plt.subplot(3,9,9)
-            plt.title('Compare \nmean: ' + str(np.around(train_white_compare[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_white_compare[ii].std(),4)))
+            plt.title('STD whiten N\nmean: ' + str(np.around(train_white_compare[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_white_compare[ii].std(),4)))
             plt.imshow(simple_scale(train_white_compare[ii]).reshape((28,28)),cmap='gray')
             # ==== show image =====
 
