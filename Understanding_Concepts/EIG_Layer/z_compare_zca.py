@@ -342,15 +342,15 @@ for iter in range(num_epoch):
 
         testing = current_train_data.T  #( 784 100 )
         current_temp = testing-(testing-testing.mean(0))/testing.std(0)
-        # cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
-        cov_temp = current_temp.T.dot(current_temp)
+        cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
         S,U = np.linalg.eigh(cov_temp)
         zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 10e-5))).dot(U.T)
         train_whiten_N = current_temp.dot(zca_matrix).T
         # # train_final = zca_temp(current_train_data.T).T
 
         white_Best = current_train_data - (current_train_data - current_train_data.mean(axis=1)[:,np.newaxis])/current_train_data.std(1)[:,np.newaxis]
-        eigenval,eigvector = np.linalg.eigh(white_Best.dot(white_Best.T))
+        cov_temp = np.cov(white_Best,bias=True, ddof=0,rowvar=True)
+        eigenval,eigvector = np.linalg.eigh(cov_temp)
         white_Best_Matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
         train_white_Best = white_Best_Matrix.dot(white_Best)
 
