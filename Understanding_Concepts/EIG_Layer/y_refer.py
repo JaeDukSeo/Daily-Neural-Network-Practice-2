@@ -11,7 +11,7 @@ import imgaug as ia
 from scipy.ndimage import zoom
 import seaborn as sns
 
-np.random.seed(0)
+np.random.seed(678)
 np.set_printoptions(precision = 3,suppress =True)
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -31,6 +31,8 @@ def grads(X, Y, weights):
     grads = np.empty_like(weights)
     a = feed_forward(X, weights)
     delta = (a[-1] - Y)
+    # temp = a[-2].dot(weights[-1])
+    # delta = delta * 1.0*(temp>0.0)
     grads[-1] = a[-2].T.dot(delta)
     for i in range(len(a)-2, 0, -1):
         delta = (a[i] > 0.) * delta.dot(weights[i].T)
@@ -43,13 +45,19 @@ mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 trX, trY, teX, teY = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 # trX, trY, teX, teY = mnist.load_data()
 
-weights = [np.random.randn(*w) * 0.1 for w in [(784, 100),(100,10) ]]
+# weights = [np.random.normal(*w) * 0.1 for w in [(784, 100),(100,10) ]]
+r = np.random.RandomState(1234)
+weights = [
+r.normal(0,0.05,size=(784, 100)),
+r.normal(0,0.05,size=(100, 10)),
+]
+
 m,v = np.zeros_like(weights),np.zeros_like(weights)
 # weights = [np.random.randn(*w) * 0.1 for w in [(784, 10)]]
 num_epochs, batch_size, learn_rate = 30, 20, 0.02
 
 for i in range(num_epochs):
-    trX,trY = shuffle(trX,trY)
+
     for j in range(0, len(trX), batch_size):
         X, Y = trX[j:j+batch_size], trY[j:j+batch_size]
         weights = weights - learn_rate * grads(X, Y, weights)
