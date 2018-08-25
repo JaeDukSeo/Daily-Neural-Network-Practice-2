@@ -27,7 +27,7 @@ class np_FNN():
 
     def __init__(self,inc,outc,batch_size,act=np_relu,d_act = d_np_relu):
         self.w = r.normal(0,0.05,size=(inc, outc))
-        self.b = np.zeros(outc)
+        self.b = 0.0
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
         self.act = act; self.d_act = d_act
@@ -47,7 +47,7 @@ class np_FNN():
         grad_3 = self.input
 
         grad_middle = grad_1 * grad_2
-        grad_b = grad_middle.mean(0)
+        grad_b = grad_middle.mean()
         grad = grad_3.T.dot(grad_middle) / grad.shape[0]
 
         grad_pass = grad_middle.dot(self.w.T)
@@ -63,6 +63,7 @@ class np_FNN():
         m_hatb,v_hatb = self.mb/(1.-beta1), self.vb/(1.-beta2)
         adam_middleb =  m_hatb *learning_rate /(np.sqrt(v_hatb) + adam_e)
         self.b = self.b - adam_middleb
+
         return grad_pass
 
  # def: centering layer
@@ -119,7 +120,7 @@ class zca_whiten_layer():
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
-        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
+        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma)
         return d_x
 
 # def: soft max function for 2D
@@ -133,15 +134,27 @@ def stable_softmax(x,axis=None):
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
+# Show some details and vis some of them
+print(train_data.shape)
+print(train_data.min(),train_data.max())
+print(train_label.shape)
+print(train_label.min(),train_label.max())
+print(test_data.shape)
+print(test_data.min(),test_data.max())
+print(test_label.shape)
+print(test_label.min(),test_label.max())
+print('-----------------------')
+
 # hyper
 num_epoch = 30
-batch_size = 50
+batch_size = 500
 learning_rate = 0.005
 print_size  = 1
 
 beta1,beta2,adam_e = 0.9,0.999,10e-8
 
 # class of layers
+l_input = standardization_layer()
 l0 = np_FNN(784,300,batch_size)
 l0_special = zca_whiten_layer()
 l1 = np_FNN(300,100 ,batch_size)
@@ -160,8 +173,10 @@ for iter in range(num_epoch):
         current_data = train_data[current_data_index:current_data_index+batch_size]
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
-        layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0)
+        layer_input = l_input.feedforward(current_data)
+        layer0 = l0.feedforward(layer_input)
+        # layer0_center = l0_center.feedforward(layer0.T).T
+        layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
         layer2 = l2.feedforward(layer1)
 
@@ -172,15 +187,18 @@ for iter in range(num_epoch):
 
         grad2 = l2.backprop(  (layer2 - current_label) )
         grad1 = l1.backprop(grad2)
-        grad0_special = l0_special.backprop(grad1)
-        grad0 = l0.backprop(grad0_special+grad1)
+        grad0_special = l0_special.backprop(grad1.T).T
+        # grad0_center =  l0_center.backprop(grad1.T).T
+        grad0 = l0.backprop(grad0_special)
 
     for current_data_index in range(0,len(test_data),batch_size):
         current_data = test_data[current_data_index:current_data_index+batch_size]
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
-        layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0)
+        layer_input = l_input.feedforward(current_data)
+        layer0 = l0.feedforward(layer_input)
+        # layer0_center = l0_center.feedforward(layer0.T).T
+        layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
         layer2 = l2.feedforward(layer1)
 
