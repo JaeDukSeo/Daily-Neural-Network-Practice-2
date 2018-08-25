@@ -325,7 +325,16 @@ for iter in range(num_epoch):
         # train_batch  = l0_batch.feedforward(current_train_data)
         # train_batch = (current_train_data.T - np.mean(current_train_data.T,0)) / (np.std(current_train_data.T,0)+1e-10)
         # train_batch = train_batch.T
-        train_batch = batchnorm_forward(current_train_data.T).T
+
+        testing = current_train_data.T  #( 784 100 )
+        current_temp = testing-(testing-testing.mean(0))/testing.std(0)
+        # cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
+        cov_temp = current_temp.T.dot(current_temp) /current_temp.shape[0]
+        S,U = np.linalg.eigh(cov_temp)
+        zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
+        train_batch = current_temp.dot(zca_matrix).T
+
+        # train_batch = batchnorm_forward(current_train_data.T).T
 
         # train_decor  = zca_whiten(current_train_data.T-current_train_data.T.mean(0)).T
         testing = current_train_data.T  #( 784 100 )
@@ -337,15 +346,14 @@ for iter in range(num_epoch):
         # train_decor  = zca_whiten(current_train_data-current_train_data.mean(0))
 
         testing = current_train_data.T  #( 784 100 )
-        current_temp = testing-(testing)/testing.std(0)
-        current_temp = current_temp - current_temp.mean(0)
+        current_temp = testing-(testing-testing.mean(0))/testing.std(0)
         cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
         S,U = np.linalg.eigh(cov_temp)
         zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
         train_final = current_temp.dot(zca_matrix).T
         # train_final = zca_temp(current_train_data.T).T
 
-        for ii in range(15):
+        for ii in range(5):
 
             plt.figure(figsize=(15,5))
 
