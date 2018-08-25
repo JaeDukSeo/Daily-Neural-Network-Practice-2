@@ -27,7 +27,7 @@ class np_FNN():
 
     def __init__(self,inc,outc,batch_size,act=np_relu,d_act = d_np_relu):
         self.w = r.normal(0,0.05,size=(inc, outc))
-        self.b = 0.0
+        self.b = np.zeros(outc)
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
         self.act = act; self.d_act = d_act
@@ -47,7 +47,7 @@ class np_FNN():
         grad_3 = self.input
 
         grad_middle = grad_1 * grad_2
-        grad_b = grad_middle.mean()
+        grad_b = grad_middle.mean(0)
         grad = grad_3.T.dot(grad_middle) / grad.shape[0]
 
         grad_pass = grad_middle.dot(self.w.T)
@@ -147,7 +147,7 @@ print('-----------------------')
 
 # hyper
 num_epoch = 30
-batch_size = 500
+batch_size = 50
 learning_rate = 0.005
 print_size  = 1
 
@@ -173,9 +173,7 @@ for iter in range(num_epoch):
         current_data = train_data[current_data_index:current_data_index+batch_size]
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
-        layer_input = l_input.feedforward(current_data)
-        layer0 = l0.feedforward(layer_input)
-        # layer0_center = l0_center.feedforward(layer0.T).T
+        layer0 = l0.feedforward(current_data)
         layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
         layer2 = l2.feedforward(layer1)
@@ -188,16 +186,13 @@ for iter in range(num_epoch):
         grad2 = l2.backprop(  (layer2 - current_label) )
         grad1 = l1.backprop(grad2)
         grad0_special = l0_special.backprop(grad1.T).T
-        # grad0_center =  l0_center.backprop(grad1.T).T
         grad0 = l0.backprop(grad0_special)
 
     for current_data_index in range(0,len(test_data),batch_size):
         current_data = test_data[current_data_index:current_data_index+batch_size]
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
-        layer_input = l_input.feedforward(current_data)
-        layer0 = l0.feedforward(layer_input)
-        # layer0_center = l0_center.feedforward(layer0.T).T
+        layer0 = l0.feedforward(current_data)
         layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
         layer2 = l2.feedforward(layer1)
@@ -222,7 +217,7 @@ for iter in range(num_epoch):
     test_cota,test_acca = 0,0
 
     # shuffle the data
-    train_data,train_label = shuffle(train_data,train_label)
+    # train_data,train_label = shuffle(train_data,train_label)
 
 
 
