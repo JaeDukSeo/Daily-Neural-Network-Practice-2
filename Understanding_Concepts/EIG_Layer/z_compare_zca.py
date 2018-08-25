@@ -16,7 +16,6 @@ np.set_printoptions(precision = 3,suppress =True)
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
-from tensorflow.examples.tutorials.mnist import input_data
 
 # import data
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)

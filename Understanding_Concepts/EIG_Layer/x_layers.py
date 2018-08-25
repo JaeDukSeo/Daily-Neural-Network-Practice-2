@@ -11,40 +11,17 @@ import imgaug as ia
 from scipy.ndimage import zoom
 import seaborn as sns
 
-np.random.seed(0)
-np.set_printoptions(precision = 3,suppress =True)
-old_v = tf.logging.get_verbosity()
-tf.logging.set_verbosity(tf.logging.ERROR)
-from tensorflow.examples.tutorials.mnist import input_data
-from tensorflow.examples.tutorials.mnist import input_data
-
-# import data
-# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
-train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-
-# Show some details and vis some of them
-print(train_data.shape)
-print(train_data.min(),train_data.max())
-print(train_label.shape)
-print(train_label.min(),train_label.max())
-print(test_data.shape)
-print(test_data.min(),test_data.max())
-print(test_label.shape)
-print(test_label.min(),test_label.max())
-print('-----------------------')
-
 # create layer
 def np_sigmoid(x): return 1.0 / (1.0+np.exp(-x))
 def d_np_sigmoid(x): return np_sigmoid(x) * (1.0 - np_sigmoid(x))
 
-# soft max function for 2D
+# def: soft max function for 2D
 def stable_softmax(x,axis=None):
     """Compute softmax values for each sets of scores in x."""
     e_x = np.exp(x - np.max(x,axis=1)[:,np.newaxis])
     return e_x / e_x.sum(axis=1)[:,np.newaxis]
 
-# fully connected layer
+# def: fully connected layer
 class np_FNN():
 
     def __init__(self,inc,outc,act=np_sigmoid,d_act = d_np_sigmoid):
@@ -75,73 +52,67 @@ class np_FNN():
         self.w = self.w - adam_middle
         return grad_pass
 
+# ===== SIMPLE MODULAR APPROACH =======
 # def: centering layer
 class centering_layer():
 
-    def __init__(self,batch_size):
-        self.m = batch_size
+    def __init__(self): pass
 
-    def feedforward(self,x):
-        x_mean = np.sum(x,axis=0)
-        return x - (1./self.m) * x_mean
+    def feedforward(self,input):
+        x_mean = np.sum(input,axis=0) / input.shape[0]
+        return input - x_mean
 
     def backprop(self,grad):
-        return grad * ( 1. - 1./self.m )
+        return grad * ( 1. - 1./grad.shape[0])
 
-# def: whiten layer without centering
-class zca_whiten_layer():
+# def: Batch Normalization
+class standardization_layer():
 
-    def __init__(self,batch_size,feature_size):
-        self.m = batch_size
-        self.n = feature_size
-        self.moving_sigma = 0
-        self.moving_mean = 0
+    def __init__(self): pass
 
     def feedforward(self,input,EPS=10e-5):
         self.input = input
-        self.sigma = np.cov(input,bias=True, ddof=0,rowvar=True)
-        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
-        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
-        self.whiten = self.U.dot(self.input)
-        return self.whiten
-
-    def backprop(self,grad,EPS=1e-5):
-        d_eig_vector = self.whiten.T.dot(grad) + \
-                       self.input.T.dot(grad.dot(self.eigvector.T)).dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T)
-
-        d_eig_value  = self.input.T.dot(grad.dot(self.eigvector.T)) \
-                     * (-1/2) * np.diag(1. / (self.eigenval+EPS) ** 1.5 )
-
-        E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
-                   np.expand_dims(self.eigenval,1).dot(np.ones((1,self.n)))
-        K_matrix = 1./(E + EPS) - np.eye(self.n)
-        d_sigma = self.eigvector.dot(
-                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + \
-                    d_eig_value
-                    ).dot(self.eigvector.T)
-
-        d_simg_sym = (0.5) * (d_sigma.T + d_sigma)
-        d_x = grad.dot(self.eigvector.T).dot(self.U.T) + \
-              (2./self.m) * self.input.dot(d_simg_sym.T)
-        return d_x
-
-# class Batch Normalization
-class Batch_Normalization_layer():
-
-    def __init__(self,batch_size,feature_dim):
-        self.m = batch_size
-        self.moving_mean = np.zeros(feature_dim)
-        self.moving_std  = np.zeros(feature_dim)
-
-    def feedforward(self,input,EPS=1e-10):
-        self.input = input
-        self.mean  = (1./self.m) * np.sum(input,axis = 0 )
-        self.std   = (1./self.m) * np.sum((self.input-self.mean) ** 2,axis = 0 )
-        # self.x_hat = (input - self.mean) / np.sqrt(self.std + EPS)
-        self.x_hat = (input - self.mean) / (input.std(0)+EPS)
+        self.mean  = np.sum(input,axis=0) / input.shape[0]
+        self.std   = np.sum( (self.input - self.mean) ** 2,0)  / input.shape[0]
+        self.x_hat = (input - self.mean) / np.sqrt(self.std + EPS)
         return self.x_hat
 
-    def backprop(self,grad,EPS=1e-10):
+    def backprop(self,grad,EPS=10e-5):
+        dem = 1./(self.m * np.sqrt(self.std + EPS ) )
+        d_x = self.m * grad - np.sum(grad,axis = 0) - self.x_hat*np.sum(grad*self.x_hat, axis=0)
+        return d_x * dem
+
+# def: zca whitening layer
+class zca_whiten_layer():
+
+    def __init__(self): pass
+
+    def feedforward(self,input,EPS=10e-5):
+        self.sigma = input.T.dot(input) / input.shape[0]
+        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
+        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
+        self.whiten = input.dot(self.U)
+        return self.whiten
+
+    def backprop(self):
+        pass
+# ===== SIMPLE MODULAR APPROACH =======
+
+# ===== FULL ======
+# def: Batch Normalization
+class Batch_Normalization_layer():
+
+    def __init__(self):
+        pass
+
+    def feedforward(self,input,EPS=10e-5):
+        self.input = input
+        self.mean  = np.sum(input,axis=0) / input.shape[0]
+        self.std   = np.sum( (self.input - self.mean) ** 2,0)  / input.shape[0]
+        self.x_hat = (input - self.mean) / np.sqrt(self.std + EPS)
+        return self.x_hat
+
+    def backprop(self,grad,EPS=10e-5):
         dem = 1./(self.m * np.sqrt(self.std + EPS ) )
         d_x = self.m * grad - np.sum(grad,axis = 0) - self.x_hat*np.sum(grad*self.x_hat, axis=0)
         return d_x * dem
@@ -214,255 +185,10 @@ class Decorrelated_Batch_Norm():
         # ========= ========
 
         return d_x
+# ===== FULL ======
 
-
-# hyper
-num_epoch = 100
-batch_size = 100
-print_size = 1
-
-learning_rate = 0.0005
-beta1,beta2,adam_e = 0.9,0.9,1e-8
-small_image_patch = 100
-
-one,two = 20,15
-# class
-l0_center = centering_layer(batch_size)
-l0_decor = Decorrelated_Batch_Norm(batch_size,784)
-l0_batch = Batch_Normalization_layer(batch_size,784)
-l0_zca_white = zca_whiten_layer(batch_size,784)
-
-l0 = np_FNN(784,one*one)
-l1 = Decorrelated_Batch_Norm(batch_size,one*one)
-l2 = np_FNN(one*one,two*two)
-l3 = Decorrelated_Batch_Norm(batch_size,two*two)
-l4 = np_FNN(two*two,10)
-
-
-class standardization_layer():
-
-    def __init__(self,batch_size,feature_size):
-        self.batch_size = batch_size; self.feature_size=feature_size
-
-    def feedforward(self,input):
-        self.input_mean = (1./self.feature_size) * np.sum(input,1)[:,np.newaxis]
-        self.input_std  = np.sqrt(np.mean(abs(input - self.input_mean) ** 2,1))[:,np.newaxis]
-        return (input-self.input_mean) / self.input_std
-
-    def backprop(self,grad):
-        pass
-stand_layer = standardization_layer(batch_size=batch_size,feature_size=784)
-zca_layer   = zca_whiten_layer(batch_size=batch_size,feature_size=784)
-
-# train
-for iter in range(num_epoch):
-
-    train_cota,train_acca = 0,0
-    train_cot,train_acc = [],[]
-    train_data,train_label = shuffle(train_data,train_label)
-
-    for current_batch_index in range(0,len(train_data),batch_size):
-
-        current_train_data = train_data[current_batch_index:current_batch_index + batch_size]
-        current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
-
-        current_train_data_temp = (current_train_data-current_train_data.mean(1)[:,np.newaxis])/current_train_data.std(1)[:,np.newaxis]
-        print(current_train_data_temp[3].mean())
-        print(current_train_data_temp[3].std())
-        print(current_train_data_temp[3].min())
-        print(current_train_data_temp[3].max())
-        print('=======')
-
-        temp = stand_layer.feedforward(current_train_data)
-        print(temp[3].mean())
-        print(temp[3].std())
-        print(temp[3].min())
-        print(temp[3].max())
-
-        sys.exit()
-        # ====
-        train_center = l0_center.feedforward(current_train_data)
-
-        # train_batch  = l0_batch.feedforward(current_train_data)
-        # train_batch = (current_train_data.T - np.mean(current_train_data.T,0)) / (np.std(current_train_data.T,0)+1e-10)
-        # train_batch = train_batch.T
-
-        testing = current_train_data.T  #( 784 100 )
-        current_temp = testing-(testing-testing.mean(0))/testing.std(0)
-        # cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
-        cov_temp = current_temp.T.dot(current_temp) /current_temp.shape[0]
-        S,U = np.linalg.eigh(cov_temp)
-        zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
-        train_batch = current_temp.dot(zca_matrix).T
-        # train_batch = batchnorm_forward(current_train_data.T).T
-
-        # train_decor  = zca_whiten(current_train_data.T-current_train_data.T.mean(0)).T
-        testing = current_train_data.T  #( 784 100 )
-        current_temp =testing-testing.mean(0)
-        cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
-        S,U = np.linalg.eigh(cov_temp)
-        zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
-        train_decor = current_temp.dot(zca_matrix).T
-        # train_decor  = zca_whiten(current_train_data-current_train_data.mean(0))
-
-        testing = current_train_data.T  #( 784 100 )
-        current_temp = testing-(testing-testing.mean(0))/testing.std(0)
-        cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
-        S,U = np.linalg.eigh(cov_temp)
-        zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
-        train_final = current_temp.dot(zca_matrix).T
-        # train_final = zca_temp(current_train_data.T).T
-
-        for ii in range(5):
-
-            plt.figure(figsize=(15,5))
-
-            plt.subplot(3,5,6)
-            plt.hist(train_center[ii], bins='auto')  # problem
-            plt.subplot(3,5,7)
-            plt.hist(train_batch[ii], bins='auto')
-            plt.subplot(3,5,8)
-            plt.hist(train_decor[ii], bins='auto')
-            plt.subplot(3,5,9)
-            plt.hist(train_final[ii], bins='auto') # problem
-            plt.subplot(3,5,10)
-            plt.hist(current_train_data[ii], bins='auto') # problem
-
-            plt.subplot(3,5,11)
-            plt.axis('off')
-            sns.heatmap(np.cov(train_center))
-            plt.subplot(3,5,12)
-            plt.axis('off')
-            sns.heatmap(np.cov(train_batch))
-            plt.subplot(3,5,13)
-            plt.axis('off')
-            sns.heatmap(np.cov(train_decor))
-            plt.subplot(3,5,14)
-            plt.axis('off')
-            sns.heatmap(np.cov(train_final))
-            plt.subplot(3,5,15)
-            plt.axis('off')
-            sns.heatmap(np.cov(current_train_data))
-
-            plt.subplot(3,5,1)
-            plt.title(
-            'mean: ' + str(np.around(train_center[ii].mean(),4)) + '\n' +
-            'std: ' + str(np.around(train_center[ii].std(),4))
-             )
-            plt.imshow( ((train_center[ii]-train_center[ii].min())/(train_center[ii].max()-train_center[ii].min()) ).reshape((28,28)),cmap='gray')
-
-            plt.subplot(3,5,2)
-            plt.title(
-            'mean: ' + str(np.around(train_batch[ii].mean(),4)) + '\n' +
-            'std: ' + str(np.around(train_batch[ii].std(),4))
-             )
-            plt.imshow(((train_batch[ii]-train_batch[ii].min())/(train_batch[ii].max()-train_batch[ii].min())).reshape((28,28)),cmap='gray')
-
-            plt.subplot(3,5,3)
-            plt.title(
-            'mean: ' + str(np.around(train_decor[ii].mean(),4)) + '\n' +
-            'std: ' + str(np.around(train_decor[ii].std(),4))
-             )
-            plt.imshow(((train_decor[ii]-train_decor[ii].min())/(train_decor[ii].max()-train_decor[ii].min())).reshape((28,28)),cmap='gray')
-
-            plt.subplot(3,5,4)
-            plt.title(
-            'mean: ' + str(np.around(train_final[ii].mean(),4)) + '\n' +
-            'std: ' + str(np.around(train_final[ii].std(),4))
-             )
-            plt.imshow(((train_final[ii]-train_final[ii].min())/(train_final[ii].max()-train_final[ii].min())).reshape((28,28)),cmap='gray')
-
-            plt.subplot(3,5,5)
-            plt.title(
-            'mean: ' + str(np.around(current_train_data[ii].mean(),4)) + '\n' +
-            'std: ' + str(np.around(current_train_data[ii].std(),4))
-             )
-            plt.imshow( ((current_train_data[ii]-current_train_data[ii].min())/(current_train_data[ii].max()-current_train_data[ii].min())).reshape((28,28)),cmap='gray')
-
-
-            plt.show()
-
-        sys.exit()
-        # ====
-
-
-        # feed forward
-        layer0 = l0.feedforward(current_train_data)
-        layer1_full = l1.feedforward(layer0)
-
-        layer2 = l2.feedforward(layer1_full)
-        layer3_full = l3.feedforward(layer2)
-
-        layer4 = l4.feedforward(layer3_full)
-
-        # cost
-        final_soft = stable_softmax(layer4)
-        cost = - np.mean(current_train_data_label * np.log(final_soft + 1e-20) + (1.0-current_train_data_label) * np.log(1.0-final_soft + 1e-20))
-        correct_prediction = np.equal(np.argmax(final_soft, 1), np.argmax(current_train_data_label, 1))
-        accuracy = np.mean(correct_prediction)
-        print('Current Iter: ', iter,' batch index: ', current_batch_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
-        train_cota = train_cota + cost
-        train_acca = train_acca + accuracy
-
-        # print('\n--------------------')
-        # print( (final_soft-current_train_data_label).sum() )
-        # print( (final_soft-current_train_data_label).mean() )
-        # print( final_soft.sum(1) )
-        # input()
-        # print('--------------------\n')
-
-        # back prop
-        grad4 = l4.backprop(final_soft-current_train_data_label)
-
-        grad3_full = l3.backprop(grad4)
-        grad2 = l2.backprop(grad3_full)
-
-        grad1_full = l1.backprop(grad2)
-        grad0 = l0.backprop(grad1_full)
-
-    if iter % print_size==0:
-        print("\n----------")
-        print('Train Current Acc: ', train_acca/(len(train_data)/batch_size),' Current cost: ', train_cota/(len(train_data)/batch_size),end='\n')
-        print("----------")
-
-    train_acc.append(train_acca/(len(train_data)/batch_size))
-    train_cot.append(train_cota/(len(train_data)/batch_size))
-    train_cota,train_acca = 0,0
-
-
-
-
-
-
-
-# ===== Compare ===
-# layer0_test = l0_test.feedforward(current_train_data)
-# # layer0_test = zca_whiten(current_train_data)
-#
-# # # compute the covariance of the image data
-# mean_temp = np.mean(current_train_data,axis=0)
-# cov = np.cov(current_train_data-mean_temp, rowvar=False)   # cov is (N, N)
-# U,S,V = np.linalg.svd(cov)     # U is (N, N), S is (N,)
-# epsilon = 1e-5
-# zca_matrix = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + epsilon)), U.T))
-# zca = np.dot(current_train_data-mean_temp, zca_matrix)    # zca is (N, 3072)
-#
-# plt.subplot(1, 2, 1)
-# plt.imshow(
-# zca[0].reshape((28,28)),cmap='gray'
-# )
-# plt.title('not mine')
-# plt.subplot(1, 2, 2)
-# plt.imshow(
-# layer0_test[0].reshape((28,28)),cmap='gray'
-# )
-# plt.title('mine')
-# plt.show()
-# sys.exit()
-# ===== Compare ===
-
-
-
+def simple_scale(x):
+    return (x-x.min())/(x.max()-x.min())
 
 
 # -- end code --
