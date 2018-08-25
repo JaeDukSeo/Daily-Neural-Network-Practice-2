@@ -30,10 +30,10 @@ def feed_forward(X, weights):
 def grads(X, Y, weights):
     grads = np.empty_like(weights)
     a = feed_forward(X, weights)
-    delta = a[-1] - Y
+    delta = (a[-1] - Y)
     grads[-1] = a[-2].T.dot(delta)
     for i in range(len(a)-2, 0, -1):
-        delta = (a[i] > 0) * delta.dot(weights[i].T)
+        delta = (a[i] > 0.) * delta.dot(weights[i].T)
         grads[i-1] = a[i-1].T.dot(delta)
     return grads / len(X)
 
@@ -43,7 +43,7 @@ mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 trX, trY, teX, teY = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 # trX, trY, teX, teY = mnist.load_data()
 
-weights = [np.random.randn(*w) * 0.1 for w in [(784, 10) ]]
+weights = [np.random.randn(*w) * 0.1 for w in [(784, 100),(100,10) ]]
 m,v = np.zeros_like(weights),np.zeros_like(weights)
 # weights = [np.random.randn(*w) * 0.1 for w in [(784, 10)]]
 num_epochs, batch_size, learn_rate = 30, 20, 0.02
