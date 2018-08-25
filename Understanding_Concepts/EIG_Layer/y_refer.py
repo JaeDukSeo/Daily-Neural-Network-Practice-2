@@ -60,8 +60,8 @@ def grads(X, Y, weights):
     return grads
 
 # import data
-mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-# mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
+# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 trX, trY, teX, teY = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 # trX, trY, teX, teY = mnist.load_data()
 
