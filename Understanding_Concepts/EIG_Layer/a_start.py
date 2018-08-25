@@ -215,74 +215,6 @@ class Decorrelated_Batch_Norm():
 
         return d_x
 
-def zca_temp(X):
-    X = X-(X-X.mean(axis=0)) / X.std(0)
-
-    # compute the covariance of the image data
-    cov = np.cov(X,bias=True, ddof=0,rowvar=False)   # cov is (N, N)
-    # cov = X.T.dot(X)
-    # singular value decomposition
-    S,U = np.linalg.eigh(cov)     # U is (N, N), S is (N,)
-    # build the ZCA matrix
-    epsilon = 1e-5
-    # zca_matrix = np.dot(U, np.dot(np.diag(1.0/np.sqrt(S + epsilon)), U.T))
-    zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + epsilon))).dot(U.T)
-    # transform the image data       zca_matrix is (N,N)
-    # zca = np.dot(zca_matrix, X)    # zca is (N, 3072)
-    zca = np.dot(X,zca_matrix)    # zca is (N, 3072)
-    return zca
-
-def zca_whiten(X):
-    """
-    Applies ZCA whitening to the data (X)
-    http://xcorr.net/2011/05/27/whiten-a-matrix-matlab-code/
-
-    X: numpy 2d array
-        input data, rows are data points, columns are features
-
-    Returns: ZCA whitened 2d array
-    """
-    assert(X.ndim == 2)
-    EPS = 10e-5
-
-    #   covariance matrix
-    cov = np.dot(X.T, X)
-    #   d = (lambda1, lambda2, ..., lambdaN)
-    d, E = np.linalg.eigh(cov)
-    #   D = diag(d) ^ (-1/2)
-    D = np.diag(1. / np.sqrt(d + EPS))
-    #   W_zca = E * D * E.T
-    W = np.dot(np.dot(E, D), E.T)
-
-    X_white = np.dot(X, W)
-
-    return X_white
-
-def batchnorm_forward(x,eps=1e-5):
-    N, D = x.shape
-
-    #step1: calculate mean
-    mu = 1./N * np.sum(x, axis = 0)
-
-    #step2: subtract mean vector of every trainings example
-    xmu = x - mu
-
-    #step3: following the lower branch - calculation denominator
-    sq = xmu ** 2
-
-    #step4: calculate variance
-    var = 1./N * np.sum(sq, axis = 0)
-
-    #step5: add eps for numerical stability, then sqrt
-    sqrtvar = np.sqrt(var + eps)
-
-    #step6: invert sqrtwar
-    ivar = 1./sqrtvar
-
-    #step7: execute normalization
-    xhat = xmu * ivar
-
-    return xhat
 
 # hyper
 num_epoch = 100
@@ -306,6 +238,11 @@ l2 = np_FNN(one*one,two*two)
 l3 = Decorrelated_Batch_Norm(batch_size,two*two)
 l4 = np_FNN(two*two,10)
 
+def stand_layer(x):
+    x_mean = x.mean(0)
+    x_std  = np.sqrt(np.mean(abs(x - x.mean(0))**2))
+    return (x-x_mean)/x_std
+
 # train
 for iter in range(num_epoch):
 
@@ -318,6 +255,18 @@ for iter in range(num_epoch):
         current_train_data = train_data[current_batch_index:current_batch_index + batch_size]
         current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
 
+        current_train_data_temp = (current_train_data-current_train_data.mean(1)[:,np.newaxis])/current_train_data.std(1)[:,np.newaxis]
+        print(current_train_data_temp[0].mean())
+        print(current_train_data_temp[0].std())
+        print(current_train_data_temp[0].min())
+        print(current_train_data_temp[0].max())
+        print('=======')
+        temp = stand_layer(current_train_data_temp.T).T
+        print(temp[0].mean())
+        print(temp[0].std())
+        print(temp[0].min())
+        print(temp[0].max())
+        sys.exit()
         # ====
         train_center = l0_center.feedforward(current_train_data)
 
@@ -417,7 +366,7 @@ for iter in range(num_epoch):
              )
             plt.imshow( ((current_train_data[ii]-current_train_data[ii].min())/(current_train_data[ii].max()-current_train_data[ii].min())).reshape((28,28)),cmap='gray')
 
-            
+
             plt.show()
 
         sys.exit()
