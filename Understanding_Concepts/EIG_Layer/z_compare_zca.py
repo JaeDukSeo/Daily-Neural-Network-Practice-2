@@ -314,7 +314,7 @@ for iter in range(num_epoch):
 
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
-    train_data,train_label = shuffle(train_data,train_label)
+    # train_data,train_label = shuffle(train_data,train_label)
 
     for current_batch_index in range(0,len(train_data),batch_size):
 
@@ -332,113 +332,100 @@ for iter in range(num_epoch):
 
         white_D = current_train_data - current_train_data.mean(axis=0)
         eigenval,eigvector = np.linalg.eigh(white_D.T.dot(white_D))
-        white_D_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+1e-5))).dot(eigvector.T)
+        white_D_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
         train_whiten_D = white_D.dot(white_D_matrix)
-
-        print(white_D_matrix.shape)
-        print(white_D_matrix.sum())
-        print(white_D_matrix.mean())
-        print(white_D_matrix.std())
-        print(white_D_matrix.max())
-        print(white_D_matrix.min())
-        sys.exit()
 
         white_N = current_train_data - current_train_data.mean(axis=1)[:,np.newaxis]
         eigenval,eigvector = np.linalg.eigh(white_N.dot(white_N.T))
-        white_N_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval)+1e-5)).dot(eigvector.T)
+        white_N_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
         train_whiten_N = white_N_matrix.dot(white_N)
 
-        # testing = current_train_data.T  #( 784 100 )
-        # current_temp = testing-(testing-testing.mean(0))/testing.std(0)
-        # # cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
-        # cov_temp = current_temp.T.dot(current_temp) /current_temp.shape[0]
-        # S,U = np.linalg.eigh(cov_temp)
-        # zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
-        # train_batch = current_temp.dot(zca_matrix).T
-        # # train_batch = batchnorm_forward(current_train_data.T).T
-        #
-        # # train_decor  = zca_whiten(current_train_data.T-current_train_data.T.mean(0)).T
-        # testing = current_train_data.T  #( 784 100 )
-        # current_temp =testing-testing.mean(0)
+        testing = current_train_data.T  #( 784 100 )
+        current_temp = testing-(testing-testing.mean(0))/testing.std(0)
         # cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
-        # S,U = np.linalg.eigh(cov_temp)
-        # zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
-        # train_decor = current_temp.dot(zca_matrix).T
-        # # train_decor  = zca_whiten(current_train_data-current_train_data.mean(0))
-        #
-        # testing = current_train_data.T  #( 784 100 )
-        # current_temp = testing-(testing-testing.mean(0))/testing.std(0)
-        # cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
-        # S,U = np.linalg.eigh(cov_temp)
-        # zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 1e-5))).dot(U.T)
-        # train_final = current_temp.dot(zca_matrix).T
+        cov_temp = current_temp.T.dot(current_temp)
+        S,U = np.linalg.eigh(cov_temp)
+        zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 10e-5))).dot(U.T)
+        train_whiten_N = current_temp.dot(zca_matrix).T
         # # train_final = zca_temp(current_train_data.T).T
 
+        white_Best = current_train_data - (current_train_data - current_train_data.mean(axis=1)[:,np.newaxis])/current_train_data.std(1)[:,np.newaxis]
+        eigenval,eigvector = np.linalg.eigh(white_Best.dot(white_Best.T))
+        white_Best_Matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
+        train_white_Best = white_Best_Matrix.dot(white_Best)
 
         for ii in range(5):
             plt.figure(figsize=(15,5))
 
             # ==== show image =====
-            plt.subplot(3,7,1)
+            plt.subplot(3,8,1)
             plt.title('Original \nmean: ' + str(np.around(train_data[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_data[ii].std(),4)))
             plt.imshow(simple_scale(train_data[ii]).reshape((28,28)),cmap='gray')
-            plt.subplot(3,7,2)
+            plt.subplot(3,8,2)
             plt.title('Centered D \nmean: ' + str(np.around(train_center_D[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_center_D[ii].std(),4)))
             plt.imshow(simple_scale(train_center_D[ii]).reshape((28,28)),cmap='gray')
-            plt.subplot(3,7,3)
+            plt.subplot(3,8,3)
             plt.title('Centered N \nmean: ' + str(np.around(train_center_N[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_center_N[ii].std(),4)))
             plt.imshow(simple_scale(train_center_N[ii]).reshape((28,28)),cmap='gray')
-            plt.subplot(3,7,4)
+            plt.subplot(3,8,4)
             plt.title('Batch Norm D \nmean: ' + str(np.around(train_batch_norm_D[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_batch_norm_D[ii].std(),4)))
             plt.imshow(simple_scale(train_batch_norm_D[ii]).reshape((28,28)),cmap='gray')
-            plt.subplot(3,7,5)
+            plt.subplot(3,8,5)
             plt.title('Batch Norm N \nmean: ' + str(np.around(train_batch_norm_N[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_batch_norm_N[ii].std(),4)))
             plt.imshow(simple_scale(train_batch_norm_N[ii]).reshape((28,28)),cmap='gray')
-            plt.subplot(3,7,6)
+            plt.subplot(3,8,6)
             plt.title('Whiten D\nmean: ' + str(np.around(train_whiten_D[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_whiten_D[ii].std(),4)))
             plt.imshow(simple_scale(train_whiten_D[ii]).reshape((28,28)),cmap='gray')
-            plt.subplot(3,7,7)
+            plt.subplot(3,8,7)
             plt.title('Whiten N\nmean: ' + str(np.around(train_whiten_N[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_whiten_N[ii].std(),4)))
             plt.imshow(simple_scale(train_whiten_N[ii]).reshape((28,28)),cmap='gray')
+            plt.subplot(3,8,8)
+            plt.title('Best N\nmean: ' + str(np.around(train_white_Best[ii].mean(),4)) + '\n' +'std: ' + str(np.around(train_white_Best[ii].std(),4)))
+            plt.imshow(simple_scale(train_white_Best[ii]).reshape((28,28)),cmap='gray')
             # ==== show image =====
 
             # ==== show histogram =====
-            plt.subplot(3,7,8)
+            plt.subplot(3,8,9)
             plt.hist(train_data[ii], bins='auto')
-            plt.subplot(3,7,9)
+            plt.subplot(3,8,10)
             plt.hist(train_center_D[ii], bins='auto')
-            plt.subplot(3,7,10)
+            plt.subplot(3,8,11)
             plt.hist(train_center_N[ii], bins='auto')
-            plt.subplot(3,7,11)
+            plt.subplot(3,8,12)
             plt.hist(train_batch_norm_D[ii], bins='auto')
-            plt.subplot(3,7,12)
+            plt.subplot(3,8,13)
             plt.hist(train_batch_norm_N[ii], bins='auto')
-            plt.subplot(3,7,13)
+            plt.subplot(3,8,14)
             plt.hist(train_whiten_D[ii], bins='auto')
-            plt.subplot(3,7,14)
+            plt.subplot(3,8,15)
+            plt.hist(train_whiten_N[ii], bins='auto')
+            plt.subplot(3,8,16)
             plt.hist(train_whiten_N[ii], bins='auto')
             # ==== show histogram =====
 
             # ==== show heatmap =====
-            plt.subplot(3,7,15)
+            plt.subplot(3,8,17)
             plt.axis('off')
             sns.heatmap(np.cov(train_data))
-            plt.subplot(3,7,16)
+            plt.subplot(3,8,18)
             plt.axis('off')
             sns.heatmap(np.cov(train_center_D))
-            plt.subplot(3,7,17)
+            plt.subplot(3,8,19)
             plt.axis('off')
             sns.heatmap(np.cov(train_center_N))
-            plt.subplot(3,7,18)
+            plt.subplot(3,8,20)
             plt.axis('off')
             sns.heatmap(np.cov(train_batch_norm_D))
-            plt.subplot(3,7,19)
+            plt.subplot(3,8,21)
             plt.axis('off')
             sns.heatmap(np.cov(train_batch_norm_N))
-            plt.subplot(3,7,20)
+            plt.subplot(3,8,22)
             plt.axis('off')
             sns.heatmap(np.cov(train_whiten_D))
-            plt.subplot(3,7,21)
+            plt.subplot(3,8,23)
+            plt.axis('off')
+            sns.heatmap(np.cov(train_whiten_N))
+            plt.subplot(3,8,24)
             plt.axis('off')
             sns.heatmap(np.cov(train_whiten_N))
             # ==== show heatmap =====
