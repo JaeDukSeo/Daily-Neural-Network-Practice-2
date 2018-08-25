@@ -262,11 +262,10 @@ class zca_whiten_layer():
 
     def feedforward(self,input,EPS=10e-5):
         self.input = input
-        # self.sigma = np.cov(input,bias=True, ddof=0,rowvar=True)
-        self.sigma = self.input.dot(self.input.T) / self.n
+        self.sigma = self.input.T.dot(self.input) / input.shape[0]
         self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
         self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
-        self.whiten = self.U.dot(self.input)
+        self.whiten = input.dot(self.U)
         return self.whiten
 
     def backprop(self,grad,EPS=1e-5):
@@ -296,18 +295,17 @@ class standardization_layer():
         self.batch_size = batch_size; self.feature_size=feature_size
 
     def feedforward(self,input):
-        self.input_mean = (1./self.feature_size) * np.sum(input,1)[:,np.newaxis]
-        self.input_std  = np.sqrt(np.mean(abs(input - self.input_mean) ** 2,1))[:,np.newaxis]
+        self.input_mean = input.mean(0)
+        self.input_std  = np.sqrt(np.mean(abs(input - self.input_mean) ** 2,0))
         return (input-self.input_mean) / self.input_std
 
     def backprop(self,grad):
         pass
 # ========== LAYERS THAT I AM GOING TO USE ========
 
-
 # hyper
 num_epoch = 100
-batch_size = 100
+batch_size = 200
 print_size = 1
 
 learning_rate = 0.0005
@@ -357,26 +355,10 @@ for iter in range(num_epoch):
         white_D_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
         train_whiten_D = white_D.dot(white_D_matrix)
 
-        # white_N = current_train_data - current_train_data.mean(axis=1)[:,np.newaxis]
-        # eigenval,eigvector = np.linalg.eigh(white_N.dot(white_N.T))
-        # white_N_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
-        # train_whiten_N = white_N_matrix.dot(white_N)
-
-        train_std = stand_layer.feedforward(current_train_data)
-        train_whiten_N = zca_layer.feedforward(train_std)
-        # X = np.array([ [0.1, 0.3, 0.4, 0.8, 0.9],
-        #                [3.2, 2.4, 2.4, 0.1, 5.5],
-        #                [10., 8.2, 4.3, 2.6, 0.9]
-        #              ])
-        # avg, w_sum = np.average(X, axis=1, weights=None, returned=True)
-        # print(avg)
-        # print(w_sum)
-        # X_cen = X - X.mean(1)[:,np.newaxis]
-        # temp = X_cen.dot(X_cen.T) / X.shape[1]
-        # print(temp)
-        # print('---------')
-        # print(np.cov(X,bias=True, ddof=0,rowvar=True) )
-        # sys.exit()
+        white_N = current_train_data - current_train_data.mean(axis=1)[:,np.newaxis]
+        eigenval,eigvector = np.linalg.eigh(white_N.dot(white_N.T))
+        white_N_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
+        train_whiten_N = white_N_matrix.dot(white_N)
 
         white_Best = (current_train_data - current_train_data.mean(axis=1)[:,np.newaxis])/current_train_data.std(1)[:,np.newaxis]
         cov_temp = np.cov(white_Best,bias=True, ddof=0,rowvar=True)
@@ -384,20 +366,8 @@ for iter in range(num_epoch):
         white_Best_Matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
         train_white_Best = white_Best_Matrix.dot(white_Best)
 
-        # testing = current_train_data.T  #( 784 100 )
-        # current_temp = testing-(testing-testing.mean(0))/testing.std(0)
-        # cov_temp = np.cov(current_temp,bias=True, ddof=0,rowvar=False)
-        # S,U = np.linalg.eigh(cov_temp)
-        # zca_matrix = U.dot(np.diag(1.0/np.sqrt(S + 10e-5))).dot(U.T)
-        # train_whiten_N = current_temp.dot(zca_matrix).T
-        # # train_final = zca_temp(current_train_data.T).T
-
-        white_Best = current_train_data - (current_train_data)/current_train_data.std(1)[:,np.newaxis]
-        white_Best = white_Best - white_Best.mean(1)[:,np.newaxis]
-        cov_temp = np.cov(white_Best,bias=True, ddof=0,rowvar=True)
-        eigenval,eigvector = np.linalg.eigh(cov_temp)
-        white_Best_Matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
-        train_white_compare = white_Best_Matrix.dot(white_Best)
+        train_std = stand_layer.feedforward(current_train_data.T).T
+        train_white_compare = zca_layer.feedforward(train_std.T).T
 
         for ii in range(5):
             plt.figure(figsize=(15,5))
