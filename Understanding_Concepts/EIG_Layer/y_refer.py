@@ -30,14 +30,34 @@ def feed_forward(X, weights):
 def grads(X, Y, weights):
     grads = np.empty_like(weights)
     a = feed_forward(X, weights)
-    delta = (a[-1] - Y)
+
+    # ==== REFENCE ====
+    # delta = (a[-1] - Y)
     # temp = a[-2].dot(weights[-1])
     # delta = delta * 1.0*(temp>0.0)
-    grads[-1] = a[-2].T.dot(delta)
-    for i in range(len(a)-2, 0, -1):
-        delta = (a[i] > 0.) * delta.dot(weights[i].T)
-        grads[i-1] = a[i-1].T.dot(delta)
-    return grads / len(X)
+    # grads[-1] = a[-2].T.dot(delta)
+    #
+    # delta = (a[1] > 0.) * delta.dot(weights[1].T)
+    # grads[0] = a[0].T.dot(delta)
+    # for i in range(len(a)-2, 0, -1):
+    #     delta = (a[i] > 0.) * delta.dot(weights[i].T)
+    #     grads[i-1] = a[i-1].T.dot(delta)
+    # ==== REFENCE ====
+
+    # ==== MINE ====
+    delta = a[2] - Y
+    grad_1_2 = a[2] - Y
+    grad_2_2 = 1.0*(a[1].dot(weights[1])>0.)
+    grad_3_2 = a[1]
+    grads[1] = grad_3_2.T.dot(grad_1_2 * grad_2_2) / batch_size
+
+    grad_1_1 = (grad_1_2 * grad_2_2).dot(weights[1].T)
+    grad_2_1 = 1.0*(a[0].dot(weights[0])>0.)
+    grad_3_1 = a[0]
+    grads[0] = grad_3_1.T.dot(grad_1_1 * grad_2_1) / batch_size
+    # ==== MINE ====
+
+    return grads
 
 # import data
 mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
@@ -52,27 +72,24 @@ r.normal(0,0.05,size=(784, 100)),
 r.normal(0,0.05,size=(100, 10)),
 ]
 
-m,v = np.zeros_like(weights),np.zeros_like(weights)
-# weights = [np.random.randn(*w) * 0.1 for w in [(784, 10)]]
 num_epochs, batch_size, learn_rate = 30, 20, 0.02
 
 for i in range(num_epochs):
 
     for j in range(0, len(trX), batch_size):
-        X, Y = trX[j:j+batch_size], trY[j:j+batch_size]
+        X = trX[j:j+batch_size]
+        Y = trY[j:j+batch_size]
         weights = weights - learn_rate * grads(X, Y, weights)
 
-        #
         # gradd = grads(X, Y, weights)
         # m = m*0.9 + (1-0.9) * gradd
         # v = v*0.999 + (1-0.999) * gradd ** 2
         # m_hat,v_hat = m/(1-0.9),v/(1-0.999)
         # weights = weights - learn_rate * m_hat / ((v_hat) ** 0.5 + 10e-8)
-        #
 
     prediction = np.argmax(feed_forward(teX, weights)[-1], axis=1)
     print(i, np.mean(prediction == np.argmax(teY, axis=1)))
-
+    sys.exit()
 
 for xxx in range(10):
     print('====================')

@@ -21,10 +21,11 @@ def np_relu(x): return x * (x > 0)
 def d_np_relu(x): return 1. * (x > 0)
 
 # def: fully connected layer
+r = np.random.RandomState(1234)
 class np_FNN():
 
     def __init__(self,inc,outc,batch_size,act=np_relu,d_act = d_np_relu):
-        self.w = 0.1 * np.random.randn(inc,outc) + 0.0
+        self.w = r.normal(0,0.05,size=(inc, outc))
         self.b = np.zeros(outc)
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
@@ -64,8 +65,8 @@ class np_FNN():
         return grad_pass
 
 # data
-# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+# mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 trX, trY, teX, teY = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
 # hyper
@@ -90,5 +91,6 @@ for iter in range(num_epoch):
 
     test_predict = np.argmax(l1.feedforward(l0.feedforward(teX)),1)
     print(iter, np.mean(test_predict == np.argmax(teY, axis=1)))
+    sys.exit()
 
 # -- end code --
