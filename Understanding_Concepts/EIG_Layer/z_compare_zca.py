@@ -88,43 +88,6 @@ class centering_layer():
     def backprop(self,grad):
         return grad * ( 1. - 1./self.m )
 
-# def: whiten layer without centering
-class zca_whiten_layer():
-
-    def __init__(self,batch_size,feature_size):
-        self.m = batch_size
-        self.n = feature_size
-        self.moving_sigma = 0
-        self.moving_mean = 0
-
-    def feedforward(self,input,EPS=1e-5):
-        self.input = input
-        self.sigma = (1./self.m) * (input).T.dot(input)
-        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
-        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
-        self.whiten = (self.input).dot(self.U)
-        return self.whiten
-
-    def backprop(self,grad,EPS=1e-5):
-        d_eig_vector = self.whiten.T.dot(grad) + \
-                       self.input.T.dot(grad.dot(self.eigvector.T)).dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T)
-
-        d_eig_value  = self.input.T.dot(grad.dot(self.eigvector.T)) \
-                     * (-1/2) * np.diag(1. / (self.eigenval+EPS) ** 1.5 )
-
-        E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
-                   np.expand_dims(self.eigenval,1).dot(np.ones((1,self.n)))
-        K_matrix = 1./(E + EPS) - np.eye(self.n)
-        d_sigma = self.eigvector.dot(
-                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + \
-                    d_eig_value
-                    ).dot(self.eigvector.T)
-
-        d_simg_sym = (0.5) * (d_sigma.T + d_sigma)
-        d_x = grad.dot(self.eigvector.T).dot(self.U.T) + \
-              (2./self.m) * self.input.dot(d_simg_sym.T)
-        return d_x
-
 # class Batch Normalization
 class Batch_Normalization_layer():
 
@@ -287,6 +250,61 @@ def batchnorm_forward(x,eps=1e-5):
 def simple_scale(x):
     return (x-x.min())/(x.max()-x.min())
 
+# ========== LAYERS THAT I AM GOING TO USE ========
+# def: whiten layer without centering
+class zca_whiten_layer():
+
+    def __init__(self,batch_size,feature_size):
+        self.m = batch_size
+        self.n = feature_size
+        self.moving_sigma = 0
+        self.moving_mean = 0
+
+    def feedforward(self,input,EPS=10e-5):
+        self.input = input
+        # self.sigma = np.cov(input,bias=True, ddof=0,rowvar=True)
+        self.sigma = self.input.dot(self.input.T) / self.n
+        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
+        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
+        self.whiten = self.U.dot(self.input)
+        return self.whiten
+
+    def backprop(self,grad,EPS=1e-5):
+        d_eig_vector = self.whiten.T.dot(grad) + \
+                       self.input.T.dot(grad.dot(self.eigvector.T)).dot(np.diag(1. / np.sqrt(self.eigenval+EPS)).T)
+
+        d_eig_value  = self.input.T.dot(grad.dot(self.eigvector.T)) \
+                     * (-1/2) * np.diag(1. / (self.eigenval+EPS) ** 1.5 )
+
+        E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
+                   np.expand_dims(self.eigenval,1).dot(np.ones((1,self.n)))
+        K_matrix = 1./(E + EPS) - np.eye(self.n)
+        d_sigma = self.eigvector.dot(
+                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + \
+                    d_eig_value
+                    ).dot(self.eigvector.T)
+
+        d_simg_sym = (0.5) * (d_sigma.T + d_sigma)
+        d_x = grad.dot(self.eigvector.T).dot(self.U.T) + \
+              (2./self.m) * self.input.dot(d_simg_sym.T)
+        return d_x
+
+# def: standardize by each row
+class standardization_layer():
+
+    def __init__(self,batch_size,feature_size):
+        self.batch_size = batch_size; self.feature_size=feature_size
+
+    def feedforward(self,input):
+        self.input_mean = (1./self.feature_size) * np.sum(input,1)[:,np.newaxis]
+        self.input_std  = np.sqrt(np.mean(abs(input - self.input_mean) ** 2,1))[:,np.newaxis]
+        return (input-self.input_mean) / self.input_std
+
+    def backprop(self,grad):
+        pass
+# ========== LAYERS THAT I AM GOING TO USE ========
+
+
 # hyper
 num_epoch = 100
 batch_size = 100
@@ -308,6 +326,10 @@ l1 = Decorrelated_Batch_Norm(batch_size,one*one)
 l2 = np_FNN(one*one,two*two)
 l3 = Decorrelated_Batch_Norm(batch_size,two*two)
 l4 = np_FNN(two*two,10)
+
+stand_layer = standardization_layer(batch_size=batch_size,feature_size=784)
+zca_layer   = zca_whiten_layer(batch_size=batch_size,feature_size=784)
+
 
 # train
 for iter in range(num_epoch):
@@ -335,10 +357,26 @@ for iter in range(num_epoch):
         white_D_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
         train_whiten_D = white_D.dot(white_D_matrix)
 
-        white_N = current_train_data - current_train_data.mean(axis=1)[:,np.newaxis]
-        eigenval,eigvector = np.linalg.eigh(white_N.dot(white_N.T))
-        white_N_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
-        train_whiten_N = white_N_matrix.dot(white_N)
+        # white_N = current_train_data - current_train_data.mean(axis=1)[:,np.newaxis]
+        # eigenval,eigvector = np.linalg.eigh(white_N.dot(white_N.T))
+        # white_N_matrix = eigvector.dot(np.diag(1./np.sqrt(eigenval+10e-5))).dot(eigvector.T)
+        # train_whiten_N = white_N_matrix.dot(white_N)
+
+        train_std = stand_layer.feedforward(current_train_data)
+        train_whiten_N = zca_layer.feedforward(train_std)
+        # X = np.array([ [0.1, 0.3, 0.4, 0.8, 0.9],
+        #                [3.2, 2.4, 2.4, 0.1, 5.5],
+        #                [10., 8.2, 4.3, 2.6, 0.9]
+        #              ])
+        # avg, w_sum = np.average(X, axis=1, weights=None, returned=True)
+        # print(avg)
+        # print(w_sum)
+        # X_cen = X - X.mean(1)[:,np.newaxis]
+        # temp = X_cen.dot(X_cen.T) / X.shape[1]
+        # print(temp)
+        # print('---------')
+        # print(np.cov(X,bias=True, ddof=0,rowvar=True) )
+        # sys.exit()
 
         white_Best = (current_train_data - current_train_data.mean(axis=1)[:,np.newaxis])/current_train_data.std(1)[:,np.newaxis]
         cov_temp = np.cov(white_Best,bias=True, ddof=0,rowvar=True)

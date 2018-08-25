@@ -97,12 +97,12 @@ class zca_whiten_layer():
         self.moving_sigma = 0
         self.moving_mean = 0
 
-    def feedforward(self,input,EPS=1e-5):
+    def feedforward(self,input,EPS=10e-5):
         self.input = input
-        self.sigma = (1./self.m) * (input).T.dot(input)
+        self.sigma = np.cov(input,bias=True, ddof=0,rowvar=True)
         self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
         self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
-        self.whiten = (self.input).dot(self.U)
+        self.whiten = self.U.dot(self.input)
         return self.whiten
 
     def backprop(self,grad,EPS=1e-5):
@@ -238,10 +238,21 @@ l2 = np_FNN(one*one,two*two)
 l3 = Decorrelated_Batch_Norm(batch_size,two*two)
 l4 = np_FNN(two*two,10)
 
-def stand_layer(x):
-    x_mean = x.mean(0)
-    x_std  = np.sqrt(np.mean(abs(x - x.mean(0))**2))
-    return (x-x_mean)/x_std
+
+class standardization_layer():
+
+    def __init__(self,batch_size,feature_size):
+        self.batch_size = batch_size; self.feature_size=feature_size
+
+    def feedforward(self,input):
+        self.input_mean = (1./self.feature_size) * np.sum(input,1)[:,np.newaxis]
+        self.input_std  = np.sqrt(np.mean(abs(input - self.input_mean) ** 2,1))[:,np.newaxis]
+        return (input-self.input_mean) / self.input_std
+
+    def backprop(self,grad):
+        pass
+stand_layer = standardization_layer(batch_size=batch_size,feature_size=784)
+zca_layer   = zca_whiten_layer(batch_size=batch_size,feature_size=784)
 
 # train
 for iter in range(num_epoch):
@@ -256,16 +267,18 @@ for iter in range(num_epoch):
         current_train_data_label = train_label[current_batch_index:current_batch_index + batch_size]
 
         current_train_data_temp = (current_train_data-current_train_data.mean(1)[:,np.newaxis])/current_train_data.std(1)[:,np.newaxis]
-        print(current_train_data_temp[0].mean())
-        print(current_train_data_temp[0].std())
-        print(current_train_data_temp[0].min())
-        print(current_train_data_temp[0].max())
+        print(current_train_data_temp[3].mean())
+        print(current_train_data_temp[3].std())
+        print(current_train_data_temp[3].min())
+        print(current_train_data_temp[3].max())
         print('=======')
-        temp = stand_layer(current_train_data_temp.T).T
-        print(temp[0].mean())
-        print(temp[0].std())
-        print(temp[0].min())
-        print(temp[0].max())
+
+        temp = stand_layer.feedforward(current_train_data)
+        print(temp[3].mean())
+        print(temp[3].std())
+        print(temp[3].min())
+        print(temp[3].max())
+
         sys.exit()
         # ====
         train_center = l0_center.feedforward(current_train_data)
