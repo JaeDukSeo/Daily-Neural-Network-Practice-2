@@ -19,7 +19,7 @@ def unpickle(file):
 
 # class
 class CNN():
-    
+
     def __init__(self,k,inc,out):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05))
         self.B = tf.Variable(tf.random_uniform([k,k,inc,out],minval=-0.5,maxval=0.5))
@@ -32,8 +32,8 @@ class CNN():
         return self.layerA
 
     def backprop(self,gradient,feedback=False):
-        grad_part_1 = gradient 
-        grad_part_2 = d_tf_elu(self.layer) 
+        grad_part_1 = gradient
+        grad_part_2 = d_tf_elu(self.layer)
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
@@ -49,7 +49,7 @@ class CNN():
             input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
             filter= self.B,out_backprop = grad_middle,
             strides=[1,1,1,1],padding='SAME'
-            )       
+            )
         else:
             grad_pass = tf.nn.conv2d_backprop_input(
                 input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
@@ -60,14 +60,14 @@ class CNN():
         grad_update = []
         grad_update.append(tf.assign(self.m,tf.add(beta1*self.m, (1-beta1)*grad)))
         grad_update.append(tf.assign(self.v,tf.add(beta2*self.v, (1-beta2)*grad**2)))
-        
+
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
 
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         grad_update.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat))))
 
-        return grad_pass,grad_update  
+        return grad_pass,grad_update
 
 # data
 PathDicom = "../../Dataset/cifar-10-batches-py/"
@@ -192,10 +192,10 @@ auto_train = tf.train.MomentumOptimizer(learning_rate=learning_rate,momentum=0.9
 with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
-    
+
     train_cota,train_acca = 0,0
     train_cot,train_acc = [],[]
-    
+
     test_cota,test_acca = 0,0
     test_cot,test_acc = [],[]
 
@@ -211,7 +211,7 @@ with tf.Session() as sess:
             print("Current Iter : ",iter, " current batch: ",batch_size_index, ' Current cost: ', sess_result[0],' Current Acc: ', sess_result[1],end='\r')
             train_cota = train_cota + sess_result[0]
             train_acca = train_acca + sess_result[1]
-            
+
         for test_batch_index in range(0,len(test_batch),batch_size):
             current_batch = test_batch[test_batch_index:test_batch_index+batch_size]
             current_batch_label = test_label[test_batch_index:test_batch_index+batch_size]
