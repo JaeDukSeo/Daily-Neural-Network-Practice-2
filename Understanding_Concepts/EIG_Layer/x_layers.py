@@ -11,8 +11,11 @@ import imgaug as ia
 from scipy.ndimage import zoom
 import seaborn as sns
 
+learning_rate = 0.1
+beta1,beta2,adam_e = 0.9,0.9,1e-8
+
 # create layer
-def np_sigmoid(x): return 1.0 / (1.0+np.exp(-x))
+def np_sigmoid(x): return  1 / (1 + np.exp(-x))
 def d_np_sigmoid(x): return np_sigmoid(x) * (1.0 - np_sigmoid(x))
 
 # def: soft max function for 2D
@@ -24,15 +27,18 @@ def stable_softmax(x,axis=None):
 # def: fully connected layer
 class np_FNN():
 
-    def __init__(self,inc,outc,act=np_sigmoid,d_act = d_np_sigmoid):
-        self.w = 1.0 * np.random.randn(inc,outc) + 0.0
+    def __init__(self,inc,outc,batch_size,act=np_sigmoid,d_act = d_np_sigmoid):
+        self.w = 0.1 * np.random.randn(inc,outc) + 0.0
+        self.b = np.zeros(outc)
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
+        self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
         self.act = act; self.d_act = d_act
+        self.batch_size = batch_size
 
     def getw(self): return self.w
     def feedforward(self,input):
         self.input  = input
-        self.layer  = self.input.dot(self.w)
+        self.layer  = self.input.dot(self.w) + self.b
         self.layerA = self.act(self.layer)
         return self.layerA
 
@@ -42,14 +48,21 @@ class np_FNN():
         grad_3 = self.input
 
         grad_middle = grad_1 * grad_2
-        grad = grad_3.T.dot(grad_middle) / batch_size
+        grad_b = grad_middle.mean(0)
+        grad = grad_3.T.dot(grad_middle) / self.batch_size
         grad_pass = grad_middle.dot(self.w.T)
 
         self.m = self.m * beta1 + (1. - beta1) * grad
         self.v = self.v * beta2 + (1. - beta2) * grad ** 2
         m_hat,v_hat = self.m/(1.-beta1), self.v/(1.-beta2)
-        adam_middle = learning_rate / (np.sqrt(v_hat) + adam_e) * m_hat
+        adam_middle =  m_hat * learning_rate / (np.sqrt(v_hat) + adam_e)
         self.w = self.w - adam_middle
+
+        self.mb = self.mb * beta1 + (1. - beta1) * grad_b
+        self.vb = self.vb * beta2 + (1. - beta2) * grad_b ** 2
+        m_hatb,v_hatb = self.mb/(1.-beta1), self.vb/(1.-beta2)
+        adam_middleb =  m_hatb * learning_rate / (np.sqrt(v_hatb) + adam_e)
+        self.b = self.b - adam_middleb
         return grad_pass
 
 # ===== SIMPLE MODULAR APPROACH =======
@@ -78,8 +91,8 @@ class standardization_layer():
         return self.x_hat
 
     def backprop(self,grad,EPS=10e-5):
-        dem = 1./(self.m * np.sqrt(self.std + EPS ) )
-        d_x = self.m * grad - np.sum(grad,axis = 0) - self.x_hat*np.sum(grad*self.x_hat, axis=0)
+        dem = 1./(grad.shape[0] * np.sqrt(self.std + EPS ) )
+        d_x = grad.shape[0] * grad - np.sum(grad,axis = 0) - self.x_hat*np.sum(grad*self.x_hat, axis=0)
         return d_x * dem
 
 # def: zca whitening layer
@@ -88,14 +101,27 @@ class zca_whiten_layer():
     def __init__(self): pass
 
     def feedforward(self,input,EPS=10e-5):
+        self.input = input
         self.sigma = input.T.dot(input) / input.shape[0]
         self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
         self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
         self.whiten = input.dot(self.U)
         return self.whiten
 
-    def backprop(self):
-        pass
+    def backprop(self,grad,EPS=10e-5):
+        # d_U = self.input.T.dot(grad)
+        d_U = np.sum(self.input,axis=0)[np.newaxis,:].T.dot(np.sum(grad,axis=0)[np.newaxis,:])
+        d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
+        d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
+        E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval  ,1).dot(np.ones((1,grad.shape[1])))
+        K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
+        np.fill_diagonal(d_eig_value,0.0)
+        d_sigma = self.eigvector.dot(
+                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
+                    ).dot(self.eigvector.T)
+        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
+        return d_x
+
 # ===== SIMPLE MODULAR APPROACH =======
 
 # ===== FULL ======
@@ -143,8 +169,7 @@ class Decorrelated_Batch_Norm():
         d_eig_vector =d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + \
                       self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(d_U)
 
-        E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - \
-            np.expand_dims(self.eigenval  ,1).dot(np.ones((1,self.n)))
+        E = np.ones((self.n,1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval  ,1).dot(np.ones((1,self.n)))
         K_matrix = 1./(E + EPS) - np.eye(self.n)
         np.fill_diagonal(d_eig_value,0.0)
 
