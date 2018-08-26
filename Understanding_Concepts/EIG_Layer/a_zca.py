@@ -102,21 +102,22 @@ class standardization_layer():
 class zca_whiten_layer():
 
     def __init__(self,size):
-        self.moving_u = np.zeros((size,size))
+        self.moving_sigma = np.zeros((size,size))
 
-    def feedforward(self,input,EPS=10e-8,is_train = True):
+    def feedforward(self,input,EPS=1e-10,is_train = True):
         if is_train:
             self.input = input
             self.sigma = input.T.dot(input) / input.shape[0]
             self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
             self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
-            self.moving_u = self.moving_u * (0.9) + (1.-0.9) * self.U
             self.whiten = input.dot(self.U)
         else:
-            return input.dot(self.moving_u)
+            test_eigenval,test_eigvector = np.linalg.eigh(self.moving_sigma)
+            test_U = test_eigvector.dot(np.diag(1. / np.sqrt(test_eigenval+EPS))).dot(test_eigvector.T)
+            return input.dot(test_U)
         return self.whiten
 
-    def backprop(self,grad,EPS=10e-8):
+    def backprop(self,grad,EPS=1e-10):
         d_U = self.input.T.dot(grad)
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
@@ -126,7 +127,7 @@ class zca_whiten_layer():
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
-        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma)
+        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
         return d_x
 
 # def: soft max function for 2D
@@ -140,8 +141,8 @@ mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 # train_data =  np.vstack((train_data,mnist.validation.images))
 # train_label = np.vstack((train_label,mnist.validation.labels))
-train_data  = train_data[:30000,:]
-train_label = train_label[:30000,:]
+# train_data  = train_data[:30000,:]
+# train_label = train_label[:30000,:]
 
 # Show some details and vis some of them
 print(train_data.shape)
@@ -156,11 +157,11 @@ print('-----------------------')
 
 # hyper
 num_epoch = 50
-batch_size = 1000
+batch_size = 500
 learning_rate = 0.005
 print_size  = 1
 
-beta1,beta2,adam_e = 0.9,0.999,1e-10
+beta1,beta2,adam_e = 0.9,0.999,1e-20
 
 # class of layers
 l0_special = zca_whiten_layer(size=batch_size)
@@ -194,8 +195,8 @@ for iter in range(num_epoch):
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         train_cota = train_cota + cost; train_acca = train_acca + accuracy
 
-        grad3 = l3.backprop(  layer3 - current_label ,lr_rate = learning_rate)
-        grad1 = l1.backprop(grad3,lr_rate = learning_rate)
+        grad3 = l3.backprop(layer3 - current_label ,lr_rate=learning_rate)
+        grad1 = l1.backprop(grad3,lr_rate=learning_rate)
         grad0_special = l0_special.backprop(grad1.T).T
         grad0 = l0.backprop(grad0_special,lr_rate = learning_rate)
 
@@ -204,7 +205,7 @@ for iter in range(num_epoch):
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
         layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T,is_train=False).T
+        layer0_special = l0_special.feedforward(layer0.T,is_train=True).T
         layer1 = l1.feedforward(layer0_special)
         layer3 = l3.feedforward(layer1)
 
@@ -222,7 +223,6 @@ for iter in range(num_epoch):
     train_acc.append(train_acca/(len(train_data)/batch_size))
     train_cot.append(train_cota/(len(train_data)/batch_size))
     train_cota,train_acca = 0,0
-
     test_acc.append(test_acca/(len(test_data)/batch_size))
     test_cot.append(test_cota/(len(test_data)/batch_size))
     test_cota,test_acca = 0,0
