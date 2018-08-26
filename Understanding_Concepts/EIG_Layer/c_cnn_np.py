@@ -294,7 +294,7 @@ test_data  =  test_data.reshape(10000,28,28)[:,np.newaxis,:,:]
 # hyper
 num_epoch = 30
 batch_size = 200
-learning_rate = 0.001
+learning_rate = 0.0005
 lamda = 0.0008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-20

@@ -712,4 +712,31 @@ class PCA_Layer():
         out_put = self.alpha * pca_reshaped +self.beta
 
         return out_put,update_sigma
+
+class zca_whiten_layer():
+
+    def __init__(self): pass
+
+    def feedforward(self,input,EPS=10e-5):
+        self.input = input
+        self.sigma = tf.matmul(tf.transpose(input),input) / input.shape[0]
+        self.eigenval,self.eigvector = tf.linalg.eigvalsh(self.sigma)
+        self.U = tf.matmul(tf.matmul(self.eigvector,tf.diag(1./ tf.sqrt(self.eigenval+EPS))),tf.transpose(self.eigvector))
+        self.whiten = tf.matmul(input,self.U)
+        return self.whiten
+
+    def backprop(self,grad,EPS=10e-5):
+        d_U = self.input.T.dot(grad)
+        d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
+        d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
+        E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
+        K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
+        np.fill_diagonal(d_eig_value,0.0)
+        d_sigma = self.eigvector.dot(
+                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
+                    ).dot(self.eigvector.T)
+        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
+        return d_x
+
+
 # ================= LAYER CLASSES =================
