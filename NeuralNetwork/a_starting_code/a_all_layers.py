@@ -739,7 +739,7 @@ class zca_whiten_layer():
                     ).dot(self.eigvector.T)
         d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
         # ===== tf =====
-        
+
         return d_x
 
 

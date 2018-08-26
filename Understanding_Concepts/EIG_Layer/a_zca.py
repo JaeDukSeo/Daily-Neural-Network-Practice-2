@@ -21,7 +21,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 def np_relu(x): return x * (x > 0)
 def d_np_relu(x): return 1. * (x > 0)
 def np_tanh(x): return  np.tanh(x)
-def d_np_tanh(x): return 1. - np_sigmoid(x) ** 2
+def d_np_tanh(x): return 1. - np_tanh(x) ** 2
 def np_sigmoid(x): return  1/(1+np.exp(-x))
 def d_np_sigmoid(x): return np_sigmoid(x) * (1.-np_sigmoid(x))
 
@@ -125,7 +125,7 @@ class zca_whiten_layer():
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
-        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
+        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma)
         return d_x
 
 # def: soft max function for 2D
@@ -152,18 +152,18 @@ print(test_label.min(),test_label.max())
 print('-----------------------')
 
 # hyper
-num_epoch = 30
-batch_size = 1250
-learning_rate = 0.0005
-lamda = 0.0008
+num_epoch = 100
+batch_size = 125
+learning_rate = 0.0002
+lamda = 0.000008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-20
 
 # class of layers
-l0 = np_FNN(28*28,36*36, batch_size,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,36*36, batch_size,act=np_tanh,d_act=d_np_tanh)
 l0_special = zca_whiten_layer()
-l1 = np_FNN(36*36,42*42 ,batch_size,act=np_relu,d_act=d_np_relu)
-l3 = np_FNN(42*42,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(36*36,42*42 ,batch_size,act=np_tanh,d_act=d_np_tanh)
+l2 = np_FNN(42*42,10    ,batch_size,act=np_sigmoid,d_act=d_np_sigmoid)
 
 # train
 for iter in range(num_epoch):
@@ -183,15 +183,15 @@ for iter in range(num_epoch):
         layer0 = l0.feedforward(current_data)
         layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
-        layer3 = l3.feedforward(layer1)
+        layer2 = l2.feedforward(layer1)
 
-        cost = np.mean( layer3 - current_label )
-        accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
+        cost = np.mean( layer2 - current_label )
+        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         train_cota = train_cota + cost; train_acca = train_acca + accuracy
 
-        grad3 = l3.backprop(layer3 - current_label ,lr_rate=learning_rate)
-        grad1 = l1.backprop(grad3,lr_rate=learning_rate)
+        grad2 = l2.backprop(layer2 - current_label ,lr_rate=learning_rate)
+        grad1 = l1.backprop(grad2,lr_rate=learning_rate)
         grad0_special = l0_special.backprop(grad1.T).T
         grad0 = l0.backprop(grad0_special,lr_rate = learning_rate)
 
@@ -202,10 +202,10 @@ for iter in range(num_epoch):
         layer0 = l0.feedforward(current_data)
         layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
-        layer3 = l3.feedforward(layer1)
+        layer2 = l2.feedforward(layer1)
 
-        cost = np.mean( layer3 - current_label )
-        accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
+        cost = np.mean( layer2 - current_label )
+        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         test_cota = test_cota + cost; test_acca = test_acca + accuracy
 
