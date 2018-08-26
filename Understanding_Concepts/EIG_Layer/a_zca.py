@@ -101,17 +101,22 @@ class standardization_layer():
 # def: zca whitening layer
 class zca_whiten_layer():
 
-    def __init__(self): pass
+    def __init__(self,size):
+        self.moving_u = np.zeros((size,size))
 
-    def feedforward(self,input,EPS=10e-5):
-        self.input = input
-        self.sigma = input.T.dot(input) / input.shape[0]
-        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
-        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
-        self.whiten = input.dot(self.U)
+    def feedforward(self,input,EPS=10e-8,is_train = True):
+        if is_train:
+            self.input = input
+            self.sigma = input.T.dot(input) / input.shape[0]
+            self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
+            self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
+            self.moving_u = self.moving_u * (0.9) + (1.-0.9) * self.U
+            self.whiten = input.dot(self.U)
+        else:
+            return input.dot(self.moving_u)
         return self.whiten
 
-    def backprop(self,grad,EPS=10e-5):
+    def backprop(self,grad,EPS=10e-8):
         d_U = self.input.T.dot(grad)
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
@@ -133,6 +138,10 @@ def stable_softmax(x,axis=None):
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+# train_data =  np.vstack((train_data,mnist.validation.images))
+# train_label = np.vstack((train_label,mnist.validation.labels))
+train_data  = train_data[:30000,:]
+train_label = train_label[:30000,:]
 
 # Show some details and vis some of them
 print(train_data.shape)
@@ -147,15 +156,15 @@ print('-----------------------')
 
 # hyper
 num_epoch = 50
-batch_size = 500
+batch_size = 1000
 learning_rate = 0.005
 print_size  = 1
 
 beta1,beta2,adam_e = 0.9,0.999,1e-10
 
 # class of layers
-l0_special = zca_whiten_layer()
-l0 = np_FNN(784,300, batch_size, act=np_relu,d_act=d_np_relu)
+l0_special = zca_whiten_layer(size=batch_size)
+l0 = np_FNN(784,300, batch_size,act=np_relu,d_act=d_np_relu)
 l1 = np_FNN(300,100 ,batch_size,act=np_relu,d_act=d_np_relu)
 l3 = np_FNN(100,10  ,batch_size,act=np_relu,d_act=d_np_relu)
 
@@ -176,7 +185,7 @@ for iter in range(num_epoch):
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
         layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
+        layer0_special = l0_special.feedforward(layer0.T,is_train=True).T
         layer1 = l1.feedforward(layer0_special)
         layer3 = l3.feedforward(layer1)
 
@@ -195,7 +204,7 @@ for iter in range(num_epoch):
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
         layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
+        layer0_special = l0_special.feedforward(layer0.T,is_train=False).T
         layer1 = l1.feedforward(layer0_special)
         layer3 = l3.feedforward(layer1)
 
