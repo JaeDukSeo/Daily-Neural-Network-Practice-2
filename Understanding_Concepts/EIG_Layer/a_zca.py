@@ -20,18 +20,6 @@ from tensorflow.examples.tutorials.mnist import input_data
 # def: relu activations
 def np_relu(x): return x * (x > 0)
 def d_np_relu(x): return 1. * (x > 0)
-
-def np_elu(x,alpha=3.0):
-    neg_indices = x < 0
-    x[neg_indices] = alpha * (np.exp(x[neg_indices]) - 1)
-    return x
-
-def d_np_elu(x,alpha = 3.0):
-    x_temp = np.ones_like(x)
-    neg_indices = x < 0
-    x_temp[neg_indices] = alpha * np.exp(x[neg_indices])
-    return x_temp
-
 def np_tanh(x): return  np.tanh(x)
 def d_np_tanh(x): return 1. - np_sigmoid(x) ** 2
 def np_sigmoid(x): return  1/(1+np.exp(-x))
@@ -41,9 +29,9 @@ def d_np_sigmoid(x): return np_sigmoid(x) * (1.-np_sigmoid(x))
 r = np.random.RandomState(1234)
 class np_FNN():
 
-    def __init__(self,inc,outc,batch_size,act=np_elu,d_act = d_np_elu):
+    def __init__(self,inc,outc,batch_size,act=np_relu,d_act = d_np_relu):
         self.w = r.normal(0,0.01,size=(inc, outc))
-        self.b = np.zeros(outc)
+        self.b = r.normal(0,0.005,size=(outc))
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
         self.act = act; self.d_act = d_act
@@ -65,7 +53,7 @@ class np_FNN():
         grad_middle = grad_1 * grad_2
         grad_b = grad_middle.sum(0) / grad.shape[0]
         grad = grad_3.T.dot(grad_middle) / grad.shape[0]
-        grad_pass = grad_middle.dot(self.w.T) / grad.shape[0]
+        grad_pass = grad_middle.dot(self.w.T)
 
         self.m = self.m * beta1 + (1. - beta1) * grad
         self.v = self.v * beta2 + (1. - beta2) * grad ** 2
@@ -76,7 +64,7 @@ class np_FNN():
         self.mb = self.mb * beta1 + (1. - beta1) * grad_b
         self.vb = self.vb * beta2 + (1. - beta2) * grad_b ** 2
         m_hatb,v_hatb = self.mb/(1.-beta1), self.vb/(1.-beta2)
-        adam_middleb =  m_hatb *lr_rate /(np.sqrt(v_hatb) + adam_e)
+        adam_middleb =  m_hatb * lr_rate /(np.sqrt(v_hatb) + adam_e)
         self.b = self.b - adam_middleb
 
         return grad_pass
@@ -142,7 +130,6 @@ def stable_softmax(x,axis=None):
     e_x = np.exp(x - np.max(x,axis=1)[:,np.newaxis])
     return e_x / e_x.sum(axis=1)[:,np.newaxis]
 
-# data
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
@@ -160,15 +147,15 @@ print('-----------------------')
 
 # hyper
 num_epoch = 50
-batch_size = 64
+batch_size = 500
 learning_rate = 0.005
 print_size  = 1
 
-beta1,beta2,adam_e = 0.9,0.999,10e-8
+beta1,beta2,adam_e = 0.9,0.999,1e-10
 
 # class of layers
 l0_special = zca_whiten_layer()
-l0 = np_FNN(784,300,batch_size,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(784,300, batch_size, act=np_relu,d_act=d_np_relu)
 l1 = np_FNN(300,100 ,batch_size,act=np_relu,d_act=d_np_relu)
 l3 = np_FNN(100,10  ,batch_size,act=np_relu,d_act=d_np_relu)
 
@@ -182,7 +169,7 @@ for iter in range(num_epoch):
     test_cot,test_acc = [],[]
 
     # learning_rate = learning_rate * 0.999
-    # train_data,train_label = shuffle(train_data,train_label)
+    train_data,train_label = shuffle(train_data,train_label)
 
     for current_data_index in range(0,len(train_data),batch_size):
         current_data = train_data[current_data_index:current_data_index+batch_size]
