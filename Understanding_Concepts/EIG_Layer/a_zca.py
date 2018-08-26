@@ -12,7 +12,6 @@ from scipy.ndimage import zoom
 import seaborn as sns
 
 np.random.seed(0)
-ia.random.seed(0)
 np.set_printoptions(precision = 3,suppress =True)
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -155,8 +154,8 @@ print('-----------------------')
 # hyper
 num_epoch = 30
 batch_size = 1250
-learning_rate = 0.0003
-lamda = 0.001
+learning_rate = 0.0005
+lamda = 0.0008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-20
 

@@ -66,8 +66,6 @@ def col2im_indices(cols, x_shape, field_height=3, field_width=3, padding=1,
         return x_padded
     return x_padded[:, :, padding:-padding, padding:-padding]
 
-
-
 # def: relu activations
 def np_relu(x): return x * (x > 0)
 def d_np_relu(x): return 1. * (x > 0)
@@ -123,16 +121,6 @@ class np_FNN():
         self.b = self.b - adam_middleb
 
         return grad_pass
-
-class np_CNN():
-
-    def __init__(self,inc,outc,batch_size,act=np_relu,d_act = d_np_relu):
-        self.w = r.normal()
-        self.b = r.normal()
-        self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
-        self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
-        self.act = act; self.d_act = d_act
-        self.batch_size = batch_size
 
 # def: centering layer
 class centering_layer():
@@ -195,26 +183,7 @@ def stable_softmax(x,axis=None):
     e_x = np.exp(x - np.max(x,axis=1)[:,np.newaxis])
     return e_x / e_x.sum(axis=1)[:,np.newaxis]
 
-
-# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
-train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-train_data =  np.vstack((train_data,mnist.validation.images))
-train_label = np.vstack((train_label,mnist.validation.labels))
-
-# Show some details and vis some of them
-print(train_data.shape)
-print(train_data.min(),train_data.max())
-print(train_label.shape)
-print(train_label.min(),train_label.max())
-print(test_data.shape)
-print(test_data.min(),test_data.max())
-print(test_label.shape)
-print(test_label.min(),test_label.max())
-print('-----------------------')
-
 def conv_forward(X, W, b, stride=1, padding=1):
-    # cache = W, b, stride, padding
     n_filters, d_filter, h_filter, w_filter = W.shape
     n_x, d_x, h_x, w_x = X.shape
     h_out = (h_x - h_filter + 2 * padding) / stride + 1
@@ -231,11 +200,8 @@ def conv_forward(X, W, b, stride=1, padding=1):
     out = W_col @ X_col + b
     out = out.reshape(n_filters, h_out, w_out, n_x)
     out = out.transpose(3, 0, 1, 2)
-
     cache = (X, W, b, stride, padding, X_col)
-
-    return out, cache
-
+    return out,cache
 
 def conv_backward(dout, cache):
     X, W, b, stride, padding, X_col = cache
@@ -253,34 +219,99 @@ def conv_backward(dout, cache):
     dX = col2im_indices(dX_col, X.shape, h_filter, w_filter, padding=padding, stride=stride)
 
     return dX, dW, db
+# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
+train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+train_data =  np.vstack((train_data,mnist.validation.images))
+train_label = np.vstack((train_label,mnist.validation.labels))
 
+# Show some details and vis some of them
+print(train_data.shape)
+print(train_data.min(),train_data.max())
+print(train_label.shape)
+print(train_label.min(),train_label.max())
+print(test_data.shape)
+print(test_data.min(),test_data.max())
+print(test_label.shape)
+print(test_label.min(),test_label.max())
+print('-----------------------')
 
-train_data = train_data.reshape(60000,28,28)
-temp = train_data[0][np.newaxis,np.newaxis,:,:]
-w = np.random.randn((3,1,3,3))
-b = np.random.randn((3,1))
-print(temp.shape)
-print(w.shape)
-print(b.shape)
+train_data = train_data.reshape(60000,28,28)[:,np.newaxis,:,:]
+test_data  =  test_data.reshape(10000,28,28)[:,np.newaxis,:,:]
+def maxpool_forward(X, size=2, stride=2):
+    def maxpool(X_col):
+        max_idx = np.argmax(X_col, axis=0)
+        out = X_col[max_idx, range(max_idx.size)]
+        return out, max_idx
 
-ffff = conv_forward(temp,w,b)
-print(ffff.shape)
+    return _pool_forward(X, maxpool, size, stride)
 
-sys.exit()
+def maxpool_backward(dout, cache):
+    def dmaxpool(dX_col, dout_col, pool_cache):
+        dX_col[pool_cache, range(dout_col.size)] = dout_col
+        return dX_col
+
+    return _pool_backward(dout, dmaxpool, cache)
+
+def _pool_forward(X, pool_fun, size=2, stride=2):
+    n, d, h, w = X.shape
+    h_out = (h - size) / stride + 1
+    w_out = (w - size) / stride + 1
+
+    if not w_out.is_integer() or not h_out.is_integer():
+        raise Exception('Invalid output dimension!')
+
+    h_out, w_out = int(h_out), int(w_out)
+
+    X_reshaped = X.reshape(n * d, 1, h, w)
+    X_col = im2col_indices(X_reshaped, size, size, padding=0, stride=stride)
+
+    out, pool_cache = pool_fun(X_col)
+
+    out = out.reshape(h_out, w_out, n, d)
+    out = out.transpose(2, 3, 0, 1)
+
+    cache = (X, size, stride, X_col, pool_cache)
+
+    return out, cache
+
+def _pool_backward(dout, dpool_fun, cache):
+    X, size, stride, X_col, pool_cache = cache
+    n, d, w, h = X.shape
+
+    dX_col = np.zeros_like(X_col)
+    dout_col = dout.transpose(2, 3, 0, 1).ravel()
+
+    dX = dpool_fun(dX_col, dout_col, pool_cache)
+
+    dX = col2im_indices(dX_col, (n * d, 1, h, w), size, size, padding=0, stride=stride)
+    dX = dX.reshape(X.shape)
+
+    return dX
 
 # hyper
 num_epoch = 30
-batch_size = 2000
-learning_rate = 0.0003
-lamda = 0.005
+batch_size = 500
+learning_rate = 0.0005
+lamda = 0.0008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-20
 
+filter_size_0 = 3
+filter_size_1 = 3
+layer0_output_c = 8
+layer1_output_c = 16
+
 # class of layers
-l0 = np_FNN(28*28,36*36, batch_size,act=np_relu,d_act=d_np_relu)
+l0_w = r.normal(0,0.01, size=(layer0_output_c,1,filter_size_0,filter_size_0));               l0_b = r.normal(0,0.005,size=(layer0_output_c,1))
+l0_w_m,l0_w_v = np.zeros_like(l0_w),np.zeros_like(l0_w)
+l0_b_m,l0_b_v = np.zeros_like(l0_b),np.zeros_like(l0_b)
 l0_special = zca_whiten_layer()
-l1 = np_FNN(36*36,42*42 ,batch_size,act=np_relu,d_act=d_np_relu)
-l3 = np_FNN(42*42,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+
+l1_w = r.normal(0,0.01, size=(layer1_output_c,layer0_output_c,filter_size_1,filter_size_1)); l1_b = r.normal(0,0.005,size=(layer1_output_c,1))
+l1_w_m,l1_w_v = np.zeros_like(l1_w),np.zeros_like(l1_w)
+l1_b_m,l1_b_v = np.zeros_like(l1_b),np.zeros_like(l1_b)
+l2 = np_FNN(layer1_output_c*7*7,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 for iter in range(num_epoch):
@@ -297,32 +328,92 @@ for iter in range(num_epoch):
         current_data = train_data[current_data_index:current_data_index+batch_size]
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
-        layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
-        layer1 = l1.feedforward(layer0_special)
-        layer3 = l3.feedforward(layer1)
+        layer0,layer0_cache = conv_forward(current_data,l0_w,l0_b,padding=1)
+        layer0_act = np_relu(layer0)
+        layer0_pool,layer0_pool_cache = maxpool_forward(layer0_act)
+        layer0_reshape_1 = layer0_pool.reshape(batch_size,-1)
+        layer0_special = l0_special.feedforward(layer0_reshape_1.T).T
+        layer0_reshape_2 = layer0_special.reshape(batch_size,layer0_output_c,14,14)
 
-        cost = np.mean( layer3 - current_label )
-        accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
+        layer1,layer1_cache = conv_forward(layer0_reshape_2,l1_w,l1_b,padding=1)
+        layer1_act = np_relu(layer1)
+        layer1_pool,layer1_pool_cache = maxpool_forward(layer1_act)
+        layer1_reshape_1 = layer1_pool.reshape(batch_size,-1) #
+        layer2 = l2.feedforward(layer1_reshape_1) #
+
+        cost = np.mean( layer2 - current_label )
+        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         train_cota = train_cota + cost; train_acca = train_acca + accuracy
 
-        grad3 = l3.backprop(layer3 - current_label ,lr_rate=learning_rate)
-        grad1 = l1.backprop(grad3,lr_rate=learning_rate)
-        grad0_special = l0_special.backprop(grad1.T).T
-        grad0 = l0.backprop(grad0_special,lr_rate = learning_rate)
+        grad2 = l2.backprop(layer2 - current_label ,lr_rate=learning_rate)
+        grad2_reshape = grad2.reshape(batch_size,layer1_output_c,7,7)
+        grad1_back_pool = maxpool_backward(grad2_reshape,layer1_pool_cache)
+        grad1_back_act  = d_np_relu(grad1_back_pool)
+        grad1_x,grad1_w,grad1_b = conv_backward(grad1_back_act,layer1_cache)
+
+        grad0_reshape_1 = grad1_x.reshape(batch_size,-1)
+        grad0_special = l0_special.backprop(grad0_reshape_1.T).T
+        grad0_reshape_2 = grad0_special.reshape(batch_size,layer0_output_c,14,14)
+        grad0_back_pool = maxpool_backward(grad0_reshape_2,layer0_pool_cache)
+        grad0_back_act  = d_np_relu(grad0_back_pool)
+        grad0_x,grad0_w,grad0_b = conv_backward(grad0_back_act,layer0_cache)
+
+        # ===== update weights =====
+        # layer 1 reg and adam ====
+        grad1_w = grad1_w + lamda * l1_w
+        grad1_b = grad1_b + lamda * l1_b
+
+        l1_w_m = l1_w_m * beta1 + (1.-beta1) * grad1_w
+        l1_w_v = l1_w_v * beta1 + (1.-beta1) * grad1_w ** 2
+        m_hat,v_hat = l1_w_m/(1.-beta1), l1_w_v/(1.-beta2)
+        adam_middle =  m_hat * learning_rate / (np.sqrt(v_hat) + adam_e)
+        l1_w = l1_w - adam_middle
+
+        l1_b_m = l1_b_m * beta1 + (1.-beta1) * grad1_b
+        l1_b_v = l1_b_v * beta1 + (1.-beta1) * grad1_b ** 2
+        m_hat,v_hat = l1_b_m/(1.-beta1), l1_b_v/(1.-beta2)
+        adam_middle =  m_hat * learning_rate / (np.sqrt(v_hat) + adam_e)
+        l1_b = l1_b - adam_middle
+        # layer 1 reg and adam ====
+
+        # layer 0 reg and adam ====
+        grad0_w = grad0_w + lamda * l0_w
+        grad0_b = grad0_b + lamda * l0_b
+
+        l0_w_m = l0_w_m * beta1 + (1.-beta1) * grad0_w
+        l0_w_v = l0_w_v * beta1 + (1.-beta1) * grad0_w ** 2
+        m_hat,v_hat = l0_w_m/(1.-beta1), l0_w_v/(1.-beta2)
+        adam_middle =  m_hat * learning_rate / (np.sqrt(v_hat) + adam_e)
+        l0_w = l0_w - adam_middle
+
+        l0_b_m = l0_b_m * beta1 + (1.-beta1) * grad0_b
+        l0_b_v = l0_b_v * beta1 + (1.-beta1) * grad0_b ** 2
+        m_hat,v_hat = l0_b_m/(1.-beta1), l0_b_v/(1.-beta2)
+        adam_middle =  m_hat * learning_rate / (np.sqrt(v_hat) + adam_e)
+        l0_b = l0_b - adam_middle
+        # layer 1 reg and adam ====
+        # ===== update weights =====
 
     for current_data_index in range(0,len(test_data),batch_size):
         current_data = test_data[current_data_index:current_data_index+batch_size]
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
-        layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
-        layer1 = l1.feedforward(layer0_special)
-        layer3 = l3.feedforward(layer1)
+        layer0,layer0_cache = conv_forward(current_data,l0_w,l0_b,padding=1)
+        layer0_act = np_relu(layer0)
+        layer0_pool,layer0_pool_cache = maxpool_forward(layer0_act)
+        layer0_reshape_1 = layer0_pool.reshape(batch_size,-1)
+        layer0_special = l0_special.feedforward(layer0_reshape_1.T).T
+        layer0_reshape_2 = layer0_special.reshape(batch_size,layer0_output_c,14,14)
 
-        cost = np.mean( layer3 - current_label )
-        accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
+        layer1,layer1_cache = conv_forward(layer0_reshape_2,l1_w,l1_b,padding=1)
+        layer1_act = np_relu(layer1)
+        layer1_pool,layer1_pool_cache = maxpool_forward(layer1_act)
+        layer1_reshape_1 = layer1_pool.reshape(batch_size,-1) #
+        layer2 = l2.feedforward(layer1_reshape_1) #
+
+        cost = np.mean( layer2 - current_label )
+        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         test_cota = test_cota + cost; test_acca = test_acca + accuracy
 
