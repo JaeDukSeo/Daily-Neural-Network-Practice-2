@@ -133,7 +133,7 @@ print('-----------------------')
 
 # hyper
 num_epoch = 100
-batch_size = 1000
+batch_size = 1250
 learning_rate = 0.0002
 lamda = 0.000008
 print_size  = 1
