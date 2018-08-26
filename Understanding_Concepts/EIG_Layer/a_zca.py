@@ -57,7 +57,7 @@ class np_FNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,grad):
+    def backprop(self,grad,lr_rate):
         grad_1 = grad
         grad_2 = self.d_act(self.layer)
         grad_3 = self.input
@@ -70,13 +70,13 @@ class np_FNN():
         self.m = self.m * beta1 + (1. - beta1) * grad
         self.v = self.v * beta2 + (1. - beta2) * grad ** 2
         m_hat,v_hat = self.m/(1.-beta1), self.v/(1.-beta2)
-        adam_middle =  m_hat * learning_rate / (np.sqrt(v_hat) + adam_e)
+        adam_middle =  m_hat * lr_rate / (np.sqrt(v_hat) + adam_e)
         self.w = self.w - adam_middle
 
         self.mb = self.mb * beta1 + (1. - beta1) * grad_b
         self.vb = self.vb * beta2 + (1. - beta2) * grad_b ** 2
         m_hatb,v_hatb = self.mb/(1.-beta1), self.vb/(1.-beta2)
-        adam_middleb =  m_hatb *learning_rate /(np.sqrt(v_hatb) + adam_e)
+        adam_middleb =  m_hatb *lr_rate /(np.sqrt(v_hatb) + adam_e)
         self.b = self.b - adam_middleb
 
         return grad_pass
@@ -160,19 +160,18 @@ print('-----------------------')
 
 # hyper
 num_epoch = 50
-batch_size = 100
-learning_rate = 0.001
+batch_size = 1000
+learning_rate = 0.005
 print_size  = 1
 
 beta1,beta2,adam_e = 0.9,0.999,10e-8
 
 # class of layers
 l0_special = zca_whiten_layer()
-l0 = np_FNN(784,24*24,batch_size,act=np_relu,d_act=d_np_relu)
-l1 = np_FNN(24*24,20*20 ,batch_size,act=np_elu,d_act=d_np_elu)
-l2 = np_FNN(20*20,16*16 ,batch_size,act=np_relu,d_act=d_np_relu)
-l2_special = zca_whiten_layer()
-l3 = np_FNN(16*16,10  ,batch_size,act=np_elu,d_act=d_np_elu)
+l0 = np_FNN(784,300,batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(300,100 ,batch_size,act=np_relu,d_act=d_np_relu)
+l2 = np_FNN(100,100 ,batch_size,act=np_relu,d_act=d_np_relu)
+l3 = np_FNN(100,10  ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 for iter in range(num_epoch):
@@ -182,43 +181,62 @@ for iter in range(num_epoch):
 
     test_cota,test_acca = 0,0
     test_cot,test_acc = [],[]
-    # train_data,train_label = shuffle(train_data,train_label)
+
+    # learning_rate = learning_rate * 0.9
+
+    train_data,train_label = shuffle(train_data,train_label)
     for current_data_index in range(0,len(train_data),batch_size):
         current_data = train_data[current_data_index:current_data_index+batch_size]
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
-        layer0_special = l0_special.feedforward(current_data.T).T
-        layer0 = l0.feedforward(layer0_special)
-        layer1 = l1.feedforward(layer0)
-        layer2_special = l2_special.feedforward(layer1.T).T
-        layer2 = l2.feedforward(layer2_special)
-        layer3 = l3.feedforward(layer2)
+        if iter > 3:
+            layer0 = l0.feedforward(current_data)
+            layer0_special = l0_special.feedforward(layer0.T).T
+            layer1 = l1.feedforward(layer0_special)
+            layer2 = l2.feedforward(layer1)
+            layer3 = l3.feedforward(layer2)
+        else:
+            layer0 = l0.feedforward(current_data)
+            layer0_special = l0_special.feedforward(layer0.T).T
+            layer1 = l1.feedforward(layer0_special)
+            layer3 = l3.feedforward(layer1)
 
         cost = np.mean( layer3 - current_label )
         accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
-        print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
+        print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\n')
         train_cota = train_cota + cost; train_acca = train_acca + accuracy
 
-        grad3 = l3.backprop(  layer3 - current_label )
-        grad2 = l2.backprop(grad3 )
-        grad2_special = l2_special.backprop(grad2.T).T
-        grad1 = l1.backprop(grad2_special)
-        grad0 = l0.backprop(grad1)
+        if iter>3:
+            grad3 = l3.backprop(  layer3 - current_label ,lr_rate = learning_rate)
+            grad2 = l2.backprop(grad3,lr_rate = learning_rate)
+            grad1 = l1.backprop(grad2,lr_rate = learning_rate)
+            grad0_special = l0_special.backprop(grad1.T).T
+            grad0 = l0.backprop(grad0_special,lr_rate = learning_rate)
+        else:
+            grad3 = l3.backprop(  layer3 - current_label ,lr_rate = learning_rate)
+            grad1 = l1.backprop(grad3,lr_rate = learning_rate)
+            grad0_special = l0_special.backprop(grad1.T).T
+            grad0 = l0.backprop(grad0_special,lr_rate = learning_rate)
 
     for current_data_index in range(0,len(test_data),batch_size):
         current_data = test_data[current_data_index:current_data_index+batch_size]
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
-        layer0_special = l0_special.feedforward(current_data.T).T
-        layer0 = l0.feedforward(layer0_special)
-        layer1 = l1.feedforward(layer0)
-        layer2_special = l2_special.feedforward(layer1.T).T
-        layer2 = l2.feedforward(layer2_special)
-        layer3 = l3.feedforward(layer2)
+        if iter > 3:
+            layer0 = l0.feedforward(current_data)
+            layer0_special = l0_special.feedforward(layer0.T).T
+            layer1 = l1.feedforward(layer0_special)
+            layer2 = l2.feedforward(layer1)
+            layer3 = l3.feedforward(layer2)
+        else:
+            layer0 = l0.feedforward(current_data)
+            layer0_special = l0_special.feedforward(layer0.T).T
+            layer1 = l1.feedforward(layer0_special)
+            layer3 = l3.feedforward(layer1)
 
         cost = np.mean( layer3 - current_label )
         accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
-        print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
+        print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\n')
         test_cota = test_cota + cost; test_acca = test_acca + accuracy
 
     if iter % print_size==0:
