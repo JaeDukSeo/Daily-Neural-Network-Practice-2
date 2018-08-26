@@ -21,12 +21,28 @@ from tensorflow.examples.tutorials.mnist import input_data
 def np_relu(x): return x * (x > 0)
 def d_np_relu(x): return 1. * (x > 0)
 
+def np_elu(x,alpha=3.0):
+    neg_indices = x < 0
+    x[neg_indices] = alpha * (np.exp(x[neg_indices]) - 1)
+    return x
+
+def d_np_elu(x,alpha = 3.0):
+    x_temp = np.ones_like(x)
+    neg_indices = x < 0
+    x_temp[neg_indices] = alpha * np.exp(x[neg_indices])
+    return x_temp
+
+def np_tanh(x): return  np.tanh(x)
+def d_np_tanh(x): return 1. - np_sigmoid(x) ** 2
+def np_sigmoid(x): return  1/(1+np.exp(-x))
+def d_np_sigmoid(x): return np_sigmoid(x) * (1.-np_sigmoid(x))
+
 # def: fully connected layer
 r = np.random.RandomState(1234)
 class np_FNN():
 
-    def __init__(self,inc,outc,batch_size,act=np_relu,d_act = d_np_relu):
-        self.w = r.normal(0,0.05,size=(inc, outc))
+    def __init__(self,inc,outc,batch_size,act=np_elu,d_act = d_np_elu):
+        self.w = r.normal(0,0.01,size=(inc, outc))
         self.b = np.zeros(outc)
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
@@ -47,10 +63,9 @@ class np_FNN():
         grad_3 = self.input
 
         grad_middle = grad_1 * grad_2
-        grad_b = grad_middle.mean(0)
+        grad_b = grad_middle.sum(0) / grad.shape[0]
         grad = grad_3.T.dot(grad_middle) / grad.shape[0]
-
-        grad_pass = grad_middle.dot(self.w.T)
+        grad_pass = grad_middle.dot(self.w.T) / grad.shape[0]
 
         self.m = self.m * beta1 + (1. - beta1) * grad
         self.v = self.v * beta2 + (1. - beta2) * grad ** 2
@@ -65,8 +80,6 @@ class np_FNN():
         self.b = self.b - adam_middleb
 
         return grad_pass
-
- # def: centering layer
 
 # def: centering layer
 class centering_layer():
@@ -146,19 +159,20 @@ print(test_label.min(),test_label.max())
 print('-----------------------')
 
 # hyper
-num_epoch = 30
-batch_size = 50
-learning_rate = 0.005
+num_epoch = 50
+batch_size = 100
+learning_rate = 0.001
 print_size  = 1
 
 beta1,beta2,adam_e = 0.9,0.999,10e-8
 
 # class of layers
-l_input = standardization_layer()
-l0 = np_FNN(784,300,batch_size)
 l0_special = zca_whiten_layer()
-l1 = np_FNN(300,100 ,batch_size)
-l2 = np_FNN(100,10,batch_size)
+l0 = np_FNN(784,24*24,batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(24*24,20*20 ,batch_size,act=np_elu,d_act=d_np_elu)
+l2 = np_FNN(20*20,16*16 ,batch_size,act=np_relu,d_act=d_np_relu)
+l2_special = zca_whiten_layer()
+l3 = np_FNN(16*16,10  ,batch_size,act=np_elu,d_act=d_np_elu)
 
 # train
 for iter in range(num_epoch):
@@ -168,37 +182,42 @@ for iter in range(num_epoch):
 
     test_cota,test_acca = 0,0
     test_cot,test_acc = [],[]
-
+    # train_data,train_label = shuffle(train_data,train_label)
     for current_data_index in range(0,len(train_data),batch_size):
         current_data = train_data[current_data_index:current_data_index+batch_size]
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
-        layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
-        layer1 = l1.feedforward(layer0_special)
-        layer2 = l2.feedforward(layer1)
+        layer0_special = l0_special.feedforward(current_data.T).T
+        layer0 = l0.feedforward(layer0_special)
+        layer1 = l1.feedforward(layer0)
+        layer2_special = l2_special.feedforward(layer1.T).T
+        layer2 = l2.feedforward(layer2_special)
+        layer3 = l3.feedforward(layer2)
 
-        cost = np.mean( (layer2 - current_label)**2 )
-        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
+        cost = np.mean( layer3 - current_label )
+        accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         train_cota = train_cota + cost; train_acca = train_acca + accuracy
 
-        grad2 = l2.backprop(  (layer2 - current_label) )
-        grad1 = l1.backprop(grad2)
-        grad0_special = l0_special.backprop(grad1.T).T
-        grad0 = l0.backprop(grad0_special)
+        grad3 = l3.backprop(  layer3 - current_label )
+        grad2 = l2.backprop(grad3 )
+        grad2_special = l2_special.backprop(grad2.T).T
+        grad1 = l1.backprop(grad2_special)
+        grad0 = l0.backprop(grad1)
 
     for current_data_index in range(0,len(test_data),batch_size):
         current_data = test_data[current_data_index:current_data_index+batch_size]
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
-        layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
-        layer1 = l1.feedforward(layer0_special)
-        layer2 = l2.feedforward(layer1)
+        layer0_special = l0_special.feedforward(current_data.T).T
+        layer0 = l0.feedforward(layer0_special)
+        layer1 = l1.feedforward(layer0)
+        layer2_special = l2_special.feedforward(layer1.T).T
+        layer2 = l2.feedforward(layer2_special)
+        layer3 = l3.feedforward(layer2)
 
-        cost = np.mean( (layer2 - current_label)**2 )
-        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
+        cost = np.mean( layer3 - current_label )
+        accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         test_cota = test_cota + cost; test_acca = test_acca + accuracy
 
@@ -215,10 +234,6 @@ for iter in range(num_epoch):
     test_acc.append(test_acca/(len(test_data)/batch_size))
     test_cot.append(test_cota/(len(test_data)/batch_size))
     test_cota,test_acca = 0,0
-
-    # shuffle the data
-    # train_data,train_label = shuffle(train_data,train_label)
-
 
 
 # -- end code --

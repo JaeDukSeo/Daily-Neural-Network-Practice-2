@@ -48,8 +48,7 @@ class np_FNN():
 
         grad_middle = grad_1 * grad_2
         grad_b = grad_middle.mean(0)
-        grad = grad_3.T.dot(grad_middle) / self.batch_size
-        # self.w = self.w - learning_rate * grad
+        grad = grad_3.T.dot(grad_middle) / grad.shape[0]
 
         grad_pass = grad_middle.dot(self.w.T)
 
@@ -64,7 +63,20 @@ class np_FNN():
         m_hatb,v_hatb = self.mb/(1.-beta1), self.vb/(1.-beta2)
         adam_middleb =  m_hatb *learning_rate /(np.sqrt(v_hatb) + adam_e)
         self.b = self.b - adam_middleb
+
         return grad_pass
+
+# def: centering layer
+class centering_layer():
+
+    def __init__(self): pass
+
+    def feedforward(self,input):
+        x_mean = np.sum(input,axis=0) / input.shape[0]
+        return input - x_mean
+
+    def backprop(self,grad):
+        return grad * ( 1. - 1./grad.shape[0])
 
 # def: Batch Normalization
 class standardization_layer():
@@ -106,27 +118,47 @@ class zca_whiten_layer():
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
-        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
+        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma)
         return d_x
+
+# def: soft max function for 2D
+def stable_softmax(x,axis=None):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x,axis=1)[:,np.newaxis])
+    return e_x / e_x.sum(axis=1)[:,np.newaxis]
 
 # data
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
+# Show some details and vis some of them
+print(train_data.shape)
+print(train_data.min(),train_data.max())
+print(train_label.shape)
+print(train_label.min(),train_label.max())
+print(test_data.shape)
+print(test_data.min(),test_data.max())
+print(test_label.shape)
+print(test_label.min(),test_label.max())
+print('-----------------------')
+
 # hyper
 num_epoch = 30
-batch_size = 20
-learning_rate = 0.0003
+batch_size = 1000
+learning_rate = 0.005
 print_size  = 1
 
 beta1,beta2,adam_e = 0.9,0.999,10e-8
 
 # class of layers
-l0 = np_FNN(784,100,batch_size)
-l0_std = standardization_layer()
-l0_zca = zca_whiten_layer()
-l1 = np_FNN(100,10 ,batch_size)
+l_input = standardization_layer()
+l0 = np_FNN(784,240,batch_size)
+l0_special_1 = zca_whiten_layer()
+l0_special_2 = zca_whiten_layer()
+l0_special_3 = zca_whiten_layer()
+l1 = np_FNN(240,100 ,batch_size)
+l2 = np_FNN(100,10,batch_size)
 
 # train
 for iter in range(num_epoch):
@@ -142,31 +174,40 @@ for iter in range(num_epoch):
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
         layer0 = l0.feedforward(current_data)
-        layer0_std = l0_std.feedforward(layer0.T).T
-        layer0_zca = l0_zca.feedforward(layer0_std.T).T
-        layer1 = l1.feedforward(layer0_zca)
+        layer0_special_1 = l0_special_1.feedforward(layer0[:,:80].T).T
+        layer0_special_2 = l0_special_2.feedforward(layer0[:,80:160].T).T
+        layer0_special_3 = l0_special_3.feedforward(layer0[:,160:].T).T
+        layer0_special = np.hstack((layer0_special_1,layer0_special_2,layer0_special_3))
+        layer1 = l1.feedforward(layer0_special)
+        layer2 = l2.feedforward(layer1)
 
-        cost = np.sum(layer1 - current_label)
-        accuracy = np.mean(np.argmax(layer1,1) == np.argmax(current_label, 1))
+        cost = np.mean( (layer2 - current_label)**2 )
+        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         train_cota = train_cota + cost; train_acca = train_acca + accuracy
 
-        grad1 = l1.backprop(layer1 - current_label)
-        grad0_zca = l0_zca.backprop(grad1.T).T
-        grad0_std = l0_std.backprop(grad1.T).T
-        grad0 = l0.backprop(grad1)
+        grad2 = l2.backprop(  (layer2 - current_label) )
+        grad1 = l1.backprop(grad2)
+        grad0_special_1 = l0_special_1.backprop(grad1[:,:80].T).T
+        grad0_special_2 = l0_special_2.backprop(grad1[:,80:160].T).T
+        grad0_special_3 = l0_special_3.backprop(grad1[:,160:].T).T
+        grad0_special = np.hstack((grad0_special_1,grad0_special_2,grad0_special_3))
+        grad0 = l0.backprop(grad0_special)
 
     for current_data_index in range(0,len(test_data),batch_size):
         current_data = test_data[current_data_index:current_data_index+batch_size]
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
         layer0 = l0.feedforward(current_data)
-        layer0_std = l0_std.feedforward(layer0.T).T
-        layer0_zca = l0_zca.feedforward(layer0_std.T).T
-        layer1 = l1.feedforward(layer0_zca)
+        layer0_special_1 = l0_special_1.feedforward(layer0[:,:80].T).T
+        layer0_special_2 = l0_special_2.feedforward(layer0[:,80:160].T).T
+        layer0_special_3 = l0_special_3.feedforward(layer0[:,160:].T).T
+        layer0_special = np.hstack((layer0_special_1,layer0_special_2,layer0_special_3))
+        layer1 = l1.feedforward(layer0_special)
+        layer2 = l2.feedforward(layer1)
 
-        cost = np.sum(layer1 - current_label)
-        accuracy = np.mean(np.argmax(layer1,1) == np.argmax(current_label, 1))
+        cost = np.mean( (layer2 - current_label)**2 )
+        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         test_cota = test_cota + cost; test_acca = test_acca + accuracy
 
@@ -185,7 +226,7 @@ for iter in range(num_epoch):
     test_cota,test_acca = 0,0
 
     # shuffle the data
-    # train_data,train_label = shuffle(train_data,train_label)
+    train_data,train_label = shuffle(train_data,train_label)
 
 
 
