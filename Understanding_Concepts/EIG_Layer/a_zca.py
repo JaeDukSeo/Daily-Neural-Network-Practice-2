@@ -101,27 +101,21 @@ class standardization_layer():
 # def: zca whitening layer
 class zca_whiten_layer():
 
-    def __init__(self,size):
-        self.moving_sigma = np.zeros((size,size))
+    def __init__(self): pass
 
     def feedforward(self,input,EPS=1e-10,is_train = True):
-        if is_train:
-            self.input = input
-            self.sigma = input.T.dot(input) / input.shape[0]
-            self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
-            self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
-            self.whiten = input.dot(self.U)
-        else:
-            test_eigenval,test_eigvector = np.linalg.eigh(self.moving_sigma)
-            test_U = test_eigvector.dot(np.diag(1. / np.sqrt(test_eigenval+EPS))).dot(test_eigvector.T)
-            return input.dot(test_U)
+        self.input = input
+        self.sigma = input.T.dot(input) / input.shape[0]
+        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
+        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
+        self.whiten = input.dot(self.U)
         return self.whiten
 
     def backprop(self,grad,EPS=1e-10):
         d_U = self.input.T.dot(grad)
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
-        E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval  ,1).dot(np.ones((1,grad.shape[1])))
+        E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
         K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
         np.fill_diagonal(d_eig_value,0.0)
         d_sigma = self.eigvector.dot(
@@ -156,18 +150,18 @@ print(test_label.min(),test_label.max())
 print('-----------------------')
 
 # hyper
-num_epoch = 50
+num_epoch = 30
 batch_size = 500
-learning_rate = 0.005
+learning_rate = 0.003
 print_size  = 1
 
 beta1,beta2,adam_e = 0.9,0.999,1e-20
 
 # class of layers
-l0_special = zca_whiten_layer(size=batch_size)
-l0 = np_FNN(784,300, batch_size,act=np_relu,d_act=d_np_relu)
-l1 = np_FNN(300,100 ,batch_size,act=np_relu,d_act=d_np_relu)
-l3 = np_FNN(100,10  ,batch_size,act=np_relu,d_act=d_np_relu)
+l0_special = zca_whiten_layer()
+l0 = np_FNN(784,20*20, batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(20*20,16*16 ,batch_size,act=np_relu,d_act=d_np_relu)
+l3 = np_FNN(16*16,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 for iter in range(num_epoch):
@@ -177,9 +171,6 @@ for iter in range(num_epoch):
 
     test_cota,test_acca = 0,0
     test_cot,test_acc = [],[]
-
-    # learning_rate = learning_rate * 0.999
-    train_data,train_label = shuffle(train_data,train_label)
 
     for current_data_index in range(0,len(train_data),batch_size):
         current_data = train_data[current_data_index:current_data_index+batch_size]
@@ -219,6 +210,9 @@ for iter in range(num_epoch):
         print('Train Current Acc: ', train_acca/(len(train_data)/batch_size),' Current cost: ', train_cota/(len(train_data)/batch_size),end='\n')
         print('Test  Current Acc: ', test_acca/(len(test_data)/batch_size),' Current cost: ', test_cota/(len(test_data)/batch_size),end='\n')
         print("----------")
+
+    train_data,train_label = shuffle(train_data,train_label)
+    test_data,test_label = shuffle(test_data,test_label)
 
     train_acc.append(train_acca/(len(train_data)/batch_size))
     train_cot.append(train_cota/(len(train_data)/batch_size))
