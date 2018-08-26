@@ -156,7 +156,7 @@ class zca_whiten_layer():
 
     def __init__(self): pass
 
-    def feedforward(self,input,EPS=1e-10):
+    def feedforward(self,input,EPS=10e-5):
         self.input = input
         self.sigma = input.T.dot(input) / input.shape[0]
         self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
@@ -164,7 +164,7 @@ class zca_whiten_layer():
         self.whiten = input.dot(self.U)
         return self.whiten
 
-    def backprop(self,grad,EPS=1e-10):
+    def backprop(self,grad,EPS=10e-5):
         d_U = self.input.T.dot(grad)
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
@@ -219,25 +219,7 @@ def conv_backward(dout, cache):
     dX = col2im_indices(dX_col, X.shape, h_filter, w_filter, padding=padding, stride=stride)
 
     return dX, dW, db
-# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
-mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
-train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-train_data =  np.vstack((train_data,mnist.validation.images))
-train_label = np.vstack((train_label,mnist.validation.labels))
 
-# Show some details and vis some of them
-print(train_data.shape)
-print(train_data.min(),train_data.max())
-print(train_label.shape)
-print(train_label.min(),train_label.max())
-print(test_data.shape)
-print(test_data.min(),test_data.max())
-print(test_label.shape)
-print(test_label.min(),test_label.max())
-print('-----------------------')
-
-train_data = train_data.reshape(60000,28,28)[:,np.newaxis,:,:]
-test_data  =  test_data.reshape(10000,28,28)[:,np.newaxis,:,:]
 def maxpool_forward(X, size=2, stride=2):
     def maxpool(X_col):
         max_idx = np.argmax(X_col, axis=0)
@@ -289,18 +271,38 @@ def _pool_backward(dout, dpool_fun, cache):
 
     return dX
 
+# mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
+mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
+train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
+train_data =  np.vstack((train_data,mnist.validation.images))
+train_label = np.vstack((train_label,mnist.validation.labels))
+
+# Show some details and vis some of them
+print(train_data.shape)
+print(train_data.min(),train_data.max())
+print(train_label.shape)
+print(train_label.min(),train_label.max())
+print(test_data.shape)
+print(test_data.min(),test_data.max())
+print(test_label.shape)
+print(test_label.min(),test_label.max())
+print('-----------------------')
+
+train_data = train_data.reshape(60000,28,28)[:,np.newaxis,:,:]
+test_data  =  test_data.reshape(10000,28,28)[:,np.newaxis,:,:]
+
 # hyper
 num_epoch = 30
-batch_size = 500
-learning_rate = 0.0005
+batch_size = 200
+learning_rate = 0.001
 lamda = 0.0008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-20
 
 filter_size_0 = 3
 filter_size_1 = 3
-layer0_output_c = 8
-layer1_output_c = 16
+layer0_output_c = 32
+layer1_output_c = 64
 
 # class of layers
 l0_w = r.normal(0,0.01, size=(layer0_output_c,1,filter_size_0,filter_size_0));               l0_b = r.normal(0,0.005,size=(layer0_output_c,1))
