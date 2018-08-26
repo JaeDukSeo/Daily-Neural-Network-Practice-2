@@ -133,8 +133,8 @@ def stable_softmax(x,axis=None):
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-# train_data =  np.vstack((train_data,mnist.validation.images))
-# train_label = np.vstack((train_label,mnist.validation.labels))
+train_data =  np.vstack((train_data,mnist.validation.images))
+train_label = np.vstack((train_label,mnist.validation.labels))
 # train_data  = train_data[:30000,:]
 # train_label = train_label[:30000,:]
 
@@ -152,16 +152,16 @@ print('-----------------------')
 # hyper
 num_epoch = 30
 batch_size = 500
-learning_rate = 0.003
+learning_rate = 0.0008
 print_size  = 1
 
 beta1,beta2,adam_e = 0.9,0.999,1e-20
 
 # class of layers
 l0_special = zca_whiten_layer()
-l0 = np_FNN(784,20*20, batch_size,act=np_relu,d_act=d_np_relu)
-l1 = np_FNN(20*20,16*16 ,batch_size,act=np_relu,d_act=d_np_relu)
-l3 = np_FNN(16*16,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(784,24*24, batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(24*24,20*20 ,batch_size,act=np_relu,d_act=d_np_relu)
+l3 = np_FNN(20*20,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 for iter in range(num_epoch):
