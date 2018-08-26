@@ -726,7 +726,9 @@ class zca_whiten_layer():
         return self.whiten
 
     def backprop(self,grad,EPS=10e-5):
-        d_U = self.input.T.dot(grad)
+        d_U = tf.matmul(tf.transpose(self.input),grad)
+
+        # ===== tf =====
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
         E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
@@ -736,6 +738,8 @@ class zca_whiten_layer():
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
         d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
+        # ===== tf =====
+        
         return d_x
 
 
