@@ -130,8 +130,6 @@ class zca_whiten_layer():
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-# train_data =  np.vstack((train_data,mnist.validation.images))
-# train_label = np.vstack((train_label,mnist.validation.labels))
 
 # Show some details and vis some of them
 print(train_data.shape)
@@ -146,7 +144,7 @@ print('-----------------------')
 
 # hyper
 num_epoch = 100
-batch_size = 200
+batch_size = 1000
 learning_rate = 0.0002
 lamda = 0.00008
 print_size  = 1
@@ -156,15 +154,16 @@ beta1,beta2,adam_e = 0.9,0.999,1e-20
 l0 = np_FNN(28*28,40*40, batch_size,act=np_relu,d_act=d_np_relu)
 l0_special = zca_whiten_layer()
 l1 = np_FNN(40*40,48*48 ,batch_size,act=np_relu,d_act=d_np_relu)
-l2 = np_FNN(48*48,10    ,batch_size,act=np_sigmoid,d_act=d_np_sigmoid)
+l2 = np_FNN(48*48,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
-test_cota,test_acca = 0,0;test_cot,test_acc = [],[]
+test_cota,test_acca = 0,0; test_cot,test_acc = [],[]
 for iter in range(num_epoch):
 
     # shuffle the data every time
     train_data,train_label = shuffle(train_data,train_label)
+    test_data,test_label = shuffle(test_data,test_label)
 
     # train data set run network
     for current_data_index in range(0,len(train_data),batch_size):
