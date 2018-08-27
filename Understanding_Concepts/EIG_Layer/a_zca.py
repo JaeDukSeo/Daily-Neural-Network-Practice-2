@@ -45,7 +45,7 @@ class np_FNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,grad,lr_rate,reg=True):
+    def backprop(self,grad,lr_rate=learning_rate,reg=True):
         grad_1 = grad
         grad_2 = self.d_act(self.layer)
         grad_3 = self.input
@@ -130,8 +130,15 @@ class zca_whiten_layer():
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-train_data =  np.vstack((train_data,mnist.validation.images))
-train_label = np.vstack((train_label,mnist.validation.labels))
+# train_data =  np.vstack((train_data,mnist.validation.images))
+# train_label = np.vstack((train_label,mnist.validation.labels))
+
+l_input_std = standardization_layer()
+l_input = zca_whiten_layer()
+# train_data = l_input.feedforward(train_data)
+# test_data = l_input.feedforward(test_data)
+# train_data = l_input_std.feedforward(train_data)
+# test_data = l_input_std.feedforward(test_data)
 
 # Show some details and vis some of them
 print(train_data.shape)
@@ -146,18 +153,17 @@ print('-----------------------')
 
 # hyper
 num_epoch = 100
-batch_size = 1250
-# learning_rate = 0.0002
-learning_rate = 0.0002
-lamda = 0.000008
+batch_size = 50
+learning_rate = 0.0005
+lamda = 0.0001
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-20
 
 # class of layers
-l0 = np_FNN(28*28,34*34, batch_size,act=np_tanh,d_act=d_np_tanh)
+l0 = np_FNN(28*28,40*40, batch_size,act=np_relu,d_act=d_np_relu)
 l0_special = zca_whiten_layer()
-l1 = np_FNN(34*34,40*40 ,batch_size,act=np_tanh,d_act=d_np_tanh)
-l2 = np_FNN(40*40,10    ,batch_size,act=np_sigmoid,d_act=d_np_sigmoid)
+l1 = np_FNN(40*40,48*48 ,batch_size,act=np_relu,d_act=d_np_relu)
+l2 = np_FNN(48*48,10    ,batch_size,act=np_sigmoid,d_act=d_np_sigmoid)
 
 # train
 for iter in range(num_epoch):
@@ -180,10 +186,10 @@ for iter in range(num_epoch):
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         train_cota = train_cota + cost; train_acca = train_acca + accuracy
 
-        grad2 = l2.backprop(layer2 - current_label ,lr_rate=learning_rate)
-        grad1 = l1.backprop(grad2,lr_rate=learning_rate)
+        grad2 = l2.backprop(layer2 - current_label)
+        grad1 = l1.backprop(grad2)
         grad0_special = l0_special.backprop(grad1.T).T
-        grad0 = l0.backprop(grad0_special,lr_rate = learning_rate)
+        grad0 = l0.backprop(grad0_special)
 
     for current_data_index in range(0,len(test_data),batch_size):
         current_data = test_data[current_data_index:current_data_index+batch_size]
