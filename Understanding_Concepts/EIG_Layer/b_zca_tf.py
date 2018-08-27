@@ -100,7 +100,7 @@ class zca_whiten_layer():
     def backprop(self,grad,EPS=10e-5):
         d_U = tf.matmul(tf.transpose(self.input),grad)
 
-        d_wig_value = tf.matmul(tf.matmul(tf.transpose(self.eigvector),d_U),self.eigvector) * (-0.5) * tf.diag(1. / (self.eigenval+EPS) ** 1.5)
+        d_eig_value = tf.matmul(tf.matmul(tf.transpose(self.eigvector),d_U),self.eigvector) * (-0.5) * tf.diag(1. / (self.eigenval+EPS) ** 1.5)
         # d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
 
         d_eig_vector = tf.matmul(d_U,tf.transpose(
@@ -109,16 +109,25 @@ class zca_whiten_layer():
         tf.matmul(tf.matmul(self.eigvector,tf.diag(1. / tf.sqrt(self.eigenval+EPS))),d_U)
         # d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) \
         # + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
-        sys.exit()
 
-        E = tf.ones()
-        E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
-        K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
-        np.fill_diagonal(d_eig_value,0.0)
-        d_sigma = self.eigvector.dot(
-                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
-                    ).dot(self.eigvector.T)
-        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
+        E = tf.matmul(tf.ones([batch_size,1],dtype=tf.float64),tf.expand_dims(tf.transpose(self.eigenval),0)) - \
+            tf.matmul(tf.expand_dims(self.eigenval,1),tf.ones([1,batch_size],dtype=tf.float64))
+        # E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - \
+        # np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
+
+        K_matrix = 1./(E + tf.eye(batch_size,dtype=tf.float64)) - tf.eye(batch_size,dtype=tf.float64)
+        # K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
+
+        tf.matrix_set_diag(d_eig_value,tf.zeros([batch_size],dtype=tf.float64))
+        d_sigma = tf.matmul(
+        tf.matmul(self.eigvector,tf.transpose(K_matrix) * (tf.matmul(tf.transpose(self.eigvector),d_eig_vector)) + d_eig_value),
+        tf.transpose(self.eigvector))
+        # d_sigma = self.eigvector.dot(
+        #             K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
+        #             ).dot(self.eigvector.T)
+
+        sys.exit()
+        # d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
         # ===== tf =====
 
         return d_x
@@ -167,9 +176,9 @@ cost = tf.reduce_mean( tf.square(layer2 - y ))
 accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(layer2,1),tf.argmax(y, 1)),"float"))
 auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
-# grad2,grad2_up = l2.backprop(layer2-y)
-# grad1,grad1_up = l1.backprop(grad2)
-# l0_grad_special = tf.transpose(l0_special.backprop(tf.transpose(grad1)))
+grad2,grad2_up = l2.backprop(layer2-y)
+grad1,grad1_up = l1.backprop(grad2)
+l0_grad_special = tf.transpose(l0_special.backprop(tf.transpose(grad1)))
 
 # train
 with tf.Session() as sess:
