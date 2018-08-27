@@ -146,27 +146,24 @@ print('-----------------------')
 
 # hyper
 num_epoch = 100
-batch_size = 125
+batch_size = 1250
+# learning_rate = 0.0002
 learning_rate = 0.0002
 lamda = 0.000008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-20
 
 # class of layers
-l0 = np_FNN(28*28,36*36, batch_size,act=np_tanh,d_act=d_np_tanh)
+l0 = np_FNN(28*28,34*34, batch_size,act=np_tanh,d_act=d_np_tanh)
 l0_special = zca_whiten_layer()
-l1 = np_FNN(36*36,42*42 ,batch_size,act=np_tanh,d_act=d_np_tanh)
-l2 = np_FNN(42*42,10    ,batch_size,act=np_sigmoid,d_act=d_np_sigmoid)
+l1 = np_FNN(34*34,40*40 ,batch_size,act=np_tanh,d_act=d_np_tanh)
+l2 = np_FNN(40*40,10    ,batch_size,act=np_sigmoid,d_act=d_np_sigmoid)
 
 # train
 for iter in range(num_epoch):
 
-    train_cota,train_acca = 0,0
-    train_cot,train_acc = [],[]
-
-    test_cota,test_acca = 0,0
-    test_cot,test_acc = [],[]
-
+    train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
+    test_cota,test_acca = 0,0;test_cot,test_acc = [],[]
     train_data,train_label = shuffle(train_data,train_label)
 
     for current_data_index in range(0,len(train_data),batch_size):
