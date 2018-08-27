@@ -119,7 +119,6 @@ class np_FNN():
         m_hatb,v_hatb = self.mb/(1.-beta1), self.vb/(1.-beta2)
         adam_middleb =  m_hatb * lr_rate /(np.sqrt(v_hatb) + adam_e)
         self.b = self.b - adam_middleb
-
         return grad_pass
 
 # def: centering layer
@@ -176,12 +175,6 @@ class zca_whiten_layer():
                     ).dot(self.eigvector.T)
         d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
         return d_x
-
-# def: soft max function for 2D
-def stable_softmax(x,axis=None):
-    """Compute softmax values for each sets of scores in x."""
-    e_x = np.exp(x - np.max(x,axis=1)[:,np.newaxis])
-    return e_x / e_x.sum(axis=1)[:,np.newaxis]
 
 def conv_forward(X, W, b, stride=1, padding=1):
     n_filters, d_filter, h_filter, w_filter = W.shape
@@ -287,7 +280,6 @@ print(test_data.min(),test_data.max())
 print(test_label.shape)
 print(test_label.min(),test_label.max())
 print('-----------------------')
-
 train_data = train_data.reshape(60000,28,28)[:,np.newaxis,:,:]
 test_data  =  test_data.reshape(10000,28,28)[:,np.newaxis,:,:]
 

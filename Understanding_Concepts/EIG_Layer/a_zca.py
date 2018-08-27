@@ -70,7 +70,6 @@ class np_FNN():
         m_hatb,v_hatb = self.mb/(1.-beta1), self.vb/(1.-beta2)
         adam_middleb =  m_hatb * lr_rate /(np.sqrt(v_hatb) + adam_e)
         self.b = self.b - adam_middleb
-
         return grad_pass
 
 # def: centering layer
@@ -127,12 +126,6 @@ class zca_whiten_layer():
                     ).dot(self.eigvector.T)
         d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma)
         return d_x
-
-# def: soft max function for 2D
-def stable_softmax(x,axis=None):
-    """Compute softmax values for each sets of scores in x."""
-    e_x = np.exp(x - np.max(x,axis=1)[:,np.newaxis])
-    return e_x / e_x.sum(axis=1)[:,np.newaxis]
 
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
