@@ -56,8 +56,8 @@ class np_FNN():
         grad_pass = grad_middle.dot(self.w.T)
 
         if reg:
-            grad = grad + lamda * self.w
-            grad_b = grad_b + lamda * self.b
+            grad = grad + lamda * np.sign(self.w)
+            grad_b = grad_b + lamda * np.sign(self.b)
 
         self.m = self.m * beta1 + (1. - beta1) * grad
         self.v = self.v * beta2 + (1. - beta2) * grad ** 2
@@ -144,17 +144,24 @@ print('-----------------------')
 
 # hyper
 num_epoch = 100
-batch_size = 1000
+batch_size = 500
 learning_rate = 0.0002
-lamda = 0.00008
+lamda = 0.000008
+# lamda = 0.00001
 print_size  = 1
-beta1,beta2,adam_e = 0.9,0.999,1e-20
+beta1,beta2,adam_e = 0.9,0.999,0.0
 
 # class of layers
-l0 = np_FNN(28*28,40*40, batch_size,act=np_relu,d_act=d_np_relu)
-l0_special = zca_whiten_layer()
-l1 = np_FNN(40*40,48*48 ,batch_size,act=np_relu,d_act=d_np_relu)
-l2 = np_FNN(48*48,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,300, batch_size,act=np_relu,d_act=d_np_relu)
+l0_special_1 = zca_whiten_layer()
+l0_special_2 = zca_whiten_layer()
+l0_special_3 = zca_whiten_layer()
+l0_special_4 = zca_whiten_layer()
+l0_special_5 = zca_whiten_layer()
+# l1 = np_FNN(40*40,48*48 ,batch_size,act=np_relu,d_act=d_np_relu)
+# l2 = np_FNN(48*48,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(300,100 ,batch_size,act=np_relu,d_act=d_np_relu)
+l2 = np_FNN(100,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
@@ -163,7 +170,6 @@ for iter in range(num_epoch):
 
     # shuffle the data every time
     train_data,train_label = shuffle(train_data,train_label)
-    test_data,test_label = shuffle(test_data,test_label)
 
     # train data set run network
     for current_data_index in range(0,len(train_data),batch_size):
@@ -171,7 +177,13 @@ for iter in range(num_epoch):
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
         layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
+        layer0_special_1 = l0_special_1.feedforward(layer0[:100,:].T).T
+        layer0_special_2 = l0_special_2.feedforward(layer0[100:200,:].T).T
+        layer0_special_3 = l0_special_3.feedforward(layer0[200:300,:].T).T
+        layer0_special_4 = l0_special_4.feedforward(layer0[300:400,:].T).T
+        layer0_special_5 = l0_special_5.feedforward(layer0[400:,:].T).T
+        layer0_special = np.vstack((layer0_special_1,layer0_special_2,layer0_special_3,layer0_special_4,layer0_special_5))
+        # layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
         layer2 = l2.feedforward(layer1)
 
@@ -182,7 +194,13 @@ for iter in range(num_epoch):
 
         grad2 = l2.backprop(layer2 - current_label)
         grad1 = l1.backprop(grad2)
-        grad0_special = l0_special.backprop(grad1.T).T
+        # grad0_special = l0_special.backprop(grad1.T).T
+        grad0_special_1 = l0_special_1.backprop(grad1[:100,:].T).T
+        grad0_special_2 = l0_special_2.backprop(grad1[100:200,:].T).T
+        grad0_special_3 = l0_special_3.backprop(grad1[200:300,:].T).T
+        grad0_special_4 = l0_special_4.backprop(grad1[300:400,:].T).T
+        grad0_special_5 = l0_special_5.backprop(grad1[400:,:].T).T
+        grad0_special = np.vstack((grad0_special_1,grad0_special_2,grad0_special_3,grad0_special_4,grad0_special_5))
         grad0 = l0.backprop(grad0_special)
 
     # test data set run network
@@ -191,7 +209,13 @@ for iter in range(num_epoch):
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
         layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
+        layer0_special_1 = l0_special_1.feedforward(layer0[:100,:].T).T
+        layer0_special_2 = l0_special_2.feedforward(layer0[100:200,:].T).T
+        layer0_special_3 = l0_special_3.feedforward(layer0[200:300,:].T).T
+        layer0_special_4 = l0_special_4.feedforward(layer0[300:400,:].T).T
+        layer0_special_5 = l0_special_5.feedforward(layer0[400:,:].T).T
+        layer0_special = np.vstack((layer0_special_1,layer0_special_2,layer0_special_3,layer0_special_4,layer0_special_5))
+        # layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
         layer2 = l2.feedforward(layer1)
 
