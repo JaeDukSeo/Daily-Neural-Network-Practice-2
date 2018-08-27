@@ -105,10 +105,13 @@ class zca_whiten_layer():
 
         d_eig_vector = tf.matmul(d_U,tf.transpose(
             tf.transpose( tf.matmul(tf.diag(1. / tf.sqrt(self.eigenval+EPS)),tf.transpose(self.eigvector) ))
-        ))
-        # d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
+        )) + \
+        tf.matmul(tf.matmul(self.eigvector,tf.diag(1. / tf.sqrt(self.eigenval+EPS))),d_U)
+        # d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) \
+        # + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
         sys.exit()
 
+        E = tf.ones()
         E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
         K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
         np.fill_diagonal(d_eig_value,0.0)
@@ -162,11 +165,11 @@ layer2 = l2.feedforward(layer1)
 
 cost = tf.reduce_mean( tf.square(layer2 - y ))
 accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(layer2,1),tf.argmax(y, 1)),"float"))
-# auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
+auto_train = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
 
-grad2,grad2_up = l2.backprop(layer2-y)
-grad1,grad1_up = l1.backprop(grad2)
-l0_grad_special = tf.transpose(l0_special.backprop(tf.transpose(grad1)))
+# grad2,grad2_up = l2.backprop(layer2-y)
+# grad1,grad1_up = l1.backprop(grad2)
+# l0_grad_special = tf.transpose(l0_special.backprop(tf.transpose(grad1)))
 
 # train
 with tf.Session() as sess:
