@@ -30,7 +30,7 @@ def d_np_sigmoid(x): return np_sigmoid(x) * (1.-np_sigmoid(x))
 class np_FNN():
 
     def __init__(self,inc,outc,act=np_relu,d_act = d_np_relu):
-        self.w = r.normal(0,0.01,size=(inc, outc)).astype(np.float64)
+        self.w = r.normal(0.0,0.008,size=(inc, outc)).astype(np.float64)
         # self.b = r.normal(0,0.005,size=(outc))
         self.b = np.zeros(outc).astype(np.float64)
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
@@ -51,7 +51,7 @@ class np_FNN():
         grad_3 = self.input
 
         grad_middle = grad_1 * grad_2
-        grad_b = grad_middle.sum(0) / grad.shape[0]
+        grad_b = grad_middle.mean(0)
         grad = grad_3.T.dot(grad_middle) / grad.shape[0]
         grad_pass = grad_middle.dot(self.w.T)
 
@@ -149,24 +149,24 @@ print(test_label.min(),test_label.max())
 print('-----------------------')
 
 # hyper
-num_epoch = 20
-batch_size = 500
+num_epoch = 50
+batch_size = 250
 learning_rate = 0.0008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
-l0 = np_FNN(28*28,26*26,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,30*30,act=np_relu,d_act=d_np_relu)
 l0_zca = zca_whiten_layer()
-l1 = np_FNN(26*26,24*24 ,act=np_relu,d_act=d_np_relu)
-l2 = np_FNN(24*24,10    ,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(30*30,32*32 ,act=np_relu,d_act=d_np_relu)
+l2 = np_FNN(32*32,10    ,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
 test_cota,test_acca = 0,0; test_cot,test_acc = [],[]
 for iter in range(num_epoch):
 
-    train_data,train_label = shuffle(train_data,train_label)
+    # train_data,train_label = shuffle(train_data,train_label)
     # train data set run network
     for current_data_index in range(0,len(train_data),batch_size):
         current_data = train_data[current_data_index:current_data_index+batch_size].astype(np.float64)
