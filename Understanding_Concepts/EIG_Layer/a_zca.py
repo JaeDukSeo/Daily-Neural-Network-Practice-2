@@ -144,7 +144,7 @@ print('-----------------------')
 
 # hyper
 num_epoch = 100
-batch_size = 200
+batch_size = 500
 learning_rate = 0.0002
 lamda = 0.000008
 # lamda = 0.00001
@@ -153,10 +153,9 @@ beta1,beta2,adam_e = 0.9,0.999,0.0
 
 # class of layers
 input_layer_white = standardization_layer()
-l0 = np_FNN(28*28,42*42, batch_size,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,48*48, batch_size,act=np_relu,d_act=d_np_relu)
 l0_special_1 = zca_whiten_layer()
-l1 = np_FNN(42*42,10    ,batch_size,act=np_relu,d_act=d_np_relu)
-l2 = np_FNN(48*48,10    ,batch_size,act=np_tanh,d_act=d_np_tanh)
+l1 = np_FNN(48*48,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
@@ -175,15 +174,13 @@ for iter in range(num_epoch):
         layer0 = l0.feedforward(input_layer_w)
         layer0_special_1 = l0_special_1.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special_1)
-        # layer2 = l2.feedforward(layer1)
 
         cost = np.mean( layer1 - current_label )
         accuracy = np.mean(np.argmax(layer1,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         train_cota = train_cota + cost; train_acca = train_acca + accuracy
 
-        # grad2 = l2.backprop(layer2 - current_label)
-        grad1 = l1.backprop(layer2 - current_label))
+        grad1 = l1.backprop(layer1 - current_label)
         grad0_special_1 = l0_special_1.backprop(grad1.T).T
         grad0 = l0.backprop(grad0_special_1)
 
@@ -196,7 +193,6 @@ for iter in range(num_epoch):
         layer0 = l0.feedforward(input_layer_w)
         layer0_special_1 = l0_special_1.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special_1)
-        # layer2 = l2.feedforward(layer1)
 
         cost = np.mean( layer1 - current_label )
         accuracy = np.mean(np.argmax(layer1,1) == np.argmax(current_label, 1))
