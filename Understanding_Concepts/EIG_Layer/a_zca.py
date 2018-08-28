@@ -12,7 +12,7 @@ from scipy.ndimage import zoom
 import seaborn as sns
 
 np.random.seed(0)
-r = np.random.RandomState(1234)
+r = np.random.RandomState(253)
 np.set_printoptions(precision = 3,suppress =True)
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
@@ -29,13 +29,12 @@ def d_np_sigmoid(x): return np_sigmoid(x) * (1.-np_sigmoid(x))
 # def: fully connected layer
 class np_FNN():
 
-    def __init__(self,inc,outc,batch_size,act=np_relu,d_act = d_np_relu):
+    def __init__(self,inc,outc,act=np_relu,d_act = d_np_relu):
         self.w = r.normal(0,0.01,size=(inc, outc))
         self.b = r.normal(0,0.005,size=(outc))
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
         self.act = act; self.d_act = d_act
-        self.batch_size = batch_size
 
     def getw(self): return self.w
 
@@ -143,34 +142,33 @@ print(test_label.min(),test_label.max())
 print('-----------------------')
 
 # hyper
-num_epoch = 100
+num_epoch = 1000
 batch_size = 500
-learning_rate = 0.0002
+learning_rate = 0.0008
 lamda = 0.000008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
-input_layer_white = standardization_layer()
-l0 = np_FNN(28*28,56*56, batch_size,act=np_relu,d_act=d_np_relu)
+cen_layer = centering_layer()
+std_layer = standardization_layer()
+l0 = np_FNN(28*28,42*42,act=np_relu,d_act=d_np_relu)
 l0_special_1 = zca_whiten_layer()
-l1 = np_FNN(56*56,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(42*42,10    ,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
 test_cota,test_acca = 0,0; test_cot,test_acc = [],[]
 for iter in range(num_epoch):
 
-    # shuffle the data every time
-    train_data,train_label = shuffle(train_data,train_label)
-
     # train data set run network
     for current_data_index in range(0,len(train_data),batch_size):
         current_data = train_data[current_data_index:current_data_index+batch_size]
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
-        input_layer_w = input_layer_white.feedforward(current_data)
-        layer0 = l0.feedforward(input_layer_w)
+        input_layer_cen = cen_layer.feedforward(current_data.T).T
+        input_layer = std_layer.feedforward(input_layer_cen.T).T
+        layer0 = l0.feedforward(input_layer)
         layer0_special_1 = l0_special_1.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special_1)
 
@@ -188,8 +186,9 @@ for iter in range(num_epoch):
         current_data = test_data[current_data_index:current_data_index+batch_size]
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
-        input_layer_w = input_layer_white.feedforward(current_data)
-        layer0 = l0.feedforward(input_layer_w)
+        input_layer_cen = cen_layer.feedforward(current_data.T).T
+        input_layer = std_layer.feedforward(input_layer_cen.T).T
+        layer0 = l0.feedforward(input_layer)
         layer0_special_1 = l0_special_1.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special_1)
 
