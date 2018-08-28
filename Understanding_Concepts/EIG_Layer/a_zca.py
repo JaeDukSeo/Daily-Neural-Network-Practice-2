@@ -150,7 +150,7 @@ print('-----------------------')
 
 # hyper
 num_epoch = 50
-batch_size = 250
+batch_size = 1250
 learning_rate = 0.0008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-40
