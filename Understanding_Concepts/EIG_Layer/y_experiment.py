@@ -142,23 +142,34 @@ print(test_label.shape)
 print(test_label.min(),test_label.max())
 print('-----------------------')
 
+class dummylayer():
+
+    def __init__(self): pass
+    def feedforward(self,x): return x
+    def backprop(self,x): return x
+
 # hyper
 num_epoch = 100
-batch_size = 500
-learning_rate = 0.0002
-lamda = 0.000008
-# lamda = 0.00001
+batch_size = 200
+learning_rate = 0.002
+lamda = 0.000000
 print_size  = 1
-beta1,beta2,adam_e = 0.9,0.999,0.0
+beta1,beta2,adam_e = 0.9,0.999,1e-20
+
+print(r.normal(0,0.01,size=(5)))
+print(r.normal(0,0.01,size=(5)))
+print(r.normal(0,0.01,size=(5)))
+sys.exit()
 
 # class of layers
-l0 = np_FNN(28*28,40*40, batch_size,act=np_relu,d_act=d_np_relu)
 l0_special_1 = zca_whiten_layer()
 l0_special_2 = zca_whiten_layer()
-l1 = np_FNN(40*40,48*48 ,batch_size,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,500, batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(500,500 ,batch_size,act=np_relu,d_act=d_np_relu)
 l1_special_1 = zca_whiten_layer()
 l1_special_2 = zca_whiten_layer()
-l2 = np_FNN(48*48,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l2 = np_FNN(500,500    ,batch_size,act=np_relu,d_act=d_np_relu)
+l3 = np_FNN(500,10     ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
@@ -173,49 +184,48 @@ for iter in range(num_epoch):
         current_data = train_data[current_data_index:current_data_index+batch_size]
         current_label= train_label[current_data_index:current_data_index+batch_size]
 
-        layer0 = l0.feedforward(current_data)
-        layer0_special_1 = l0_special_1.feedforward(layer0[:250,:].T).T
-        layer0_special_2 = l0_special_2.feedforward(layer0[250:,:].T).T
+        layer0_special_1 = l0_special_1.feedforward(current_data[:100,:].T).T
+        layer0_special_2 = l0_special_2.feedforward(current_data[100:,:].T).T
         layer0_special = np.vstack((layer0_special_1,layer0_special_2))
-        layer1 = l1.feedforward(layer0_special)
-        layer1_special_1 = l1_special_1.feedforward(layer1[:250,:].T).T
-        layer1_special_2 = l1_special_2.feedforward(layer1[250:,:].T).T
+        layer0 = l0.feedforward(layer0_special)
+        layer1 = l1.feedforward(layer0)
+        layer1_special_1 = l1_special_1.feedforward(layer1[:100,:].T).T
+        layer1_special_2 = l1_special_2.feedforward(layer1[100:,:].T).T
         layer1_special = np.vstack((layer1_special_1,layer1_special_2))
         layer2 = l2.feedforward(layer1_special)
+        layer3 = l3.feedforward(layer2)
 
-        cost = np.mean( layer2 - current_label )
-        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
+        cost = np.mean( layer3 - current_label )
+        accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         train_cota = train_cota + cost; train_acca = train_acca + accuracy
 
-        grad2 = l2.backprop(layer2 - current_label)
-        grad1_special_1 = l1_special_1.backprop(grad2[:250,:].T).T
-        grad1_special_2 = l1_special_2.backprop(grad2[250:,:].T).T
+        grad3 = l3.backprop(layer3 - current_label)
+        grad2 = l2.backprop(grad3)
+        grad1_special_1 = l1_special_1.backprop(grad2[:100,:].T).T
+        grad1_special_2 = l1_special_2.backprop(grad2[100:,:].T).T
         grad1_special = np.vstack((grad1_special_1,grad1_special_2))
-        grad1 = l1.backprop(grad1_special)
-
-        grad0_special_1 = l0_special_1.backprop(grad1[:250,:].T).T
-        grad0_special_2 = l0_special_2.backprop(grad1[250:,:].T).T
-        grad0_special = np.vstack((grad0_special_1,grad0_special_2))
-        grad0 = l0.backprop(grad0_special)
+        grad1 = l1.backprop(grad1_special + grad3)
+        grad0 = l0.backprop(grad1 + grad2 + grad3)
 
     # test data set run network
     for current_data_index in range(0,len(test_data),batch_size):
         current_data = test_data[current_data_index:current_data_index+batch_size]
         current_label= test_label[current_data_index:current_data_index+batch_size]
 
-        layer0 = l0.feedforward(current_data)
-        layer0_special_1 = l0_special_1.feedforward(layer0[:250,:].T).T
-        layer0_special_2 = l0_special_2.feedforward(layer0[250:,:].T).T
+        layer0_special_1 = l0_special_1.feedforward(current_data[:100,:].T).T
+        layer0_special_2 = l0_special_2.feedforward(current_data[100:,:].T).T
         layer0_special = np.vstack((layer0_special_1,layer0_special_2))
-        layer1 = l1.feedforward(layer0_special)
-        layer1_special_1 = l1_special_1.feedforward(layer1[:250,:].T).T
-        layer1_special_2 = l1_special_2.feedforward(layer1[250:,:].T).T
+        layer0 = l0.feedforward(layer0_special)
+        layer1 = l1.feedforward(layer0)
+        layer1_special_1 = l1_special_1.feedforward(layer1[:100,:].T).T
+        layer1_special_2 = l1_special_2.feedforward(layer1[100:,:].T).T
         layer1_special = np.vstack((layer1_special_1,layer1_special_2))
         layer2 = l2.feedforward(layer1_special)
+        layer3 = l3.feedforward(layer2)
 
-        cost = np.mean( layer2 - current_label )
-        accuracy = np.mean(np.argmax(layer2,1) == np.argmax(current_label, 1))
+        cost = np.mean( layer3 - current_label )
+        accuracy = np.mean(np.argmax(layer3,1) == np.argmax(current_label, 1))
         print('Current Iter: ', iter,' batch index: ', current_data_index, ' accuracy: ',accuracy, ' cost: ',cost,end='\r')
         test_cota = test_cota + cost; test_acca = test_acca + accuracy
 
