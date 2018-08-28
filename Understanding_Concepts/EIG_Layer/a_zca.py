@@ -147,15 +147,14 @@ num_epoch = 100
 batch_size = 500
 learning_rate = 0.0002
 lamda = 0.000008
-# lamda = 0.00001
 print_size  = 1
-beta1,beta2,adam_e = 0.9,0.999,0.0
+beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
 input_layer_white = standardization_layer()
-l0 = np_FNN(28*28,48*48, batch_size,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,56*56, batch_size,act=np_relu,d_act=d_np_relu)
 l0_special_1 = zca_whiten_layer()
-l1 = np_FNN(48*48,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(56*56,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
