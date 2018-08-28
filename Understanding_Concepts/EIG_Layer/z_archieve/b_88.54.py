@@ -150,7 +150,7 @@ print(test_label.min(),test_label.max())
 print('-----------------------')
 
 # hyper
-num_epoch = 30
+num_epoch = 20
 batch_size = 500
 learning_rate = 0.0008
 print_size  = 1

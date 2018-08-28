@@ -12,12 +12,12 @@ from scipy.ndimage import zoom
 import seaborn as sns
 
 np.random.seed(0)
-r = np.random.RandomState(253)
+r = np.random.RandomState(1234)
 np.set_printoptions(precision = 3,suppress =True)
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
-
+from scipy import linalg as LA
 # def: activations
 def np_relu(x): return x * (x > 0)
 def d_np_relu(x): return 1. * (x > 0)
@@ -30,8 +30,9 @@ def d_np_sigmoid(x): return np_sigmoid(x) * (1.-np_sigmoid(x))
 class np_FNN():
 
     def __init__(self,inc,outc,act=np_relu,d_act = d_np_relu):
-        self.w = r.normal(0,0.01,size=(inc, outc))
-        self.b = r.normal(0,0.005,size=(outc))
+        self.w = r.normal(0,0.01,size=(inc, outc)).astype(np.float64)
+        # self.b = r.normal(0,0.005,size=(outc))
+        self.b = np.zeros(outc).astype(np.float64)
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
         self.act = act; self.d_act = d_act
@@ -44,7 +45,7 @@ class np_FNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,grad,reg=True):
+    def backprop(self,grad):
         grad_1 = grad
         grad_2 = self.d_act(self.layer)
         grad_3 = self.input
@@ -53,10 +54,6 @@ class np_FNN():
         grad_b = grad_middle.sum(0) / grad.shape[0]
         grad = grad_3.T.dot(grad_middle) / grad.shape[0]
         grad_pass = grad_middle.dot(self.w.T)
-
-        if reg:
-            grad = grad + lamda * np.sign(self.w)
-            grad_b = grad_b + lamda * np.sign(self.b)
 
         self.m = self.m * beta1 + (1. - beta1) * grad
         self.v = self.v * beta2 + (1. - beta2) * grad ** 2
@@ -112,25 +109,28 @@ class zca_whiten_layer():
 
     def __init__(self): pass
 
-    def feedforward(self,input,EPS=1e-15):
+    def feedforward(self,input,EPS=1e-11):
         self.input = input
         self.sigma = input.T.dot(input) / input.shape[0]
-        self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
-        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS))).dot(self.eigvector.T)
+
+        # numpy eigh is not the best choice: https://stackoverflow.com/questions/6684238/whats-the-fastest-way-to-find-eigenvalues-vectors-in-python
+        # self.eigenval,self.eigvector = np.linalg.eigh(self.sigma)
+        # scipy eigh is more stable
+        self.eigenval,self.eigvector = LA.eigh(self.sigma)
+        self.U = self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS) )).dot(self.eigvector.T)
         self.whiten = input.dot(self.U)
         return self.whiten
 
-    def backprop(self,grad,EPS=1e-15):
+    def backprop(self,grad,EPS=1e-11):
         d_U = self.input.T.dot(grad)
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
         E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
         K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
         np.fill_diagonal(d_eig_value,0.0)
-        d_sigma = self.eigvector.dot(
-                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
-                    ).dot(self.eigvector.T)
-        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma)
+        d_sigma = self.eigvector.dot(K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value).dot(self.eigvector.T)
+        d_sigma_smooth = (0.5) * (d_sigma.T + d_sigma)
+        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma_smooth)
         return d_x
 
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
@@ -151,26 +151,26 @@ print('-----------------------')
 # hyper
 num_epoch = 20
 batch_size = 500
-learning_rate = 0.0003
-lamda = 0.000008
+learning_rate = 0.0008
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
-l0 = np_FNN(28*28,38*38,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,24*24,act=np_relu,d_act=d_np_relu)
 l0_zca = zca_whiten_layer()
-l1 = np_FNN(38*38,42*42 ,act=np_relu,d_act=d_np_relu)
-l2 = np_FNN(42*42,10    ,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(24*24,20*20 ,act=np_relu,d_act=d_np_relu)
+l2 = np_FNN(20*20,10    ,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
 test_cota,test_acca = 0,0; test_cot,test_acc = [],[]
 for iter in range(num_epoch):
 
+    train_data,train_label = shuffle(train_data,train_label)
     # train data set run network
     for current_data_index in range(0,len(train_data),batch_size):
-        current_data = train_data[current_data_index:current_data_index+batch_size]
-        current_label= train_label[current_data_index:current_data_index+batch_size]
+        current_data = train_data[current_data_index:current_data_index+batch_size].astype(np.float64)
+        current_label= train_label[current_data_index:current_data_index+batch_size].astype(np.float64)
 
         layer0 = l0.feedforward(current_data)
         layer0_special_1 = l0_zca.feedforward(layer0.T).T
@@ -189,8 +189,8 @@ for iter in range(num_epoch):
 
     # test data set run network
     for current_data_index in range(0,len(test_data),batch_size):
-        current_data = test_data[current_data_index:current_data_index+batch_size]
-        current_label= test_label[current_data_index:current_data_index+batch_size]
+        current_data = test_data[current_data_index:current_data_index+batch_size].astype(np.float64)
+        current_label= test_label[current_data_index:current_data_index+batch_size].astype(np.float64)
 
         layer0 = l0.feedforward(current_data)
         layer0_special_1 = l0_zca.feedforward(layer0.T).T
