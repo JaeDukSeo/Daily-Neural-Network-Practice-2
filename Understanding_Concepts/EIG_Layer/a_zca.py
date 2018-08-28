@@ -129,8 +129,10 @@ class zca_whiten_layer():
         K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
         np.fill_diagonal(d_eig_value,0.0)
         d_sigma = self.eigvector.dot(K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value).dot(self.eigvector.T)
-        d_sigma_smooth = (0.5) * (d_sigma.T + d_sigma)
-        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma_smooth)
+
+        # I am not going to use the smoothen matrix
+        # d_sigma_smooth = (0.5) * (d_sigma.T + d_sigma)
+        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma)
         return d_x
 
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
@@ -156,10 +158,10 @@ print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
-l0 = np_FNN(28*28,22*22,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,26*26,act=np_relu,d_act=d_np_relu)
 l0_zca = zca_whiten_layer()
-l1 = np_FNN(22*22,16*16 ,act=np_relu,d_act=d_np_relu)
-l2 = np_FNN(16*16,10    ,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(26*26,20*20 ,act=np_relu,d_act=d_np_relu)
+l2 = np_FNN(20*20,10    ,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
