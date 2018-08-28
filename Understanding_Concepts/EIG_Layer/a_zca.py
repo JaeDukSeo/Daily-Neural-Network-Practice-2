@@ -156,10 +156,10 @@ print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
-l0 = np_FNN(28*28,30*30,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,22*22,act=np_relu,d_act=d_np_relu)
 l0_zca = zca_whiten_layer()
-l1 = np_FNN(30*30,32*32 ,act=np_relu,d_act=d_np_relu)
-l2 = np_FNN(32*32,10    ,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(22*22,16*16 ,act=np_relu,d_act=d_np_relu)
+l2 = np_FNN(16*16,10    ,act=np_relu,d_act=d_np_relu)
 
 # train
 train_cota,train_acca = 0,0; train_cot,train_acc = [],[]
