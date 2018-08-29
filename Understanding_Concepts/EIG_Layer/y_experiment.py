@@ -104,7 +104,7 @@ class zca_whiten_layer():
 
     def __init__(self): pass
 
-    def feedforward(self,input,EPS=10e-3,is_train = True):
+    def feedforward(self,input,EPS=0.04,is_train = True):
         self.input = input
         self.sigma = input.T.dot(input) / input.shape[0]
         self.eigenval,self.eigvector = LA.eigh(self.sigma)
@@ -112,7 +112,7 @@ class zca_whiten_layer():
         self.whiten = input.dot(self.U)
         return self.whiten
 
-    def backprop(self,grad,EPS=10e-3):
+    def backprop(self,grad,EPS=0.04):
         d_U = self.input.T.dot(grad)
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
@@ -152,8 +152,8 @@ print('-----------------------')
 
 # hyper
 num_epoch = 50
-batch_size = 1000
-learning_rate = 0.0008
+batch_size = 200
+learning_rate = 0.00085
 print_size  = 1
 
 beta1,beta2,adam_e = 0.9,0.999,1e-20
@@ -161,8 +161,8 @@ beta1,beta2,adam_e = 0.9,0.999,1e-20
 # class of layers
 l0_special = zca_whiten_layer()
 l0 = np_FNN(784,22*22, batch_size,act=np_tanh,d_act=d_np_tanh)
-l1 = np_FNN(22*22,18*18 ,batch_size,act=np_relu,d_act=d_np_relu)
-l3 = np_FNN(18*18,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(22*22,16*16 ,batch_size,act=np_relu,d_act=d_np_relu)
+l3 = np_FNN(16*16,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 for iter in range(num_epoch):
