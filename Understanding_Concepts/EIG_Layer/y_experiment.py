@@ -19,8 +19,8 @@ tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
 
 # def: relu activations
-def np_relu(x): return x * (x > 0)
-def d_np_relu(x): return 1. * (x > 0)
+def np_relu(x): return x * (x > 0) + 0.01 *x* (x <= 0)
+def d_np_relu(x): return 1. * (x > 0) + 0.01 * (x <= 0)
 def np_tanh(x): return  np.tanh(x)
 def d_np_tanh(x): return 1. - np_sigmoid(x) ** 2
 def np_sigmoid(x): return  1/(1+np.exp(-x))
@@ -32,7 +32,7 @@ class np_FNN():
 
     def __init__(self,inc,outc,act=np_relu,d_act = d_np_relu):
         self.w = r.normal(0,0.008,size=(inc, outc)).astype(np.float64)
-        self.b = r.normal(0,0.005,size=(outc)).astype(np.float64)
+        self.b = r.normal(0,0.0001,size=(outc)).astype(np.float64)
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
         self.act = act; self.d_act = d_act
@@ -140,15 +140,15 @@ print(test_label.min(),test_label.max())
 print('-----------------------')
 
 # hyper
-num_epoch = 20 ; batch_size = 250
-learning_rate = 0.002
+num_epoch = 15 ; batch_size = 250
+learning_rate = 0.001
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
 l0_special = zca_whiten_layer()
-l0 = np_FNN(28*28,26*26 ,act=np_tanh,d_act=d_np_tanh)
-l1 = np_FNN(26*26,16*16 ,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,26*26 ,act=np_tanh,d_act=d_np_tanh) # 26
+l1 = np_FNN(26*26,16*16 ,act=np_relu,d_act=d_np_relu) # 16
 l3 = np_FNN(16*16,10    ,act=np_relu,d_act=d_np_relu)
 
 # train
@@ -156,7 +156,9 @@ train_cota,train_acca = 0,0 ; train_cot,train_acc = [],[]
 test_cota,test_acca = 0,0; test_cot,test_acc = [],[]
 for iter in range(num_epoch):
 
+    # learning rate decay
     learning_rate = learning_rate * 0.99
+
     for current_data_index in range(0,len(train_data),batch_size):
         current_data = train_data[current_data_index:current_data_index+batch_size].astype(np.float64)
         current_label= train_label[current_data_index:current_data_index+batch_size].astype(np.float64)
