@@ -234,7 +234,7 @@ def show_to_image(A,shape_value,vec=False):
     for i in range(1, columns*rows +1):
         fig.add_subplot(rows, columns, i)
         if vec:
-            plt.imshow(A[i-1].reshape(5,5),cmap='gray')
+            plt.imshow(A[i-1].reshape(2,5),cmap='gray')
             plt.axis('off')
         else:
             plt.imshow(A[i-1].reshape(shape_value,shape_value),cmap='gray')
