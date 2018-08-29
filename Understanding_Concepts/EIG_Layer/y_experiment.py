@@ -10,6 +10,7 @@ from imgaug import augmenters as iaa
 import imgaug as ia
 from scipy.ndimage import zoom
 import seaborn as sns
+from scipy import linalg as LA
 
 np.random.seed(0)
 np.set_printoptions(precision = 3,suppress =True)
@@ -29,13 +30,12 @@ def d_np_sigmoid(x): return np_sigmoid(x) * (1.-np_sigmoid(x))
 r = np.random.RandomState(1234)
 class np_FNN():
 
-    def __init__(self,inc,outc,batch_size,act=np_relu,d_act = d_np_relu):
+    def __init__(self,inc,outc,act=np_relu,d_act = d_np_relu):
         self.w = r.normal(0,0.008,size=(inc, outc)).astype(np.float64)
         self.b = r.normal(0,0.005,size=(outc)).astype(np.float64)
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
         self.act = act; self.d_act = d_act
-        self.batch_size = batch_size
 
     def getw(self): return self.w
 
@@ -63,9 +63,9 @@ class np_FNN():
 
         self.mb = self.mb * beta1 + (1. - beta1) * grad_b
         self.vb = self.vb * beta2 + (1. - beta2) * grad_b ** 2
-        m_hatb,v_hatb = self.mb/(1.-beta1), self.vb/(1.-beta2)
-        adam_middleb =  m_hatb * lr_rate /(np.sqrt(v_hatb) + adam_e)
-        self.b = self.b - adam_middleb
+        m_hat,v_hat = self.mb/(1.-beta1), self.vb/(1.-beta2)
+        adam_middle =  m_hat * lr_rate / (np.sqrt(v_hat) + adam_e)
+        self.b = self.b - adam_middle
 
         return grad_pass
 
@@ -99,12 +99,11 @@ class standardization_layer():
         return d_x * dem
 
 # def: zca whitening layer
-from scipy import linalg as LA
 class zca_whiten_layer():
 
     def __init__(self): pass
 
-    def feedforward(self,input,EPS=0.08):
+    def feedforward(self,input,EPS=0.06):
         self.input = input
         self.sigma = input.T.dot(input) / input.shape[0]
         self.eigenval,self.eigvector = LA.eigh(self.sigma)
@@ -112,7 +111,7 @@ class zca_whiten_layer():
         self.whiten = input.dot(self.U)
         return self.whiten
 
-    def backprop(self,grad,EPS=0.08):
+    def backprop(self,grad,EPS=0.06):
         d_U = self.input.T.dot(grad)
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
@@ -128,10 +127,6 @@ class zca_whiten_layer():
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
 train_data, train_label, test_data, test_label = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
-train_data =  np.vstack((train_data,mnist.validation.images))
-train_label = np.vstack((train_label,mnist.validation.labels))
-# train_data  = train_data[:30000,:]
-# train_label = train_label[:30000,:]
 
 # Show some details and vis some of them
 print(train_data.shape)
@@ -145,24 +140,23 @@ print(test_label.min(),test_label.max())
 print('-----------------------')
 
 # hyper
-num_epoch = 30 ; batch_size = 500
-learning_rate = 0.00089
+num_epoch = 20 ; batch_size = 250
+learning_rate = 0.002
 print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
 l0_special = zca_whiten_layer()
-l0 = np_FNN(784,32*32,   batch_size,act=np_tanh,d_act=d_np_tanh)
-l1 = np_FNN(32*32,17*17 ,batch_size,act=np_relu,d_act=d_np_relu)
-l3 = np_FNN(17*17,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(28*28,26*26 ,act=np_tanh,d_act=d_np_tanh)
+l1 = np_FNN(26*26,16*16 ,act=np_relu,d_act=d_np_relu)
+l3 = np_FNN(16*16,10    ,act=np_relu,d_act=d_np_relu)
 
 # train
+train_cota,train_acca = 0,0 ; train_cot,train_acc = [],[]
+test_cota,test_acca = 0,0; test_cot,test_acc = [],[]
 for iter in range(num_epoch):
 
-    train_cota,train_acca = 0,0 ; train_cot,train_acc = [],[]
-    test_cota,test_acca = 0,0; test_cot,test_acc = [],[]
-    train_data,train_label = shuffle(train_data,train_label)
-
+    learning_rate = learning_rate * 0.99
     for current_data_index in range(0,len(train_data),batch_size):
         current_data = train_data[current_data_index:current_data_index+batch_size].astype(np.float64)
         current_label= train_label[current_data_index:current_data_index+batch_size].astype(np.float64)
@@ -202,14 +196,9 @@ for iter in range(num_epoch):
         print('Test  Current Acc: ', test_acca/(len(test_data)/batch_size),' Current cost: ', test_cota/(len(test_data)/batch_size),end='\n')
         print("----------")
 
-    train_data,train_label = shuffle(train_data,train_label)
-    test_data,test_label = shuffle(test_data,test_label)
-
-    train_acc.append(train_acca/(len(train_data)/batch_size))
-    train_cot.append(train_cota/(len(train_data)/batch_size))
+    train_acc.append(train_acca/(len(train_data)/batch_size));train_cot.append(train_cota/(len(train_data)/batch_size))
     train_cota,train_acca = 0,0
-    test_acc.append(test_acca/(len(test_data)/batch_size))
-    test_cot.append(test_cota/(len(test_data)/batch_size))
+    test_acc.append(test_acca/(len(test_data)/batch_size));test_cot.append(test_cota/(len(test_data)/batch_size))
     test_cota,test_acca = 0,0
 
 
