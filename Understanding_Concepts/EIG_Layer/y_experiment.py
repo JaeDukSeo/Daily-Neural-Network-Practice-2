@@ -122,7 +122,7 @@ class zca_whiten_layer():
         d_sigma = self.eigvector.dot(
                     K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
                     ).dot(self.eigvector.T)
-        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
+        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma)
         return d_x
 
 # def: soft max function for 2D
@@ -152,8 +152,8 @@ print('-----------------------')
 
 # hyper
 num_epoch = 50
-batch_size = 200
-learning_rate = 0.00085
+batch_size = 500
+learning_rate = 0.0008
 print_size  = 1
 
 beta1,beta2,adam_e = 0.9,0.999,1e-20
@@ -161,8 +161,8 @@ beta1,beta2,adam_e = 0.9,0.999,1e-20
 # class of layers
 l0_special = zca_whiten_layer()
 l0 = np_FNN(784,22*22, batch_size,act=np_tanh,d_act=d_np_tanh)
-l1 = np_FNN(22*22,16*16 ,batch_size,act=np_relu,d_act=d_np_relu)
-l3 = np_FNN(16*16,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l1 = np_FNN(22*22,18*18 ,batch_size,act=np_relu,d_act=d_np_relu)
+l3 = np_FNN(18*18,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 for iter in range(num_epoch):
