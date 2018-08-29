@@ -30,8 +30,8 @@ r = np.random.RandomState(1234)
 class np_FNN():
 
     def __init__(self,inc,outc,batch_size,act=np_relu,d_act = d_np_relu):
-        self.w = r.normal(0,0.01,size=(inc, outc))
-        self.b = r.normal(0,0.005,size=(outc))
+        self.w = r.normal(0,0.01,size=(inc, outc)).astype(np.float64)
+        self.b = r.normal(0,0.005,size=(outc)).astype(np.float64)
         self.m,self.v = np.zeros_like(self.w),np.zeros_like(self.w)
         self.mb,self.vb = np.zeros_like(self.b),np.zeros_like(self.b)
         self.act = act; self.d_act = d_act
@@ -104,7 +104,7 @@ class zca_whiten_layer():
 
     def __init__(self): pass
 
-    def feedforward(self,input,EPS=0.04,is_train = True):
+    def feedforward(self,input,EPS=0.05):
         self.input = input
         self.sigma = input.T.dot(input) / input.shape[0]
         self.eigenval,self.eigvector = LA.eigh(self.sigma)
@@ -112,7 +112,7 @@ class zca_whiten_layer():
         self.whiten = input.dot(self.U)
         return self.whiten
 
-    def backprop(self,grad,EPS=0.04):
+    def backprop(self,grad,EPS=0.05):
         d_U = self.input.T.dot(grad)
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
@@ -124,12 +124,6 @@ class zca_whiten_layer():
                     ).dot(self.eigvector.T)
         d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma)
         return d_x
-
-# def: soft max function for 2D
-def stable_softmax(x,axis=None):
-    """Compute softmax values for each sets of scores in x."""
-    e_x = np.exp(x - np.max(x,axis=1)[:,np.newaxis])
-    return e_x / e_x.sum(axis=1)[:,np.newaxis]
 
 # mnist = input_data.read_data_sets('../../Dataset/MNIST/', one_hot=True)
 mnist = input_data.read_data_sets('../../Dataset/fashionmnist/',one_hot=True)
@@ -151,34 +145,30 @@ print(test_label.min(),test_label.max())
 print('-----------------------')
 
 # hyper
-num_epoch = 50
-batch_size = 500
-learning_rate = 0.0008
+num_epoch = 30 ; batch_size = 250
+learning_rate = 0.00088
 print_size  = 1
-
-beta1,beta2,adam_e = 0.9,0.999,1e-20
+beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
 l0_special = zca_whiten_layer()
-l0 = np_FNN(784,22*22, batch_size,act=np_tanh,d_act=d_np_tanh)
-l1 = np_FNN(22*22,18*18 ,batch_size,act=np_relu,d_act=d_np_relu)
-l3 = np_FNN(18*18,10    ,batch_size,act=np_relu,d_act=d_np_relu)
+l0 = np_FNN(784,22*22,   batch_size,act=np_tanh,d_act=d_np_tanh)
+l1 = np_FNN(22*22,16*16 ,batch_size,act=np_relu,d_act=d_np_relu)
+l3 = np_FNN(16*16,10    ,batch_size,act=np_relu,d_act=d_np_relu)
 
 # train
 for iter in range(num_epoch):
 
-    train_cota,train_acca = 0,0
-    train_cot,train_acc = [],[]
-
-    test_cota,test_acca = 0,0
-    test_cot,test_acc = [],[]
+    train_cota,train_acca = 0,0 ; train_cot,train_acc = [],[]
+    test_cota,test_acca = 0,0; test_cot,test_acc = [],[]
     train_data,train_label = shuffle(train_data,train_label)
+
     for current_data_index in range(0,len(train_data),batch_size):
-        current_data = train_data[current_data_index:current_data_index+batch_size]
-        current_label= train_label[current_data_index:current_data_index+batch_size]
+        current_data = train_data[current_data_index:current_data_index+batch_size].astype(np.float64)
+        current_label= train_label[current_data_index:current_data_index+batch_size].astype(np.float64)
 
         layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T,is_train=True).T
+        layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
         layer3 = l3.feedforward(layer1)
 
@@ -193,11 +183,11 @@ for iter in range(num_epoch):
         grad0 = l0.backprop(grad0_special,lr_rate = learning_rate)
 
     for current_data_index in range(0,len(test_data),batch_size):
-        current_data = test_data[current_data_index:current_data_index+batch_size]
-        current_label= test_label[current_data_index:current_data_index+batch_size]
+        current_data = test_data[current_data_index:current_data_index+batch_size].astype(np.float64)
+        current_label= test_label[current_data_index:current_data_index+batch_size].astype(np.float64)
 
         layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T,is_train=True).T
+        layer0_special = l0_special.feedforward(layer0.T).T
         layer1 = l1.feedforward(layer0_special)
         layer3 = l3.feedforward(layer1)
 
