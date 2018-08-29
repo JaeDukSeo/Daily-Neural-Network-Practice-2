@@ -1,0 +1,76 @@
+-----------------------
+Current Iter:  0  batch index:  9750  accuracy:  0.856  cost:  -0.00774981282562416355
+----------
+Train Current Acc:  0.7976909090909097  Current cost:  -0.009942327490609535
+Test  Current Acc:  0.8422000000000003  Current cost:  -0.007756895699673204
+----------
+Current Iter:  1  batch index:  9750  accuracy:  0.876  cost:  -0.00735779369078877955
+----------
+Train Current Acc:  0.861181818181819  Current cost:  -0.008256777381897487
+Test  Current Acc:  0.8588000000000001  Current cost:  -0.007041924935187361
+----------
+Current Iter:  2  batch index:  9750  accuracy:  0.896  cost:  -0.00835241921323775795
+----------
+Train Current Acc:  0.874018181818182  Current cost:  -0.008256268030577362
+Test  Current Acc:  0.8647000000000002  Current cost:  -0.007933268360212572
+----------
+Current Iter:  3  batch index:  9750  accuracy:  0.892  cost:  -0.00885191436376220945
+----------
+Train Current Acc:  0.8814363636363638  Current cost:  -0.008398904454636444
+Test  Current Acc:  0.8702  Current cost:  -0.008325607127355892
+----------
+Current Iter:  4  batch index:  9750  accuracy:  0.896  cost:  -0.00926291454211044785
+----------
+Train Current Acc:  0.8878181818181811  Current cost:  -0.008478118472236822
+Test  Current Acc:  0.8722000000000001  Current cost:  -0.008715890724921935
+----------
+Current Iter:  5  batch index:  9750  accuracy:  0.9  cost:  -0.0092925897359164387445
+----------
+Train Current Acc:  0.892236363636363  Current cost:  -0.008473155578261435
+Test  Current Acc:  0.8735999999999999  Current cost:  -0.008917875339379057
+----------
+Current Iter:  6  batch index:  9750  accuracy:  0.9  cost:  -0.0096160729553950142356
+----------
+Train Current Acc:  0.8960909090909083  Current cost:  -0.008422757165930557
+Test  Current Acc:  0.8766  Current cost:  -0.009398766198973956
+----------
+Current Iter:  7  batch index:  9750  accuracy:  0.904  cost:  -0.00930869912312597925
+----------
+Train Current Acc:  0.8991272727272719  Current cost:  -0.008379173142433985
+Test  Current Acc:  0.8773  Current cost:  -0.009209376291950712
+----------
+Current Iter:  8  batch index:  9750  accuracy:  0.9  cost:  -0.0093723330404350621665
+----------
+Train Current Acc:  0.9023090909090902  Current cost:  -0.008398329012537885
+Test  Current Acc:  0.8801000000000002  Current cost:  -0.009434846645450894
+----------
+Current Iter:  9  batch index:  9750  accuracy:  0.908  cost:  -0.00915105154000298544
+----------
+Train Current Acc:  0.9055454545454538  Current cost:  -0.00843980503159403
+Test  Current Acc:  0.8807  Current cost:  -0.00913319997299558
+----------
+Current Iter:  10  batch index:  9750  accuracy:  0.916  cost:  -0.00924934894089998464
+----------
+Train Current Acc:  0.9085454545454539  Current cost:  -0.008499746282686915
+Test  Current Acc:  0.8825000000000001  Current cost:  -0.00923686248753162
+----------
+Current Iter:  11  batch index:  9750  accuracy:  0.912  cost:  -0.00922013667311520375
+----------
+Train Current Acc:  0.9110545454545447  Current cost:  -0.008533464712689048
+Test  Current Acc:  0.8830000000000002  Current cost:  -0.00917715007117684
+----------
+Current Iter:  12  batch index:  9750  accuracy:  0.916  cost:  -0.00913647749993362476
+----------
+Train Current Acc:  0.913672727272727  Current cost:  -0.008590970094121844
+Test  Current Acc:  0.8833  Current cost:  -0.009108961206082152
+----------
+Current Iter:  13  batch index:  9750  accuracy:  0.912  cost:  -0.00899720044786996445
+----------
+Train Current Acc:  0.9157636363636354  Current cost:  -0.008663641197570345
+Test  Current Acc:  0.8848  Current cost:  -0.008896558248884068
+----------
+Current Iter:  14  batch index:  9750  accuracy:  0.912  cost:  -0.00905267973974064324
+----------
+Train Current Acc:  0.9179818181818176  Current cost:  -0.00873876782993482
+Test  Current Acc:  0.8865000000000001  Current cost:  -0.0089823627773705
+----------

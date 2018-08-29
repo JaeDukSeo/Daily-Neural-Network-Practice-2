@@ -147,7 +147,6 @@ print_size  = 1
 beta1,beta2,adam_e = 0.9,0.999,1e-40
 
 # class of layers
-l0_special = centering_layer()
 l0 = np_FNN(28*28,26*26 ,act=np_tanh,d_act=d_np_tanh) # 26
 l1 = np_FNN(26*26,16*16 ,act=np_relu,d_act=d_np_relu) # 16
 l3 = np_FNN(16*16,10    ,act=np_relu,d_act=d_np_relu)
@@ -165,8 +164,7 @@ for iter in range(num_epoch):
         current_label= train_label[current_data_index:current_data_index+batch_size].astype(np.float64)
 
         layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
-        layer1 = l1.feedforward(layer0_special)
+        layer1 = l1.feedforward(layer0)
         layer3 = l3.feedforward(layer1)
 
         cost = np.mean( layer3 - current_label )
@@ -176,16 +174,14 @@ for iter in range(num_epoch):
 
         grad3 = l3.backprop(layer3 - current_label ,lr_rate=learning_rate)
         grad1 = l1.backprop(grad3,lr_rate=learning_rate)
-        grad0_special = l0_special.backprop(grad1.T).T
-        grad0 = l0.backprop(grad0_special,lr_rate = learning_rate)
+        grad0 = l0.backprop(grad1,lr_rate = learning_rate)
 
     for current_data_index in range(0,len(test_data),batch_size):
         current_data = test_data[current_data_index:current_data_index+batch_size].astype(np.float64)
         current_label= test_label[current_data_index:current_data_index+batch_size].astype(np.float64)
 
         layer0 = l0.feedforward(current_data)
-        layer0_special = l0_special.feedforward(layer0.T).T
-        layer1 = l1.feedforward(layer0_special)
+        layer1 = l1.feedforward(layer0)
         layer3 = l3.feedforward(layer1)
 
         cost = np.mean( layer3 - current_label )
@@ -210,12 +206,13 @@ train_cot = (train_cot-min(train_cot))/(max(train_cot)-min(train_cot))
 test_acc = (test_acc-min(test_acc))/(max(test_acc)-min(test_acc))
 test_cot = (test_cot-min(test_cot))/(max(test_cot)-min(test_cot))
 
+plt.close('all')
 plt.figure()
 plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
 plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
 plt.legend()
 plt.title("Train Average Accuracy / Cost Over Time")
-plt.savefig('case b train.png')
+plt.savefig('case d train.png')
 plt.show()
 
 plt.figure()
@@ -223,7 +220,7 @@ plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
 plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
 plt.legend()
 plt.title("Test Average Accuracy / Cost Over Time")
-plt.savefig('case b test.png')
+plt.savefig('case d test.png')
 plt.show()
 
 # get 100 images from training to viz
@@ -243,13 +240,11 @@ def show_to_image(A,shape_value,vec=False):
 
 image_to_show = train_data[:100]
 layer0 = l0.feedforward(image_to_show)
-layer0_special = l0_special.feedforward(layer0.T).T
 layer1 = l1.feedforward(layer0_special)
 layer3 = l3.feedforward(layer1)
 
 show_to_image(image_to_show,shape_value=28)
 show_to_image(layer0,shape_value=26)
-show_to_image(layer0_special,shape_value=26)
 show_to_image(layer1,shape_value=16)
 show_to_image(layer3,vec=True,shape_value=None)
 

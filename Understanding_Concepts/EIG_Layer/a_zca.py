@@ -204,7 +204,55 @@ for iter in range(num_epoch):
     test_acc.append(test_acca/(len(test_data)/batch_size));test_cot.append(test_cota/(len(test_data)/batch_size))
     test_cota,test_acca = 0,0
 
-# after training is finished
+# after training is finished viz
+train_acc = (train_acc-min(train_acc))/(max(train_acc)-min(train_acc))
+train_cot = (train_cot-min(train_cot))/(max(train_cot)-min(train_cot))
+test_acc = (test_acc-min(test_acc))/(max(test_acc)-min(test_acc))
+test_cot = (test_cot-min(test_cot))/(max(test_cot)-min(test_cot))
+
+plt.figure()
+plt.plot(range(len(train_acc)),train_acc,color='red',label='acc ovt')
+plt.plot(range(len(train_cot)),train_cot,color='green',label='cost ovt')
+plt.legend()
+plt.title("Train Average Accuracy / Cost Over Time")
+plt.savefig('case a train.png')
+plt.show()
+
+plt.figure()
+plt.plot(range(len(test_acc)),test_acc,color='red',label='acc ovt')
+plt.plot(range(len(test_cot)),test_cot,color='green',label='cost ovt')
+plt.legend()
+plt.title("Test Average Accuracy / Cost Over Time")
+plt.savefig('case a test.png')
+plt.show()
+
+# get 100 images from training to viz
+def show_to_image(A,shape_value,vec=False):
+    A = (A-A.min(1)[:,np.newaxis])/(A.max(1) - A.min(1))[:,np.newaxis]
+    fig=plt.figure(figsize=(8, 8))
+    columns = 10 ; rows = 10
+    for i in range(1, columns*rows +1):
+        fig.add_subplot(rows, columns, i)
+        if vec:
+            plt.imshow(A[i-1].reshape(5,5),cmap='gray')
+            plt.axis('off')
+        else:
+            plt.imshow(A[i-1].reshape(shape_value,shape_value),cmap='gray')
+            plt.axis('off')
+    plt.show()
+
+image_to_show = train_data[:100]
+layer0 = l0.feedforward(image_to_show)
+layer0_special = l0_special.feedforward(layer0.T).T
+layer1 = l1.feedforward(layer0_special)
+layer3 = l3.feedforward(layer1)
+
+show_to_image(image_to_show,shape_value=28)
+show_to_image(layer0,shape_value=26)
+show_to_image(layer0_special,shape_value=26)
+show_to_image(layer1,shape_value=16)
+show_to_image(layer3,vec=True,shape_value=None)
+
 
 
 # -- end code --
