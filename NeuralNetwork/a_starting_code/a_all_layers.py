@@ -127,7 +127,7 @@ class CNN():
 
         grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,filter_sizes = self.w.shape,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
-        )
+        ) / batch_size
 
         grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
@@ -195,7 +195,7 @@ class CNN_Trans():
         grad = tf.nn.conv2d_backprop_filter(input = grad_middle,
             filter_sizes = self.w.shape,out_backprop = grad_part_3,
             strides=[1,stride,stride,1],padding=padding
-        )
+        ) / batch_size
 
         grad_pass = tf.nn.conv2d(
             input=grad_middle,filter = self.w,strides=[1,stride,stride,1],padding=padding
@@ -566,8 +566,8 @@ class ICA_Layer():
         grad_part_3 = self.input
 
         grad_pass = tf.matmul(grad_part_2,tf.transpose(self.w))
-        grad_sum_1 = tf.expand_dims(tf.reduce_sum(tf.transpose(self.input),1),1)
-        grad_sum_2 = tf.expand_dims(tf.reduce_sum(self.ica_est_act,0),0)
+        grad_sum_1 = tf.expand_dims(tf.reduce_sum(tf.transpose(self.input),1),1) / batch_size
+        grad_sum_2 = tf.expand_dims(tf.reduce_sum(self.ica_est_act,0),0) / batch_size
         grad = tf.linalg.inv(tf.transpose(self.w)) - (2.0/batch_size) * tf.matmul(grad_sum_1,grad_sum_2)
 
         update_w = []
