@@ -14,31 +14,6 @@ old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
 
-# ====== miscellaneous =====
-# code from: https://github.com/tensorflow/tensorflow/issues/8246
-def tf_repeat(tensor, repeats):
-    """
-    Args:
-
-    input: A Tensor. 1-D or higher.
-    repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
-
-    Returns:
-
-    A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
-    """
-    expanded_tensor = tf.expand_dims(tensor, -1)
-    multiples = [1] + repeats
-    tiled_tensor = tf.tile(expanded_tensor, multiples = multiples)
-    repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
-    return repeated_tesnor
-def unpickle(file):
-    import pickle
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
-# ====== miscellaneous =====
-
 
 # data
 data_location = "../../Dataset/Faces_Att/att_faces_all/png/"
