@@ -27,8 +27,39 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 
 # ======= Activation Function  ==========
-def tf_elu(x): return tf.nn.elu(x)
-def d_tf_elu(x): return tf.cast(tf.greater(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float64) * x) + 1.0)
+def tf_elu(x):
+    """ Exponential Linear Unit based on the ICCV 2015 paper
+    https://arxiv.org/pdf/1511.07289.pdf
+
+    Parameters
+    ----------
+    x : float
+        The floating point number that is going to be applied to the ELU activation.
+
+    Returns
+    -------
+    float
+        Data with the same dimensions as the input after ELU
+
+    """
+    return tf.nn.elu(x)
+def d_tf_elu(x):
+    """Derivative of the Exponential Linear Unit base on the ICCV 2015 paper
+    https://arxiv.org/pdf/1511.07289.pdf
+
+    Parameters
+    ----------
+    x : type
+        Description of parameter `x`.
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    """
+
+    return tf.cast(tf.greater(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float64) * x) + 1.0)
 
 def tf_tanh(x): return tf.nn.tanh(x)
 def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
@@ -65,6 +96,19 @@ def tf_repeat(tensor, repeats):
     repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
     return repeated_tesnor
 def unpickle(file):
+    """Unpickles the data from the given path.
+
+    Parameters
+    ----------
+    file : string
+        location of the pickle file to unpickle
+
+    Returns
+    -------
+    dict
+        Dictionary of the unpickled data.
+
+    """
     import pickle
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
@@ -367,6 +411,33 @@ class LSTM_CNN():
 
 # Func: Fully Connected Layer
 class FNN():
+    """Fully Connected Neural Network Implemented in Tensorflow
+
+    Parameters
+    ----------
+    inc : type
+        Description of parameter `inc`.
+    outc : type
+        Description of parameter `outc`.
+    act : type
+        Description of parameter `act`.
+    d_act : type
+        Description of parameter `d_act`.
+    special_init : type
+        Description of parameter `special_init`.
+
+    Attributes
+    ----------
+    w : type
+        Description of attribute `w`.
+    m : type
+        Description of attribute `m`.
+    v : type
+        Description of attribute `v`.
+    act
+    d_act
+
+    """
 
     def __init__(self,inc,outc,act,d_act,special_init=False):
         if special_init:
@@ -714,6 +785,34 @@ class PCA_Layer():
         return out_put,update_sigma
 
 class zca_whiten_layer():
+    """ZCA Whiten operation layer.
+
+    Parameters
+    ----------
+    self) : pass    def feedforward(self
+        Description of parameter `self)`.
+    input : type
+        Description of parameter `input`.
+    EPS : type
+        Description of parameter `EPS`.
+
+    Attributes
+    ----------
+    sigma : type
+        Description of attribute `sigma`.
+    eigenval : type
+        Description of attribute `eigenval`.
+    eigvector : type
+        Description of attribute `eigvector`.
+    U : type
+        Description of attribute `U`.
+    whiten : type
+        Description of attribute `whiten`.
+    self,grad : type
+        Description of attribute `self,grad`.
+    input
+
+    """
 
     def __init__(self): pass
 
