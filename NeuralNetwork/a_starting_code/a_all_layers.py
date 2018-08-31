@@ -819,7 +819,7 @@ class zca_whiten_layer():
     def feedforward(self,input,EPS=10e-5):
         self.input = input
         self.sigma = tf.matmul(tf.transpose(input),input) / input.shape[0]
-        self.eigenval,self.eigvector = tf.linalg.eigvalsh(self.sigma)
+        self.eigenval,self.eigvector = tf.linalg.eigh(self.sigma)
         self.U = tf.matmul(tf.matmul(self.eigvector,tf.diag(1./ tf.sqrt(self.eigenval+EPS))),tf.transpose(self.eigvector))
         self.whiten = tf.matmul(input,self.U)
         return self.whiten
