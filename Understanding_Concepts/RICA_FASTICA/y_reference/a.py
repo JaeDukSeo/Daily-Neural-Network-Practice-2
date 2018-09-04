@@ -267,11 +267,11 @@ def zca_whiten(X):
 
     return X_white
 
-n_component = 10
+n_component = 100
 resulted = fastica(face_images.T,n_comp=n_component,maxit=1000)
 print(resulted[0].shape)
 print(resulted[1].shape)
-
+#
 resulted_images= resulted[0].reshape(n_component,64,64)
 import matplotlib.pyplot as plt
 w=10
@@ -288,9 +288,22 @@ for i in range(1, columns*rows +1):
 plt.show()
 
 
+from sklearn.decomposition import FastICA
+ee = FastICA(n_components=100)
 
-
-
-
+ddddd = ee.fit_transform(face_images.T).T.reshape(100,64,64)
+print(ddddd.shape)
+w=10
+h=10
+fig=plt.figure(figsize=(8, 8))
+columns = 10
+rows = 10
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    try:
+        plt.imshow(ddddd[i-1],cmap='gray')
+    except:
+        pass
+plt.show()
 
 # -- end code --
