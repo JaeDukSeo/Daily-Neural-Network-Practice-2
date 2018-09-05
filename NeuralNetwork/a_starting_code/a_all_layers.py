@@ -618,8 +618,33 @@ class LSTM():
     def __init__(self):
         raise NotImplementedError("Not Implemented Yet")
 
-# Func: Layer for Independent component analysis
 class ICA_Layer():
+    """Perform Independent component analysis via gradient ascent method
+    see: http://www.sci.utah.edu/~shireen/pdfs/tutorials/Elhabian_ICA09.pdf
+
+    Parameters
+    ----------
+    inc : type
+        Description of parameter `inc`.
+    act : type
+        Description of parameter `act`.
+    d_act : type
+        Description of parameter `d_act`.
+
+    Attributes
+    ----------
+    w : type
+        Description of attribute `w`.
+    m : type
+        Description of attribute `m`.
+    v : type
+        Description of attribute `v`.
+    self,input : type
+        Description of attribute `self,input`.
+    act
+    d_act
+
+    """
 
     def __init__(self,inc,act,d_act):
         self.w = tf.Variable(tf.random_normal([inc,inc],stddev=0.05,seed=2,dtype=tf.float64))
