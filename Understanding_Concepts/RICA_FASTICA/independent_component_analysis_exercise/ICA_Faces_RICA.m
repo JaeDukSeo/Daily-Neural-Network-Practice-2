@@ -5,7 +5,7 @@
 % 
 %  This file contains code that helps you get started on the
 %  ICA exercise. In this exercise, you will need to modify
-%  RICACost.m and a small part of this file, ICAExercise.m.
+%  RICACost.m and a small part of this file, ICAExercise.m. here
 
 %%======================================================================
 clear all; clc;
