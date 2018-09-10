@@ -809,6 +809,28 @@ class PCA_Layer():
 
         return out_put,update_sigma
 
+class KPCA_layer():
+
+    def __init__(self):
+        pass
+    def getw(self): return self.small_eigvec
+    def feedforward(self,input,n_components,gamma = 15):
+        self.input = input
+        self.distance_matrix = -2 * tf.matmul(input,tf.transpose(input)) + tf.reduce_sum(input**2,axis=1) + tf.reduce_sum(input**2,axis=1)[:,tf.newaxis]
+        self.k = tf.exp(-gamma * self.distance_matrix)
+        N = self.k.shape[0].value
+        ones = tf.ones([N,N],dtype=tf.float64) / N
+        self.center_k = self.k - tf.matmul(ones,self.k) - tf.matmul(self.k,ones) + tf.matmul(tf.matmul(ones,self.k),ones)
+        self.eigval,self.eigvec = tf.linalg.eigh(self.center_k)
+        self.small_eigvec = self.eigvec[:,-n_components:]
+        return self.small_eigvec
+
+    def backprop_upsuper(self):
+        pass
+
+    def backprop(self,grad):
+        pass
+
 class zca_whiten_layer():
     """ZCA Whiten operation layer.
 
