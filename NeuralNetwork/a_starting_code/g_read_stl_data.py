@@ -7,41 +7,30 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import OneHotEncoder
 from skimage.transform import resize
 from imgaug import augmenters as iaa
-import nibabel as nib
 import imgaug as ia
 from scipy.ndimage import zoom
 
+old_v = tf.logging.get_verbosity()
+tf.logging.set_verbosity(tf.logging.ERROR)
+from tensorflow.examples.tutorials.mnist import input_data
 
+# data
+data_location = "../../Dataset/STL10/img/"
+train_data = []  # create an empty list
+for dirName, subdirList, fileList in sorted(os.walk(data_location)):
+    for filename in fileList:
+        if ".png" in filename.lower() :
+            train_data.append(os.path.join(dirName,filename))
 
-def read_all_images(path_to_data):
-    """
-    :param path_to_data: the file containing the binary images from the STL-10 dataset
-    :return: an array containing all the images
-    """
+image_resize_px = 96
+train_images = np.zeros(shape=(len(train_data),image_resize_px,image_resize_px,1))
 
-    with open(path_to_data, 'rb') as f:
-        # read whole file in uint8 chunks
-        everything = np.fromfile(f, dtype=np.uint8)
+for file_index in range(len(train_images)):
+    train_images[file_index,:,:]   = np.expand_dims(imresize(imread(train_data[file_index],mode='L'),(image_resize_px,image_resize_px)),2)
 
-        # We force the data into 3x96x96 chunks, since the
-        # images are stored in "column-major order", meaning
-        # that "the first 96*96 values are the red channel,
-        # the next 96*96 are green, and the last are blue."
-        # The -1 is since the size of the pictures depends
-        # on the input file, and this way numpy determines
-        # the size on its own.
+# normalize
+train_batch= train_images/255.0
 
-        images = np.reshape(everything, (-1, 3, 96, 96))
-
-        # Now transpose the images into a standard image format
-        # readable by, for example, matplotlib.imshow
-        # You might want to comment this line or reverse the shuffle
-        # if you will use a learning algorithm like CNN, since they like
-        # their channels separated.
-        images = np.transpose(images, (0, 3, 2, 1))
-        return images
-
-image_path = "../../Dataset/STL10/stl10_binary/"
-
-
+# print out the data shape and the max and min value
+print('Train batch, min, max : ',train_batch.shape,train_batch.min(),train_batch.max())
 # -- end code --
