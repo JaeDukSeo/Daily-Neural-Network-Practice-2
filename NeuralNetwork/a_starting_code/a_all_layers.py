@@ -1,3 +1,4 @@
+# ========= choice of library ====
 import tensorflow as tf
 import numpy as np
 import sys, os,cv2
@@ -24,7 +25,7 @@ import tensorflow as tf
 old_v = tf.logging.get_verbosity()
 tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
-
+# ========= choice of library ====
 
 # ======= Activation Function  ==========
 def tf_elu(x):

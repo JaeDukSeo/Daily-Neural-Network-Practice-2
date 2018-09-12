@@ -21,7 +21,7 @@ def tf_repeat(tensor, repeats):
     repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
 
     Returns:
-    
+
     A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
     """
     expanded_tensor = tf.expand_dims(tensor, -1)
@@ -68,7 +68,7 @@ test_batch = np.reshape(test_batch,(len(test_batch),3,32,32))
 train_batch = np.rot90(np.rot90(train_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float64)
 test_batch = np.rot90(np.rot90(test_batch,1,axes=(1,3)),3,axes=(1,2)).astype(np.float64)
 
-# normalize 
+# normalize
 train_batch= test_batch/255.0
 test_batch = test_batch/255.0
 
