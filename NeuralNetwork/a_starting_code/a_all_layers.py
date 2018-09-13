@@ -965,9 +965,13 @@ class zca_whiten_layer():
         d_eig_value = tf.matmul(tf.matmul(tf.transpose(self.eigvector),d_U),self.eigvector)) * (-0.5) * tf.diag(1./(self.eigvector+EPS) ** 1.5 )
 
         # d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
+        d_eig_vector = tf.matmul(d_U,tf.transpose(tf.matmul( tf.diag(1./ tf.sqrt(self.eigenval+EPS))), tf.transpose(self.eigvector)))) + \
+                       tf.matmul(tf.transpose(d_U),tf.matmul(self.eigvector,tf.diag(1./ tf.sqrt(self.eigenval+EPS))))
+
+        # E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
+        E = tf.ones()
 
         # ===== tf ===== have to convert to tf
-        d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
         E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
         K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
         np.fill_diagonal(d_eig_value,0.0)
