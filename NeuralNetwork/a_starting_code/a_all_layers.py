@@ -76,6 +76,9 @@ def d_tf_iden(x): return 1.0
 
 def tf_softmax(x): return tf.nn.softmax(x)
 def softabs(x): return tf.sqrt(x ** 2 + 1e-20)
+
+def tf_logcosh(x): return tf.log(tf.cosh(x))
+def d_tf_logcosh(x): return tf.tanh(x)
 # ======= Activation Function  ==========
 
 # ====== miscellaneous =====
@@ -147,12 +150,38 @@ def display_network(A,current_iter=None):
 # ====== miscellaneous =====
 
 # ================= LAYER CLASSES =================
-# Func: Convolutional Layer
 class CNN():
+    """Convolutional Layer in Tensorflow
+
+    Parameters
+    ----------
+    k : type
+        Description of parameter `k`.
+    inc : type
+        Description of parameter `inc`.
+    out : type
+        Description of parameter `out`.
+    act : type
+        Description of parameter `act`.
+    d_act : type
+        Description of parameter `d_act`.
+
+    Attributes
+    ----------
+    w : type
+        Description of attribute `w`.
+    m : type
+        Description of attribute `m`.
+    v : type
+        Description of attribute `v`.
+    act
+    d_act
+
+    """
 
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
-        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
     def getw(self): return self.w
@@ -180,11 +209,10 @@ class CNN():
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
-        update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1)
-        v_hat = self.v_prev / (1-beta2)
+        v_hat = self.v / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
 
         return grad_pass,update_w
@@ -475,7 +503,6 @@ class FNN():
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
         adam_middle = m_hat *  learning_rate/(tf.sqrt(v_hat) + adam_e)
-
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
         return grad_pass,update_w
 
@@ -618,6 +645,65 @@ class LSTM():
 
     def __init__(self):
         raise NotImplementedError("Not Implemented Yet")
+
+
+class FastICA_Layer():
+    """Performs ICA via FastICA method
+
+    Parameters
+    ----------
+    inc : type
+        Description of parameter `inc`.
+    outc : type
+        Description of parameter `outc`.
+    act : type
+        Description of parameter `act`.
+    d_act : type
+        Description of parameter `d_act`.
+
+    Attributes
+    ----------
+    w : type
+        Description of attribute `w`.
+    sym_decorrelation : type
+        Description of attribute `sym_decorrelation`.
+    m : type
+        Description of attribute `m`.
+    v : type
+        Description of attribute `v`.
+    self,matrix : type
+        Description of attribute `self,matrix`.
+    act
+    d_act
+
+    """
+
+    def __init__(self,inc,outc,act,d_act):
+        self.w = tf.Variable(self.sym_decorrelation(tf.random_normal(shape=[inc,outc],stddev=0.005,dtype=tf.float64,seed=2)))
+        self.m = tf.Variable(tf.zeros_like(self.w)) ; self.v = tf.Variable(tf.zeros_like(self.w))
+        self.act = act; self.d_act = d_act
+
+    def sym_decorrelation(self,matrix):
+        s, u = tf.linalg.eigh(tf.matmul(matrix,tf.transpose(matrix)))
+        decor_matrx = tf.matmul(u * (1.0/tf.sqrt(s)),tf.transpose(u))
+        return tf.matmul(decor_matrx,matrix)
+
+    def getw(self): return self.w
+
+    def feedforward(self,input):
+        self.input = input
+        self.layer = tf.matmul(self.w,input)
+        return self.layer
+
+    def backprop_ica(self):
+        self.layerA  = self.act(tf.matmul(self.w,self.input))
+        self.layerDA = tf.reduce_mean(self.d_act(tf.matmul(self.w,self.input)),-1)
+        grad_w = tf.matmul(self.layerA,tf.transpose(self.input)) / self.input.shape[1].value - self.layerDA * self.w
+        grad_w_dec = self.sym_decorrelation(grad_w)
+        update_w = []
+        update_w.append(tf.assign(self.w,grad_w_dec))
+        return update_w
+
 
 class ICA_Layer():
     """Perform Independent component analysis via gradient ascent method
@@ -875,7 +961,7 @@ class zca_whiten_layer():
     def backprop(self,grad,EPS=10e-5):
         d_U = tf.matmul(tf.transpose(self.input),grad)
 
-        # ===== tf =====
+        # ===== tf ===== have to convert to tf
         d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
         d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
         E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
