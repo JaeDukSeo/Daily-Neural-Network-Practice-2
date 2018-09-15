@@ -958,30 +958,76 @@ class zca_whiten_layer():
         self.whiten = tf.matmul(input,self.U)
         return self.whiten
 
+class zca_whiten_layer():
+    """ZCA Whiten operation layer.
+
+    Parameters
+    ----------
+    self) : pass    def feedforward(self
+        Description of parameter `self)`.
+    input : type
+        Description of parameter `input`.
+    EPS : type
+        Description of parameter `EPS`.
+
+    Attributes
+    ----------
+    sigma : type
+        Description of attribute `sigma`.
+    eigenval : type
+        Description of attribute `eigenval`.
+    eigvector : type
+        Description of attribute `eigvector`.
+    U : type
+        Description of attribute `U`.
+    whiten : type
+        Description of attribute `whiten`.
+    self,grad : type
+        Description of attribute `self,grad`.
+    input
+
+    """
+
+    def __init__(self): pass
+
+    def feedforward(self,input,EPS=10e-5):
+        self.input = input
+        self.sigma = tf.matmul(tf.transpose(input),input) / input.shape[0].value
+        self.eigenval,self.eigvector = tf.linalg.eigh(self.sigma)
+        self.U = tf.matmul(tf.matmul(self.eigvector,tf.diag(1./ tf.sqrt(self.eigenval+EPS))),tf.transpose(self.eigvector))
+        self.whiten = tf.matmul(input,self.U)
+        return self.whiten
+
     def backprop(self,grad,EPS=10e-5):
         d_U = tf.matmul(tf.transpose(self.input),grad)
 
         # d_eig_value = self.eigvector.T.dot(d_U).dot(self.eigvector) * (-0.5) * np.diag(1. / (self.eigenval+EPS) ** 1.5)
-        d_eig_value = tf.matmul(tf.matmul(tf.transpose(self.eigvector),d_U),self.eigvector)) * (-0.5) * tf.diag(1./(self.eigvector+EPS) ** 1.5 )
+        d_eig_value = tf.matmul(tf.matmul(tf.transpose(self.eigvector),d_U),self.eigvector) * (-0.5) * tf.diag(1./(self.eigvector+EPS) ** 1.5 )
 
         # d_eig_vector = d_U.dot( (np.diag(1. / np.sqrt(self.eigenval+EPS)).dot(self.eigvector.T)).T  ) + (self.eigvector.dot(np.diag(1. / np.sqrt(self.eigenval+EPS)))).dot(d_U)
-        d_eig_vector = tf.matmul(d_U,tf.transpose(tf.matmul( tf.diag(1./ tf.sqrt(self.eigenval+EPS))), tf.transpose(self.eigvector)))) + \
+        d_eig_vector = tf.matmul(d_U,tf.transpose(tf.matmul( tf.diag(1./ tf.sqrt(self.eigenval+EPS)), tf.transpose(self.eigvector)))) + \
                        tf.matmul(tf.transpose(d_U),tf.matmul(self.eigvector,tf.diag(1./ tf.sqrt(self.eigenval+EPS))))
 
         # E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
-        E = tf.ones()
+        E = tf.matmul(tf.ones([grad.shape[0].value,1],dtype=tf.float64),tf.transpose(self.eigenval)[tf.newaxis,:]) - \
+            tf.matmul(self.eigenval[:,tf.newaxis],tf.ones([1,grad.shape[0].value],dtype=tf.float64))
 
-        # ===== tf ===== have to convert to tf
-        E = np.ones((grad.shape[1],1)).dot(np.expand_dims(self.eigenval.T,0)) - np.expand_dims(self.eigenval,1).dot(np.ones((1,grad.shape[1])))
-        K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
-        np.fill_diagonal(d_eig_value,0.0)
-        d_sigma = self.eigvector.dot(
-                    K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
-                    ).dot(self.eigvector.T)
-        d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
-        # ===== tf =====
+        # K_matrix = 1./(E + np.eye(grad.shape[1])) - np.eye(grad.shape[1])
+        K_matrix = 1.0 /( E + tf.eye(grad.shape[1].value,dtype=tf.float64)) - tf.eye(grad.shape[1].value,dtype=tf.float64)
+
+        # np.fill_diagonal(d_eig_value,0.0)
+        tf.matrix_set_diag(d_eig_value,0.0)
+
+        # d_sigma = self.eigvector.dot(
+        #             K_matrix.T * (self.eigvector.T.dot(d_eig_vector)) + d_eig_value
+        #             ).dot(self.eigvector.T)
+        d_sigma = tf.matmul(tf.matmul(self.eigvector,
+                    tf.transpose(K_matrix) * tf.matmul(tf.transpose(self.eigvector),d_eig_vector) + d_eig_value),
+                    tf.transpose(self.eigvector))
+
+        # d_x = grad.dot(self.U.T) + (2./grad.shape[0]) * self.input.dot(d_sigma) * 2
+        d_x  = tf.matmul(grad,tf.transpose(self.U)) + (2.0/grad.shape[0].value) * tf.matmul(self.input,d_sigma) * 2
 
         return d_x
-
 
 # ================= LAYER CLASSES =================
