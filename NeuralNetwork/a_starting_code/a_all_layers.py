@@ -255,16 +255,15 @@ class CNN_Trans():
 
     def getw(self): return self.w
 
-    def feedforward(self,input,stride=1,padding='SAME'):
-        self.input  = input
-        output_shape2 = self.input.shape[2].value * stride
+    def feedforward(self,input,output_shape,stride=1,padding='SAME'):
+        self.input   = input
         self.layer  = tf.nn.conv2d_transpose(
-            input,self.w,output_shape=[batch_size,output_shape2,output_shape2,self.w.shape[2].value],
+            input,self.w,output_shape=[batch_size,output_shape,output_shape,self.w.shape[2].value],
             strides=[1,stride,stride,1],padding=padding)
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient,stride=1,padding='SAME'):
+    def backprop(self,gradient,stride_grad=1,stride=1,padding='SAME'):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -273,7 +272,7 @@ class CNN_Trans():
 
         grad = tf.nn.conv2d_backprop_filter(input = grad_middle,
             filter_sizes = self.w.shape,out_backprop = grad_part_3,
-            strides=[1,stride,stride,1],padding=padding
+            strides=[1,stride_grad,stride_grad,1],padding=padding
         ) / batch_size
 
         grad_pass = tf.nn.conv2d(
