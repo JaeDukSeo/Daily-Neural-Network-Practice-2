@@ -221,7 +221,6 @@ class CNN():
         v_hat = self.v / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
-
         return grad_pass,update_w
 
 # Func: 3D Convolutional Layer
@@ -251,10 +250,10 @@ class CNN_Trans():
 
     def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
-        self.m,self.v_prev = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
 
-    def getw(self): return fself.w
+    def getw(self): return self.w
 
     def feedforward(self,input,stride=1,padding='SAME'):
         self.input  = input
@@ -283,9 +282,9 @@ class CNN_Trans():
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
-        update_w.append(tf.assign( self.v_prev,self.v_prev*beta2 + (1-beta2) * (grad ** 2)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1)
-        v_hat = self.v_prev / (1-beta2)
+        v_hat = self.v / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
 
