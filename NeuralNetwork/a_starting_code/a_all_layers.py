@@ -1030,4 +1030,114 @@ class zca_whiten_layer():
 
         return d_x
 
+class tf_pca_layer():
+
+    def __init__(self,n_components):
+        self.n_components = tf.Variable(n_components)
+
+    def feedforward(self,input):
+        self.input = input
+        self.cov = tf.matmul(self.input,tf.transpose(self.input)) / (input.shape[0].value-1)
+        self.eigval,self.pc = tf.linalg.eigh(self.cov)
+        self.pc_projection = self.pc[:,-self.n_components:]
+        self.layer = tf.matmul(tf.transpose(self.pc_projection),input)
+        return self.layer
+
+    def backprop(self,grad):
+        mat_shape = self.input.shape[0].value
+        d_pc_project = tf.transpose(tf.matmul(grad,tf.transpose(self.input)))
+        diff = mat_shape - self.n_components
+        added_mat = tf.zeros([mat_shape,diff],dtype=tf.float64)
+        d_pc = tf.concat([d_pc_project,added_mat],1)
+        E = tf.matmul(tf.ones([mat_shape,1],dtype=tf.float64),tf.transpose(self.eigval)[tf.newaxis,:]) - \
+            tf.matmul(self.eigval[:,tf.newaxis],tf.ones([1,mat_shape],dtype=tf.float64))
+        F = 1.0/(E + tf.eye(mat_shape,dtype=tf.float64)) - tf.eye(mat_shape,dtype=tf.float64)
+        d_cov = tf.matmul(tf.linalg.inv(tf.transpose(self.pc)),
+                tf.matmul(F * (tf.matmul(tf.transpose(self.pc),d_pc)),tf.transpose(self.pc)))
+        d_x = tf.matmul(self.pc_projection,grad) + \
+              (tf.matmul(d_cov,self.input) + tf.matmul(tf.transpose(d_cov),self.input))/(mat_shape-1)
+        return d_x
+
+class FastICA_Layer():
+    """Performs ICA via FastICA method
+
+    Parameters
+    ----------
+    inc : type
+        Description of parameter `inc`.
+    outc : type
+        Description of parameter `outc`.
+    act : type
+        Description of parameter `act`.
+    d_act : type
+        Description of parameter `d_act`.
+
+    Attributes
+    ----------
+    w : type
+        Description of attribute `w`.
+    sym_decorrelation : type
+        Description of attribute `sym_decorrelation`.
+    m : type
+        Description of attribute `m`.
+    v : type
+        Description of attribute `v`.
+    self,matrix : type
+        Description of attribute `self,matrix`.
+    act
+    d_act
+
+    """
+
+    def __init__(self,inc,outc,act,d_act):
+        self.w = tf.Variable(self.sym_decorrelation(tf.random_normal(shape=[inc,outc],stddev=0.05,dtype=tf.float64,seed=2)))
+        self.m = tf.Variable(tf.zeros_like(self.w)) ; self.v = tf.Variable(tf.zeros_like(self.w))
+        self.act = act; self.d_act = d_act
+
+    def sym_decorrelation(self,matrix):
+        s, u = tf.linalg.eigh(tf.matmul(matrix,tf.transpose(matrix)))
+        decor_matrx = tf.matmul(u * (1.0/tf.sqrt(s)),tf.transpose(u))
+        return tf.matmul(decor_matrx,matrix)
+
+    def getw(self): return self.w
+
+    def feedforward(self,input):
+        self.input = input
+        self.layer = tf.matmul(self.w,input)
+        return self.layer
+
+    def backprop_ica(self):
+        self.layerA  = self.act(tf.matmul(self.w,self.input))
+        self.layerDA = tf.reduce_mean(self.d_act(tf.matmul(self.w,self.input)),-1)
+        grad_pass = tf.matmul(tf.transpose(self.w),self.layer)
+
+        grad_w = tf.matmul(self.layerA,tf.transpose(self.input)) / self.input.shape[1].value - self.layerDA[:,tf.newaxis] * self.w
+        grad = self.sym_decorrelation(grad_w)
+
+        update_w = []
+
+        # ==== Correct Method of Weight Update ====
+#         update_w.append(tf.assign(self.w,grad))
+
+        # ==== Wrong (gradient ascent) Method of Weight Update ====
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middle = m_hat * 0.01 *  learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
+        return grad_pass,update_w
+
+class tf_mean_layer():
+
+    def __init__(self):
+        pass
+
+    def feedforward(self,input):
+        self.mean = tf.reduce_mean(input,1)
+        return input-self.mean[:,tf.newaxis]
+
+    def backprop(self,grad):
+        return grad * (1 + 1.0/grad.shape[0].value)
+
 # ================= LAYER CLASSES =================
