@@ -287,7 +287,7 @@ class CNN_Trans():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient,stride_grad=1,stride=1,padding='SAME'):
+    def backprop(self,gradient,stride_grad=1,stride=1,padding='SAME',which_reg=0):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -302,6 +302,30 @@ class CNN_Trans():
         grad_pass = tf.nn.conv2d(
             input=grad_middle,filter = self.w,strides=[1,stride,stride,1],padding=padding
         )
+
+        if which_reg == 0:
+            grad = grad
+
+        if which_reg == 0.5:
+            grad = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
+
+        if which_reg == 1:
+            grad = grad + lamda * tf.sign(self.w)
+
+        if which_reg == 1.5:
+            grad = grad + lamda * 1.0/(tf.sqrt(tf.square(self.w) + 10e-5)) * self.w
+
+        if which_reg == 2:
+            grad = grad + lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.w))+ 10e-5)) * tf.abs(self.w) * tf.sign(self.w)
+
+        if which_reg == 2.5:
+            grad = grad + lamda * 2.0 * self.w
+
+        if which_reg == 3:
+            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.w),2) * tf.sign(self.w)
+
+        if which_reg == 4:
+            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
