@@ -199,7 +199,7 @@ class CNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient,stride=1,padding='SAME',l2_reg = False):
+    def backprop(self,gradient,stride=1,padding='SAME',which_reg=0):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -213,6 +213,30 @@ class CNN():
         grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
             strides=[1,stride,stride,1],padding=padding
         )
+
+        if which_reg == 0:
+            grad = grad
+
+        if which_reg == 0.5:
+            grad = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
+
+        if which_reg == 1:
+            grad = grad + lamda * tf.sign(self.w)
+
+        if which_reg == 1.5:
+            grad = grad + lamda * 1.0/(tf.sqrt(tf.square(self.w) + 10e-5)) * self.w
+
+        if which_reg == 2:
+            grad = grad + lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.w))+ 10e-5)) * tf.abs(self.w) * tf.sign(self.w)
+
+        if which_reg == 2.5:
+            grad = grad + lamda * 2.0 * self.w
+
+        if which_reg == 3:
+            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.w),2) * tf.sign(self.w)
+
+        if which_reg == 4:
+            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
@@ -490,7 +514,13 @@ class FNN():
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient=None,l2_regularization=True):
+    def feedforward_recover(self,input):
+        self.input_re = input
+        self.layer_re = tf.matmul(self.w,self.input_re)
+        self.layerA_re = self.act(self.layer_re)
+        return self.layerA_re
+
+    def backprop(self,gradient=None,which_reg=0):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -499,8 +529,29 @@ class FNN():
         grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)/batch_size
         grad_pass = tf.matmul(grad_middle,tf.transpose(self.w))
 
-        if l2_regularization:
-            grad = grad + lamda * self.w
+        if which_reg == 0:
+            grad = grad
+
+        if which_reg == 0.5:
+            grad = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
+
+        if which_reg == 1:
+            grad = grad + lamda * tf.sign(self.w)
+
+        if which_reg == 1.5:
+            grad = grad + lamda * 1.0/(tf.sqrt(tf.square(self.w) + 10e-5)) * self.w
+
+        if which_reg == 2:
+            grad = grad + lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.w))+ 10e-5)) * tf.abs(self.w) * tf.sign(self.w)
+
+        if which_reg == 2.5:
+            grad = grad + lamda * 2.0 * self.w
+
+        if which_reg == 3:
+            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.w),2) * tf.sign(self.w)
+
+        if which_reg == 4:
+            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
