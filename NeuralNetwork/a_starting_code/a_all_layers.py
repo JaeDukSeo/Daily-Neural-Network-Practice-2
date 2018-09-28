@@ -62,6 +62,11 @@ def d_tf_elu(x):
 
     return tf.cast(tf.greater(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float64) * x) + 1.0)
 
+def tf_relu(x):
+    return tf.nn.relu(x)
+def d_tf_relu(x):
+    return tf.cast(tf.greater(x,0),tf.float64)
+
 def tf_tanh(x): return tf.nn.tanh(x)
 def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
 
@@ -158,48 +163,22 @@ def display_network(A,current_iter=None):
 
 # ================= LAYER CLASSES =================
 class CNN():
-    """Convolutional Layer in Tensorflow
 
-    Parameters
-    ----------
-    k : type
-        Description of parameter `k`.
-    inc : type
-        Description of parameter `inc`.
-    out : type
-        Description of parameter `out`.
-    act : type
-        Description of parameter `act`.
-    d_act : type
-        Description of parameter `d_act`.
-
-    Attributes
-    ----------
-    w : type
-        Description of attribute `w`.
-    m : type
-        Description of attribute `m`.
-    v : type
-        Description of attribute `v`.
-    act
-    d_act
-
-    """
-
-    def __init__(self,k,inc,out,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=0.05,seed=2,dtype=tf.float64))
+    def __init__(self,k,inc,out,stddev=0.005,which_reg=0,act=tf_elu,d_act=d_tf_elu):
+        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=stddev,seed=2,dtype=tf.float64))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
+        self.which_reg = which_reg
 
     def getw(self): return self.w
 
-    def feedforward(self,input,stride=1,padding='SAME'):
+    def feedforward(self,input,stride=1,padding='VALID'):
         self.input  = input
         self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding)
         self.layerA = self.act(self.layer)
         return self.layerA
 
-    def backprop(self,gradient,stride=1,padding='SAME',which_reg=0):
+    def backprop(self,gradient,stride=1,padding='VALID'):
         grad_part_1 = gradient
         grad_part_2 = self.d_act(self.layer)
         grad_part_3 = self.input
@@ -214,28 +193,28 @@ class CNN():
             strides=[1,stride,stride,1],padding=padding
         )
 
-        if which_reg == 0:
+        if self.which_reg == 0:
             grad = grad
 
-        if which_reg == 0.5:
+        if self.which_reg == 0.5:
             grad = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
 
-        if which_reg == 1:
+        if self.which_reg == 1:
             grad = grad + lamda * tf.sign(self.w)
 
-        if which_reg == 1.5:
+        if self.which_reg == 1.5:
             grad = grad + lamda * 1.0/(tf.sqrt(tf.square(self.w) + 10e-5)) * self.w
 
-        if which_reg == 2:
+        if self.which_reg == 2:
             grad = grad + lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.w))+ 10e-5)) * tf.abs(self.w) * tf.sign(self.w)
 
-        if which_reg == 2.5:
+        if self.which_reg == 2.5:
             grad = grad + lamda * 2.0 * self.w
 
-        if which_reg == 3:
+        if self.which_reg == 3:
             grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.w),2) * tf.sign(self.w)
 
-        if which_reg == 4:
+        if self.which_reg == 4:
             grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
 
         update_w = []
@@ -521,7 +500,7 @@ class FNN():
 
     """
 
-    def __init__(self,inc,outc,act,d_act,special_init=False):
+    def __init__(self,inc,outc,act=tf_elu,d_act=d_tf_elu,special_init=False):
         if special_init:
             interval = np.sqrt(6.0 / (inc + outc + 1.0))
             self.w  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=4))
