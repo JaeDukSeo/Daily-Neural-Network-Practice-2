@@ -472,56 +472,28 @@ class LSTM_CNN():
 
 # Func: Fully Connected Layer
 class FNN():
-    """Fully Connected Neural Network Implemented in Tensorflow
 
-    Parameters
-    ----------
-    inc : type
-        Description of parameter `inc`.
-    outc : type
-        Description of parameter `outc`.
-    act : type
-        Description of parameter `act`.
-    d_act : type
-        Description of parameter `d_act`.
-    special_init : type
-        Description of parameter `special_init`.
-
-    Attributes
-    ----------
-    w : type
-        Description of attribute `w`.
-    m : type
-        Description of attribute `m`.
-    v : type
-        Description of attribute `v`.
-    act
-    d_act
-
-    """
-
-    def __init__(self,inc,outc,act=tf_elu,d_act=d_tf_elu,special_init=False):
+    def __init__(self,inc,outc,act=tf_elu,d_act=d_tf_elu,special_init=False,which_reg=0.0):
         if special_init:
             interval = np.sqrt(6.0 / (inc + outc + 1.0))
-            self.w  = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float64,seed=4))
+            self.w = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float32,seed=2))
+            self.b = tf.Variable(tf.random_uniform(shape=(outc),minval=-interval,maxval=interval,dtype=tf.float32,seed=2))
         else:
-            self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float64))
+            self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float32))
+            self.b = tf.Variable(tf.random_normal([outc], stddev=0.05,seed=2,dtype=tf.float32))
+
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.m_b,self.v_b = tf.Variable(tf.zeros_like(self.b)),tf.Variable(tf.zeros_like(self.b))
         self.act,self.d_act = act,d_act
+        self.which_reg = which_reg
 
     def getw(self): return self.w
 
     def feedforward(self,input=None):
         self.input = input
-        self.layer = tf.matmul(input,self.w)
+        self.layer = tf.matmul(input,self.w) + self.b
         self.layerA = self.act(self.layer)
         return self.layerA
-
-    def feedforward_recover(self,input):
-        self.input_re = input
-        self.layer_re = tf.matmul(self.w,self.input_re)
-        self.layerA_re = self.act(self.layer_re)
-        return self.layerA_re
 
     def backprop(self,gradient=None,which_reg=0):
         grad_part_1 = gradient
@@ -529,40 +501,61 @@ class FNN():
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
-        grad = tf.matmul(tf.transpose(grad_part_3),grad_middle)/batch_size
+        grad  = tf.matmul(tf.transpose(grad_part_3),grad_middle)/batch_size
+        grad_b= tf.reduce_mean(grad_middle,axis=0)
         grad_pass = tf.matmul(grad_middle,tf.transpose(self.w))
 
-        if which_reg == 0:
-            grad = grad
+        # === Reg ===
+        if self.which_reg == 0:
+            grad  = grad
+            grad_b= grad_b
 
-        if which_reg == 0.5:
-            grad = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
+        if self.which_reg == 0.5:
+            grad  = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
+            grad_b= grad_b+lamda * (tf.sqrt(tf.abs(self.b))) * (1.0/tf.sqrt(tf.abs(self.b)+ 10e-5)) * tf.sign(self.b)
 
-        if which_reg == 1:
-            grad = grad + lamda * tf.sign(self.w)
+        if self.which_reg == 1:
+            grad = grad   + lamda * tf.sign(self.w)
+            grad_b=grad_b + lamda * tf.sign(self.b)
 
-        if which_reg == 1.5:
-            grad = grad + lamda * 1.0/(tf.sqrt(tf.square(self.w) + 10e-5)) * self.w
+        if self.which_reg == 1.5:
+            grad = grad   + lamda * 1.0/(tf.sqrt(tf.square(self.w) + 10e-5)) * self.w
+            grad_b=grad_b + lamda * 1.0/(tf.sqrt(tf.square(self.b) + 10e-5)) * self.b
 
-        if which_reg == 2:
-            grad = grad + lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.w))+ 10e-5)) * tf.abs(self.w) * tf.sign(self.w)
+        if self.which_reg == 2:
+            grad = grad  + lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.w))+ 10e-5)) * tf.abs(self.w) * tf.sign(self.w)
+            grad_b=grad_b+ lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.b))+ 10e-5)) * tf.abs(self.b) * tf.sign(self.b)
 
-        if which_reg == 2.5:
-            grad = grad + lamda * 2.0 * self.w
+        if self.which_reg == 2.5:
+            grad = grad   + lamda * 2.0 * self.w
+            grad_b=grad_b + lamda * 2.0 * self.b
 
-        if which_reg == 3:
-            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.w),2) * tf.sign(self.w)
+        if self.which_reg == 3:
+            grad = grad   + lamda * tf.pow(tf.pow(tf.abs(self.w),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.w),2) * tf.sign(self.w)
+            grad_b=grad_b + lamda * tf.pow(tf.pow(tf.abs(self.b),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.b),2) * tf.sign(self.b)
 
-        if which_reg == 4:
-            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
+        if self.which_reg == 4:
+            grad = grad   + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
+            grad_b=grad_b + lamda * tf.pow(tf.pow(tf.abs(self.b),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.b),3) * tf.sign(self.b)
 
         update_w = []
+
+        # Update the Weight First
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
         update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1)
         v_hat = self.v / (1-beta2)
         adam_middle = m_hat *  learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
+
+        # Update the Bias later
+        update_w.append(tf.assign(self.m_b,self.m_b*beta1 + (1-beta1) * (grad_b)   ))
+        update_w.append(tf.assign(self.v_b,self.v_b*beta2 + (1-beta2) * (grad_b ** 2)   ))
+        m_hat_b = self.m_b / (1-beta1)
+        v_hat_b = self.v_b / (1-beta2)
+        adam_middle_b = m_hat_b *  learning_rate/(tf.sqrt(v_hat_b) + adam_e)
+        update_w.append(tf.assign(self.b,tf.subtract(self.b,adam_middle_b )))
+
         return grad_pass,update_w
 
 # Func: Fully Connected RNN Layer
