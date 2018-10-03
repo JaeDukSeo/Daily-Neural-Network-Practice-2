@@ -13,7 +13,7 @@ TINY = 1e-8
 
 floatX = np.float32
 
-
+# ---- Distributions ----
 class Distribution(object):
     @property
     def dist_flat_dim(self):
@@ -119,7 +119,6 @@ class Distribution(object):
         """
         raise NotImplementedError
 
-
 class Categorical(Distribution):
     def __init__(self, dim):
         self._dim = dim
@@ -192,7 +191,6 @@ class Categorical(Distribution):
     @property
     def dist_info_keys(self):
         return ["prob"]
-
 
 class Gaussian(Distribution):
     def __init__(self, dim, fix_std=False, stddev=None):
@@ -281,8 +279,6 @@ class Gaussian(Distribution):
            stddev = tf.exp(flat_dist[:, self.dim:])
         return dict(mean=mean, stddev=stddev)
 
-
-
 class Uniform(Gaussian):
     """
     This distribution will sample prior data from a uniform distribution, but
@@ -296,12 +292,11 @@ class Uniform(Gaussian):
     #     raise NotImplementedError
 
     # def logli_prior(self, x_var):
-    #     # 
+    #     #
     #     raise NotImplementedError
 
     def sample_prior(self, batch_size):
         return tf.random_uniform([batch_size, self.dim], minval=-1., maxval=1.)
-
 
 class Bernoulli(Distribution):
     def __init__(self, dim):
@@ -361,8 +356,6 @@ class MeanBernoulli(Bernoulli):
 
     def nonreparam_logli(self, x_var, dist_info):
         return tf.zeros_like(x_var[:, 0])
-
-
 
 class Product(Distribution):
     def __init__(self, dists):
@@ -509,13 +502,10 @@ class Product(Distribution):
             ret += dist_i.nonreparam_logli(x_i, dist_info_i)
         return ret
 
-
-
 # -------------------------------- new stuff --------------------------------- #
-
 class MeanGaussian(Gaussian):
     """
-    Behaves almost the same as the usual Gaussian distribution, except that 
+    Behaves almost the same as the usual Gaussian distribution, except that
     when sampling from it, directly returns the mean instead of sampling
     gaussian values.
     """
@@ -558,4 +548,3 @@ class Deterministic(Distribution):
 
     def prior_dist_info(self, batch_size):
         return dict(z=tf.zeros([batch_size, self.dim]))
-

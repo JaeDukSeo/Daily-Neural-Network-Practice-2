@@ -41,7 +41,6 @@ PLOTS_DIR = "./plots/mnist"
 
 # output_dist: MeanBernoulli(IN_DIM) / MeanGaussian(IN_DIM, fix_std=True)
 # latent_dist: Gaussian(LATENT_DIM) / Deterministic(LATENT_DIM)
-
 MNIST_AAE_HYPERPARAMS = {
     "output_dist": MeanBernoulli(IMG_DIM),
     "latent_dist": Gaussian(LATENT_DIM),
@@ -81,20 +80,13 @@ MNIST_VAAE_HYPERPARAMS = {
     "network_type": "convolutional"
 }
 
-
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="""Implementation to train an Adversarial Autoencoder or Variational Autoencoder on MNIST""")
     model_type_parser = parser.add_mutually_exclusive_group(required=True)
-    model_type_parser.add_argument("--aae",
-                                   action="store_true",
-                                   help='Train an Adversarial Autoencoder')
-    model_type_parser.add_argument("--vae",
-                                   action="store_true",
-                                   help='Train a Variational Autoencoder')
-    model_type_parser.add_argument("--vaae",
-                                   action="store_true",
-                                   help="""Train an Autoencoder with combined variational and adversarial regularisation""")
+    model_type_parser.add_argument("--aae",action="store_true",help='Train an Adversarial Autoencoder')
+    model_type_parser.add_argument("--vae", action="store_true",help='Train a Variational Autoencoder')
+    model_type_parser.add_argument("--vaae",action="store_true",help="""Train an Autoencoder with combined variational and adversarial regularisation""")
 
     args = parser.parse_args()
 
@@ -108,4 +100,3 @@ if __name__ == "__main__":
         model = AAE(**MNIST_VAAE_HYPERPARAMS)
 
     model.train()
-
