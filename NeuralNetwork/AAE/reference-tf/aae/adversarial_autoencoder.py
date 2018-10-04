@@ -77,22 +77,9 @@ class AAE():
         train
         visualize
     """
-    def __init__(self,
-                 output_dist,
-                 latent_dist,
-                 target_dist,
-                 dataset,
-                 network_type="convolutional",
-                 batch_size=128,
-                 max_epoch=100,
-                 updates_per_epoch=None,
-                 learning_rates=[1e-3, 2e-4, 2e-4],
-                 regularization="adversarial",
-                 exp_name="experiment",
-                 log_dir="logs",
-                 ckt_dir="ckt",
-                 plot_dir="plots",
-                 checkpoint_interval=10000):
+    def __init__(self,output_dist,latent_dist,target_dist,dataset,network_type="convolutional",
+                 batch_size=128,max_epoch=100,updates_per_epoch=None,learning_rates=[1e-3, 2e-4, 2e-4],
+                 regularization="adversarial",exp_name="experiment",log_dir="logs",ckt_dir="ckt",plot_dir="plots",checkpoint_interval=10000):
         """Initialize AAE class
 
         Args:
@@ -141,8 +128,7 @@ class AAE():
         if updates_per_epoch:
             self.updates_per_epoch = updates_per_epoch
         else:
-            self.updates_per_epoch = (self.dataset.train.num_examples
-                                      / self.batch_size)
+            self.updates_per_epoch = (self.dataset.train.num_examples / self.batch_size)
         self.learning_rates = learning_rates
         self.regularization = regularization
 
@@ -155,14 +141,10 @@ class AAE():
         self.plot_dir = os.path.join(plot_dir, self.datetime+"_"+exp_name)
         self.checkpoint_interval = checkpoint_interval
 
-        mkdir_p(self.log_dir)
-        mkdir_p(self.plot_dir)
-        mkdir_p(self.ckt_dir)
+        mkdir_p(self.log_dir); mkdir_p(self.plot_dir); mkdir_p(self.ckt_dir)
 
         self.log_vars = []
-
         self.counter = 0
-
         self._build_graph()
 
         # plotting
@@ -490,7 +472,7 @@ class AAE():
         nx = 30
         ny = nx
         z_dim = self.target_dist.dim
-        
+
         if self.latent_dist.dim==2:
             range_ = (0, 1)
             min_, max_ = range_
@@ -498,8 +480,7 @@ class AAE():
             if isinstance(self.target_dist, Gaussian):
                 from scipy.stats import norm
                 DELTA = 1E-8 # delta to avoid +/- inf at 0, 1 boundaries
-                zs = np.array([norm.ppf(np.clip(z, TINY, 1 - TINY),
-                                        scale=self.target_dist.stddev)
+                zs = np.array([norm.ppf(np.clip(z, TINY, 1 - TINY),scale=self.target_dist.stddev)
                                for z in zs])
         else:
             raise NotImplementedError
@@ -640,7 +621,7 @@ class AAE():
 
         args:
             sess: tensorflow.Session, optional
-            kwargs: 
+            kwargs:
                 plotting kwargs, transmitted to low-level plotting
                 facilities
         """
@@ -656,4 +637,4 @@ class AAE():
         if self.plot_reconstruction:
             plot.plot_reconstruction(self, sess, outdir=self.plot_dir,**kwargs)
 
-
+# -- end script --

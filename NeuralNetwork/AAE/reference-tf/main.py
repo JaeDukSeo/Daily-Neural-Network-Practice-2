@@ -26,7 +26,7 @@ except KeyError:
 import tensorflow as tf
 
 from aae.datasets import MnistDataSet
-from aae.distributions import MeanBernoulli, MeanGaussian, Gaussian, Deterministic
+from aae.distributions import MeanBernoulli, MeanGaussian, Gaussian, Deterministic,Uniform
 from aae.adversarial_autoencoder import AAE
 
 DATASET = MnistDataSet()
