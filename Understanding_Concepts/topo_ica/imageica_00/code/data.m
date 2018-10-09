@@ -14,7 +14,7 @@ function [X, whiteningMatrix, dewhiteningMatrix] = ...
 %
 
 rand('seed', 0);
-  
+
 %----------------------------------------------------------------------
 % Gather rectangular image windows
 %----------------------------------------------------------------------
@@ -28,12 +28,12 @@ getsample = floor(samples/dataNum);
 % Initialize the matrix to hold the patches
 X = zeros(winsize^2,getsample*dataNum);
 
-sampleNum = 1;  
+sampleNum = 1;
 for i=(1:dataNum)
 
   % Even things out (take enough from last image)
   if i==dataNum, getsample = samples-sampleNum+1; end
-  
+
   % Load the image
   I = imread(['../data/' num2str(i) '.tiff']);
 
@@ -41,19 +41,19 @@ for i=(1:dataNum)
   I = double(I);
   I = I-mean(mean(I));
   I = I/sqrt(mean(mean(I.^2)));
-  
-  % Sample 
+
+  % Sample
   fprintf('Sampling image %d...\n',i);
   sizex = size(I,2); sizey = size(I,1);
   posx = floor(rand(1,getsample)*(sizex-winsize-2))+1;
   posy = floor(rand(1,getsample)*(sizey-winsize-1))+1;
-  
+
   for j=1:getsample
     X(:,sampleNum) = reshape( I(posy(1,j):posy(1,j)+winsize-1, ...
 			posx(1,j):posx(1,j)+winsize-1),[winsize^2 1]);
     sampleNum=sampleNum+1;
-  end 
-  
+  end
+
 end
 
 %----------------------------------------------------------------------
@@ -76,7 +76,7 @@ covarianceMatrix = X*X'/size(X,2);
 fprintf('Reducing dimensionality and whitening...\n');
 [dummy,order] = sort(diag(-D));
 E = E(:,order(1:rdim));
-d = diag(D); 
+d = diag(D);
 d = real(d.^(-0.5));
 D = diag(d(order(1:rdim)));
 X = D*E'*X;
@@ -85,4 +85,3 @@ whiteningMatrix = D*E';
 dewhiteningMatrix = E*D^(-1);
 
 return;
-

@@ -20,11 +20,11 @@ rows = size(A,2)/cols;
 if rows-floor(rows)~=0, error('Fractional number of rows!'); end
 
 % Initialization of the image
-I = maxi*ones(dim*rows+rows-1,dim*cols+cols-1); 
+I = maxi*ones(dim*rows+rows-1,dim*cols+cols-1);
 
 for i=0:rows-1
   for j=0:cols-1
-    
+
     % This sets the patch
     I(i*dimp+1:i*dimp+dim,j*dimp+1:j*dimp+dim) = ...
 			reshape(A(:,i*cols+j+1),[dim dim]);
@@ -35,8 +35,7 @@ I = imresize(I,mag);
 
 figure;
 colormap(gray(256));
-iptsetpref('ImshowBorder','tight'); 
+iptsetpref('ImshowBorder','tight');
 subplot('position',[0,0,1,1]);
 imshow(I,[mini maxi]);
-truesize;  
-
+truesize;
