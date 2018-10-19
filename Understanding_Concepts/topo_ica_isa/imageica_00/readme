@@ -1,0 +1,106 @@
+
+-------------------------------------------------------------------------
+Topographic ICA & Independent Subspace Analysis, applied on image patches
+
+as explained in:
+
+Hyvärinen, A. and Hoyer, P.
+"Emergence of Phase and Shift Invariant Features by Decomposition 
+of Natural Images into Independent Feature Subspaces".
+Neural Computation.
+To appear.
+
+Hyvärinen, A. and Hoyer, P.
+"Topographic Independent Component Analysis".
+Submitted.
+
+Package by Patrik Hoyer (September 1999).
+-------------------------------------------------------------------------
+
+--------
+CONTENTS
+--------
+
+1. WHY DID WE WRITE THIS PACKAGE?
+2. HOW TO USE IT
+3. HARDWARE REQUIREMENTS
+4. ANY QUESTIONS?
+
+---------------------------------
+1. WHY DID WE WRITE THIS PACKAGE?
+---------------------------------
+
+The purpose of this package is to provide data and code for estimating 
+the proposed models from image data. This is to allow fellow researchers 
+to duplicate our results and to ease the application of this method
+to other datasets. 
+
+----------------
+2. HOW TO USE IT
+----------------
+
+First and foremost, read this whole file first. Especially the section
+on hardware requirements. Below is the directory structure of the package:
+
+code/
+  data.m          - code for gathering the patches from the images
+  estimate.m      - the algorithms for estimating the basis
+  visual.m        - displays the found bases
+  demo.m          - usage examples
+
+data/
+  The original gray-scale images in TIFF format
+
+results/
+  all results are stored here in MATLAB "*.mat" data files
+
+Estimating bases for image windows is easy. To launch the demo
+examples, move to the 'code' directory, and use the MATLAB commands
+
+>> demo(1);
+>> demo(2);
+>> demo(3);
+
+to estimate the ICA/ISA/TICA models (respectively). Each estimation
+will continue indefinitely, writing the current state to disk every
+five iterations. At any time you can use
+
+>> demo(4);
+
+to display the results so far. Note that the ICA estimation 
+converges much faster than the other models due to the nice properties 
+of the FastICA algorithm used. Also, the ISA estimation is faster
+than TICA due to lower computational costs. 
+
+------------------------
+3. COMPUTER REQUIREMENTS
+------------------------
+
+The estimations with large windows (example code #1-4 in 'demo.m') 
+require on the order of 600 megabytes of memory. This large number
+is due partly to MATLAB's way of handling memory, partly to the fact
+that the code was written with clarity, not memory-efficiency, as a 
+main objective. However, the estimation with small windows (#5-8) 
+use much less memory and may be a good place to start.
+
+Even with the memory, the large window runs take long to 
+converge to nice-looking filters. The ICA estimation requires something 
+like a hundred iterations, the ISA needs around 200 iterations, 
+and TICA on the order of 300. Again, if you do not have the 
+computational power for that (or you would like results quickly), 
+you can run the example codes #5-8 which are not as computationally 
+demanding (although the results are not as nice due to small window
+size).
+
+This package was written for MATLAB version 5.3, although it will 
+probably work well both with earlier and later versions. 
+
+-----------------
+4. ANY QUESTIONS?
+-----------------
+
+Please send any questions about the models or the code to
+aapo.hyvarinen@hut.fi or patrik.hoyer@hut.fi
+
+Patrik Hoyer
+Sept. 15th, 1999.
