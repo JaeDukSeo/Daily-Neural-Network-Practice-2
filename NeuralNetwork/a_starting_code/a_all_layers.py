@@ -304,14 +304,9 @@ class RNN_CNN():
         grad_2 = self.d_act(self.hidden_record[timestamp,:,:,:,:])
         grad_3_x = self.input_record[timestamp,:,:,:,:]
         grad_3_h = self.hiddenA_record[timestamp-1,:,:,:,:]
-
         grad_middle = grad_1 * grad_2
 
-        grad_x = tf.nn.conv2d_backprop_filter(
-            input=grad_3_x,filter_size = self.w.shape,
-            out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
-        )
-
+        grad_x = tf.nn.conv2d_backprop_filter(input=grad_3_x,filter_size = self.w.shape,out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME')
         grad_h = tf.nn.conv2d_backprop_filter(
             input=grad_3_h,filter_size = self.h.shape,
             out_backprop = grad_middle,strides=[1,1,1,1],padding='SAME'
@@ -936,8 +931,8 @@ class ICA_Layer():
         self.act = act; self.d_act = d_act
 
     def feedforward(self,input):
-        self.input = input
-        self.ica_est = tf.matmul(input,self.w)
+        self.input       = input
+        self.ica_est     = tf.matmul(input,self.w)
         self.ica_est_act = self.act(self.ica_est)
         return self.ica_est_act,self.w
 
@@ -961,7 +956,7 @@ class ICA_Layer():
 
 class tf_mean_layer():
 
-    def __init__(self):
+    def __init__(self):          
         pass
 
     def feedforward(self,input):
