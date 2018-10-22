@@ -216,8 +216,7 @@ class CNN_3D():
         if res:  return self.layerA + self.input
         else:    return self.layerA
 
-    def backprop(self):
-        raise NotImplementedError("Not Implemented Yet")
+    def backprop(self): raise NotImplementedError("Not Implemented Yet")
 
 # Func: Transpose Convolutional Layer
 class CNN_Trans():
