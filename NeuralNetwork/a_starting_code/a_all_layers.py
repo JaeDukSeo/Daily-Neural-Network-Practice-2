@@ -126,7 +126,6 @@ def unpickle(file):
     with open(file, 'rb') as fo:
         dict = pickle.load(fo, encoding='bytes')
     return dict
-
 # Func: Display Weights (Soruce: https://github.com/jonsondag/ufldl_templates/blob/master/display_network.py)
 def display_network(A,current_iter=None):
     opt_normalize = True
@@ -161,12 +160,11 @@ def display_network(A,current_iter=None):
 # ================= LAYER CLASSES =================
 class CNN():
 
-    def __init__(self,k,inc,out,stddev=0.005,which_reg=0,act=tf_elu,d_act=d_tf_elu):
+    def __init__(self,k,inc,out,stddev=0.05,which_reg=0,act=tf_elu,d_act=d_tf_elu):
         self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=stddev,seed=2,dtype=tf.float64))
         self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
         self.act,self.d_act = act,d_act
         self.which_reg = which_reg
-
     def getw(self): return self.w
 
     def feedforward(self,input,stride=1,padding='VALID'):
@@ -182,43 +180,23 @@ class CNN():
 
         grad_middle = grad_part_1 * grad_part_2
 
-        grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,filter_sizes = self.w.shape,out_backprop = grad_middle,
-            strides=[1,stride,stride,1],padding=padding
-        ) / batch_size
+        grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,filter_sizes = self.w.shape,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding) / batch_size
+        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
+        filter= self.w,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding)
 
-        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),filter= self.w,out_backprop = grad_middle,
-            strides=[1,stride,stride,1],padding=padding
-        )
-
-        if self.which_reg == 0:
-            grad = grad
-
-        if self.which_reg == 0.5:
-            grad = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
-
-        if self.which_reg == 1:
-            grad = grad + lamda * tf.sign(self.w)
-
-        if self.which_reg == 1.5:
-            grad = grad + lamda * 1.0/(tf.sqrt(tf.square(self.w) + 10e-5)) * self.w
-
-        if self.which_reg == 2:
-            grad = grad + lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.w))+ 10e-5)) * tf.abs(self.w) * tf.sign(self.w)
-
-        if self.which_reg == 2.5:
-            grad = grad + lamda * 2.0 * self.w
-
-        if self.which_reg == 3:
-            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.w),2) * tf.sign(self.w)
-
-        if self.which_reg == 4:
-            grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
+        if self.which_reg == 0:   grad = grad
+        if self.which_reg == 0.5: grad = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
+        if self.which_reg == 1:   grad = grad + lamda * tf.sign(self.w)
+        if self.which_reg == 1.5: grad = grad + lamda * 1.0/(tf.sqrt(tf.square(self.w) + 10e-5)) * self.w
+        if self.which_reg == 2:   grad = grad + lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.w))+ 10e-5)) * tf.abs(self.w) * tf.sign(self.w)
+        if self.which_reg == 2.5: grad = grad + lamda * 2.0 * self.w
+        if self.which_reg == 3:   grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.w),2) * tf.sign(self.w)
+        if self.which_reg == 4:   grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
 
         update_w = []
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
         update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
-        m_hat = self.m / (1-beta1)
-        v_hat = self.v / (1-beta2)
+        m_hat = self.m / (1-beta1) ; v_hat = self.v / (1-beta2)
         adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
         update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
         return grad_pass,update_w
@@ -230,17 +208,13 @@ class CNN_3D():
         self.w = tf.Variable(tf.random_normal([filter_depth,filter_height,filter_width,in_channels,out_channels],stddev=0.05,seed=2,dtype=tf.float64))
         self.b = tf.Variable(tf.random_normal([out_channels],stddev=0.05,seed=2,dtype=tf.float64))
         self.act,self.d_act = act,d_act
-
     def getw(self): return self.w
-
     def feedforward(self,input,stride=1,padding='SAME',res=True):
         self.input  = input
         self.layer  = tf.nn.conv3d(input,self.w,strides=[1,1,1,1,1],padding=padding) + self.b
         self.layerA = self.act(self.layer)
-        if res:
-            return self.layerA + self.input
-        else:
-            return self.layerA
+        if res:  return self.layerA + self.input
+        else:    return self.layerA
 
     def backprop(self):
         raise NotImplementedError("Not Implemented Yet")
