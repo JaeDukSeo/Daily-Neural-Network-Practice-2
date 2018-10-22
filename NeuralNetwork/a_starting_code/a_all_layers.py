@@ -62,35 +62,32 @@ def d_tf_elu(x):
 
     return tf.cast(tf.greater_equal(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less(x,0),tf.float64) * x) + 1.0)
 
-def tf_relu(x):
-    return tf.nn.relu(x)
-def d_tf_relu(x):
-    return tf.cast(tf.greater(x,0),tf.float64)
+def tf_relu(x):   return tf.nn.relu(x)
+def d_tf_relu(x): return tf.cast(tf.greater(x,0),tf.float64)
 
-def tf_tanh(x): return tf.nn.tanh(x)
+def tf_tanh(x):   return tf.nn.tanh(x)
 def d_tf_tanh(x): return 1 - tf_tanh(x) ** 2
 
-def tf_sigmoid(x): return tf.nn.sigmoid(x)
+def tf_sigmoid(x):   return tf.nn.sigmoid(x)
 def d_tf_sigmoid(x): return tf_sigmoid(x) * (1.0-tf_sigmoid(x))
 
-def tf_atan(x): return tf.atan(x)
+def tf_atan(x):   return tf.atan(x)
 def d_tf_atan(x): return 1.0/(1.0 + x**2)
 
-def tf_iden(x): return x
+def tf_iden(x):   return x
 def d_tf_iden(x): return 1.0
 
 def tf_softmax(x): return tf.nn.softmax(x)
-def softabs(x): return tf.sqrt(x ** 2 + 1e-20)
+def softabs(x):    return tf.sqrt(x ** 2 + 1e-20)
 
-def tf_logcosh(x): return tf.log(tf.cosh(x))
+def tf_logcosh(x):   return tf.log(tf.cosh(x))
 def d_tf_logcosh(x): return tf.tanh(x)
 
 # ---- FAST ICA Special function ----
-def tf_cube(x): return x ** 3
+def tf_cube(x):   return x ** 3
 def d_tf_cube(x): return 2* x ** 2
-def tf_exp(x): return x * tf.exp(-(x**2)/2.0)
-def d_tf_exp(x): return (1-x**2) * tf.exp(-(x**2)/2.0)
-
+def tf_exp(x):    return x * tf.exp(-(x**2)/2.0)
+def d_tf_exp(x):  return (1-x**2) * tf.exp(-(x**2)/2.0)
 # ======= Activation Function  ==========
 
 # ====== miscellaneous =====
