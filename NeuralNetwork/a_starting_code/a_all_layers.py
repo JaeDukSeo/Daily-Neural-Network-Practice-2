@@ -227,11 +227,9 @@ class CNN_Trans():
         self.act,self.d_act = act,d_act
 
     def getw(self): return self.w
-
     def feedforward(self,input,output_shape,stride=1,padding='SAME'):
         self.input   = input
-        self.layer  = tf.nn.conv2d_transpose(
-            input,self.w,output_shape=[batch_size,output_shape,output_shape,self.w.shape[2].value],
+        self.layer  = tf.nn.conv2d_transpose( input,self.w,output_shape=[batch_size,output_shape,output_shape,self.w.shape[2].value],
             strides=[1,stride,stride,1],padding=padding)
         self.layerA = self.act(self.layer)
         return self.layerA
