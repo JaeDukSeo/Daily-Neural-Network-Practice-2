@@ -778,22 +778,21 @@ class PCA_Layer():
 
 # Func: PCA Layer 2 no distingusing between training and testing
 class tf_pca_layer():
-
+    
     def __init__(self,n_components):
         self.n_components = tf.Variable(n_components)
 
     def feedforward(self,input):
         self.input = input
         self.cov = tf.matmul(self.input,tf.transpose(self.input)) / (input.shape[0].value-1)
-        self.eigval,self.pc = tf.linalg.eigh(self.cov)
+        self.eigval,self.pc = tf.linalg.eigh(self.cov+10e-3)
         self.pc_projection = self.pc[:,-self.n_components:]
         self.layer = tf.matmul(tf.transpose(self.pc_projection),input)
         return self.layer
-
     def backprop(self,grad):
         mat_shape = self.input.shape[0].value
-        d_pc_project = tf.transpose(tf.matmul(grad,tf.transpose(self.input)))
         diff = mat_shape - self.n_components
+        d_pc_project = tf.transpose(tf.matmul(grad,tf.transpose(self.input)))
         added_mat = tf.zeros([mat_shape,diff],dtype=tf.float64)
         d_pc = tf.concat([d_pc_project,added_mat],1)
         E = tf.matmul(tf.ones([mat_shape,1],dtype=tf.float64),tf.transpose(self.eigval)[tf.newaxis,:]) - \
@@ -803,7 +802,31 @@ class tf_pca_layer():
                 tf.matmul(F * (tf.matmul(tf.transpose(self.pc),d_pc)),tf.transpose(self.pc)))
         d_x = tf.matmul(self.pc_projection,grad) + \
               (tf.matmul(d_cov,self.input) + tf.matmul(tf.transpose(d_cov),self.input))/(mat_shape-1)
-        return d_x
+        return d_x  
+    
+    def feedforward_recon(self,input):
+        self.input = input
+        self.cov = tf.matmul(self.input,tf.transpose(self.input)) / (input.shape[0].value-1)
+        self.eigval,self.pc = tf.linalg.eigh(self.cov+10e-3)
+        self.pc_projection = self.pc[:,-self.n_components:]
+        self.layer = tf.matmul(self.pc_projection,tf.matmul(tf.transpose(self.pc_projection),input))
+        return self.layer
+    def backprop_recon(self,grad):
+        mat_shape = self.input.shape[0].value
+        d_pc_project = tf.matmul(grad,tf.transpose(tf.matmul(tf.transpose(self.pc_projection),self.input)))  +\
+                       tf.transpose(tf.matmul(tf.transpose(self.pc_projection),tf.matmul(grad,tf.transpose(self.input))))
+        diff = mat_shape - self.n_components
+        
+        added_mat = tf.zeros([mat_shape,diff],dtype=tf.float64)
+        d_pc = tf.concat([d_pc_project,added_mat],1)
+        E = tf.matmul(tf.ones([mat_shape,1],dtype=tf.float64),tf.transpose(self.eigval)[tf.newaxis,:]) - \
+            tf.matmul(self.eigval[:,tf.newaxis],tf.ones([1,mat_shape],dtype=tf.float64))
+        F = 1.0/(E + tf.eye(mat_shape,dtype=tf.float64)) - tf.eye(mat_shape,dtype=tf.float64)
+        d_cov = tf.matmul(tf.linalg.inv(tf.transpose(self.pc)),
+                tf.matmul(F * (tf.matmul(tf.transpose(self.pc),d_pc)),tf.transpose(self.pc)))
+        d_x = tf.matmul(tf.transpose(tf.matmul(self.pc_projection,tf.transpose(self.pc_projection))),grad) + \
+              (tf.matmul(d_cov,self.input) + tf.matmul(tf.transpose(d_cov),self.input))/(mat_shape-1)
+        return d_x  
 
 # Func: KPCA layer using eigh
 class KPCA_layer():
