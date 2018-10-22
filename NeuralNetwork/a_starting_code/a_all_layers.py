@@ -965,7 +965,7 @@ class tf_mean_layer():
         return input-self.mean[:,tf.newaxis]
 
     def backprop(self,grad):
-        return grad * (1 + 1.0/grad.shape[0].value)
+        return grad * (1 - 1.0/grad.shape[0].value)
 
 class zca_whiten_layer():
     """ZCA Whiten operation layer.
