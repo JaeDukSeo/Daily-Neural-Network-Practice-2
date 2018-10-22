@@ -776,6 +776,7 @@ class PCA_Layer():
 
         return out_put,update_sigma
 
+# Func: PCA Layer 2 no distingusing between training and testing
 class tf_pca_layer():
 
     def __init__(self,n_components):
