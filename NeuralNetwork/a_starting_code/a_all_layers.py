@@ -75,7 +75,7 @@ def tf_atan(x):   return tf.atan(x)
 def d_tf_atan(x): return 1.0/(1.0 + x**2)
 
 def tf_iden(x):   return x
-def d_tf_iden(x): return 1.0
+def d_tf_iden(x): return x
 
 def tf_softmax(x): return tf.nn.softmax(x)
 def softabs(x):    return tf.sqrt(x ** 2 + 1e-20)
