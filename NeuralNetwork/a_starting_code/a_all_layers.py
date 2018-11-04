@@ -1062,5 +1062,67 @@ class zca_whiten_layer():
 
         return d_x
 
+# Stacked Denoising Auto encoder layers
+class FNN_Stacked_Denoising():
+    # From: Stacked Denoising Autoencoders: Learning Useful Representations in a Deep Network with a Local Denoising Criterion
 
+    def __init__(self,inc,outc,act=tf_sigmoid,d_act=d_tf_sigmoid,special_init=True,which_reg=0.0):
+        if special_init:
+            interval = 1/np.sqrt(inc)
+            self.w   = tf.Variable(tf.random_uniform(shape=(inc, outc),minval=-interval,maxval=interval,dtype=tf.float32,seed=2))
+        else:
+            self.w = tf.Variable(tf.random_normal([inc,outc], stddev=0.05,seed=2,dtype=tf.float32))
+
+        self.m,self.v       = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.act,self.d_act = act,d_act
+        self.which_reg      = which_reg
+
+    def getw(self): return self.w
+
+    def feedforward(self,input=None):
+        self.input  = input
+        self.layer  = tf.matmul(input,self.w) 
+        self.layerA = self.act(self.layer)
+        return self.layerA
+    
+    def feedforward_inverse(self,input):
+        self.input_inv = input
+        self.layer_inv = tf.matmul(input,tf.transpose(self.w))
+        self.layerA_inv= self.act(self.layer_inv)
+        return self.layerA_inv
+
+    def backprop(self,gradient=None,which_reg=0):
+        
+        grad_part1_inv = gradient
+        grad_part2_inv = self.d_act(self.layer_inv)
+        grad_part3_inv = self.input_inv
+        grad_pass_inv  = grad_part1_inv * grad_part2_inv
+        grad_inv       = tf.transpose(tf.transpose(grad_part3_inv) @ grad_pass_inv)
+        
+        grad_part1     = grad_pass_inv @ self.w
+        grad_part2     = self.d_act(self.layer)
+        grad_part3     = self.input
+        grad_          = tf.transpose(grad_part3) @ (grad_part1 * grad_part2)
+        
+        grad           = (grad_inv + grad_)/batch_size
+
+        # === Reg ===
+        if self.which_reg == 0.5:    grad = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
+        if self.which_reg == 1:      grad = grad + lamda * tf.sign(self.w)
+        if self.which_reg == 1.5:    grad = grad + lamda * 1.0/(tf.sqrt(tf.square(self.w) + 10e-5)) * self.w
+        if self.which_reg == 2:      grad = grad + lamda * (1.0/tf.sqrt(tf.square(tf.abs(self.w))+ 10e-5)) * tf.abs(self.w) * tf.sign(self.w)
+        if self.which_reg == 2.5:    grad = grad + lamda * 2.0 * self.w
+        if self.which_reg == 3:      grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),3)+ 10e-5,-0.66) * tf.pow(tf.abs(self.w),2) * tf.sign(self.w)
+        if self.which_reg == 4:      grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
+
+        # Update the Weight First
+        update_w = []
+        update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
+        update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
+        m_hat = self.m / (1-beta1)
+        v_hat = self.v / (1-beta2)
+        adam_middle = m_hat *  learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
+
+        return update_w
 # ================= LAYER CLASSES =================
