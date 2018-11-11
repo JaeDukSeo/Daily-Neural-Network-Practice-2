@@ -1261,4 +1261,43 @@ class tf_min_max_layer():
         
         # Again do not RETURN grad_magrad_passx_min correct gradient is grad_pass
         return grad_pass        
+
+class tf_batch_norm():
+    
+    def __init__(self,height,width,channel_size):
+        self.height = height; self.width = width
+        self.moving_mean = tf.Variable(tf.zeros((1,1,1,channel_size),dtype=tf.float64))
+        self.moving_var  = tf.Variable(tf.zeros((1,1,1,channel_size),dtype=tf.float64))
+        
+    def feedforward(self,input,training_phase,eplison = 10e-8):
+        self.input = input 
+        self.mean  = tf.reduce_mean(self.input,(0,1,2),keep_dims=True) 
+        self.center= self.input - self.mean
+        self.var   = tf.reduce_mean(tf.square(self.center),(0,1,2),keep_dims=True)
+        self.stand = self.center/tf.sqrt(self.var + eplison)
+        
+        def training_fn():
+            stand         = self.stand
+            update_moving = []
+            update_moving.append(tf.assign(self.moving_mean,self.moving_mean * 0.9 + 0.1 * self.mean))
+            update_moving.append(tf.assign(self.moving_var, self.moving_var * 0.9  + 0.1 * self.var))
+            return stand,update_moving
+        
+        def testing_fn():
+            centered_data  = self.input - self.moving_mean
+            stand          = centered_data/tf.sqrt(self.moving_var + eplison)
+            update_moving = []
+            update_moving.append(tf.assign(self.moving_mean,self.moving_mean))
+            update_moving.append(tf.assign(self.moving_var, self.moving_var))
+            return stand, update_moving
+        
+        self.output,update_batch = tf.cond(training_phase,true_fn=training_fn,false_fn=testing_fn)
+        return self.output,update_batch 
+    
+    def backprop(self,grad,eplison = 10e-8):
+        grad_c = grad * self.center * (-1) * (tf.pow(self.var+eplison,-1.5))
+        grad_b = tf.reduce_mean(self.center,(0,1,2),keep_dims=True)
+        grad_bb= grad * 1.0/tf.sqrt(self.var + eplison)
+        grad   = (grad_c * grad_b + grad_bb) * (1.0-1.0/(batch_size * self.height ** 2)) 
+        return grad
 # ================= LAYER CLASSES =================
