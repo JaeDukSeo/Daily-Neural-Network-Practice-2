@@ -1135,4 +1135,130 @@ class FNN_Stacked_Denoising():
         update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle )))
 
         return update_w
+
+class global_contrast_layer():
+    
+    def __init__(self,vector_shape,aimed_std=1.0):
+        self.moving_mean = tf.Variable(tf.zeros(shape=(vector_shape,1),dtype=tf.float64))
+        self.aimed_std   = tf.Variable(aimed_std,dtype=tf.float64)
+        self.reg_lamda   = 10.0; self.EPS         = 1e-8
+        
+    def feedforward(self,input,training_phase):
+        self.input      = input
+        self.image_mean = tf.reduce_mean(self.input,-1)[:,None]
+        self.centered   = self.input - self.image_mean
+        self.square     = tf.square(self.centered)
+        self.whole_mean = tf.reduce_mean(self.square,-1)[:,None]
+        self.sqrt       = tf.sqrt(self.reg_lamda + self.whole_mean) + self.EPS
+        
+        def training_fn():
+            gcn_data = self.aimed_std * (self.centered/self.sqrt)
+            return gcn_data,tf.assign(self.moving_mean,self.moving_mean * 0.9 + 0.1 * self.image_mean)
+        
+        def  testing_fn():
+            centered_data  = self.input - self.moving_mean
+            squared_data   = tf.square(centered_data)
+            whole_mean_data= tf.reduce_mean(squared_data,-1)[:,None]
+            sqrt           = tf.sqrt(self.reg_lamda + whole_mean_data) + self.EPS
+            gcn_data       = self.aimed_std * (centered_data/self.sqrt)
+            return gcn_data, tf.assign(self.moving_mean,self.moving_mean)
+        
+        self.output,update_gcn_mean = tf.cond(training_phase,true_fn=training_fn,false_fn=testing_fn)
+        return self.output,tf.assign(self.moving_mean,self.moving_mean)        
+        
+    def backprop(self,grad):
+        grad_1 = grad
+        grad_2 = self.aimed_std / self.sqrt
+        grad_3 = -(self.centered ** 2 /self.sqrt ** 2) * (1.0/(self.sqrt-self.EPS)) / (self.input.shape[1].value)
+        grad_pass = grad_1 * (grad_2 + grad_3) * (1-1./self.input.shape[1].value)
+        return grad_pass
+
+
+class Reconstructive_PCA():
+    
+    def __init__(self,n_components):
+        self.n_components= tf.Variable(n_components,dtype=tf.int32)
+        
+    def feedforward(self,input):
+        self.input  = input
+        self.cov    = tf.matmul(self.input,tf.transpose(self.input)) / (self.input.shape[1].value-1)
+        self.eigenvalues,self.eigenvectors  = tf.linalg.eigh(self.cov)
+        self.projection_vector              = self.eigenvectors[:,-self.n_components:]
+        self.reduced= tf.matmul(tf.transpose(self.projection_vector),self.input)
+        self.reconst= tf.matmul(self.projection_vector,self.reduced)
+        return self.reconst     
+    
+    def backprop(self,grad):
+        grad1   = grad
+        grad_A    = grad1 @ tf.transpose(tf.transpose(self.projection_vector) @ self.input) + \
+                     tf.transpose(tf.transpose(self.projection_vector)@grad1@tf.transpose(self.input))
+        diff      = self.input.shape[0].value - self.n_components
+        added_mat = tf.zeros([self.input.shape[0].value,diff],dtype=tf.float64)
+        grad_A_add= tf.concat([added_mat,grad_A],1)
+        
+        dia_eig   = tf.ones((self.input.shape[0].value,1),dtype=tf.float64) @ tf.transpose(self.eigenvalues)[None,:] - \
+                    self.eigenvalues[:,None] @ tf.ones((1,self.input.shape[0].value),dtype=tf.float64)
+        diag_k    = 1./(dia_eig + tf.eye(self.input.shape[0].value,dtype=tf.float64)) - tf.eye(self.input.shape[0].value,dtype=tf.float64)
+        
+        grad_B    = self.eigenvectors @ ( tf.transpose(diag_k)* (tf.transpose(self.eigenvectors)@ grad_A_add)) @ tf.transpose(self.eigenvectors)
+        grad_B    = 0.5 * (tf.transpose(grad_B) + grad_B)
+        grad_c    = (grad_B @ self.input + tf.transpose(tf.transpose(self.input) @ grad_B))/(self.input.shape[1].value-1)
+        return grad_c
+
+class tf_min_max_layer():
+    
+    def __init__(self,vector_shape,user_max=1.0,user_min=0.0):
+        self.moving_min = tf.Variable(tf.zeros(shape=(vector_shape,1),dtype=tf.float64))
+        self.moving_max = tf.Variable(tf.zeros(shape=(vector_shape,1),dtype=tf.float64))
+        self.user_min   = tf.Variable(user_min,dtype=tf.float64); 
+        self.user_max   = tf.Variable(user_max,dtype=tf.float64); 
+        
+    def feedforward(self,input,training_phase):
+        self.input    = input
+        self.min_vec  = tf.reduce_min(input,-1)[:,None]
+        self.min_index= tf.argmin(input,-1)
+        self.max_vec  = tf.reduce_max(input,-1)[:,None]
+        self.max_index= tf.argmax(input,-1)
+        
+        def training_fn():
+            normalized_data = (self.user_max-self.user_min)  * \
+            ((self.input - self.min_vec)/(self.max_vec - self.min_vec))          + self.user_min
+            
+            update_min_max = []
+            update_min_max.append(tf.assign(self.moving_min,self.moving_min * 0.9 + 0.1 * self.min_vec))
+            update_min_max.append(tf.assign(self.moving_max,self.moving_max * 0.9 + 0.1 * self.max_vec))
+            return normalized_data,update_min_max
+        
+        # Testing Moving Average Mean        
+        def  testing_fn():
+            normalized_data = (self.user_max-self.user_min) * \
+            ((self.input - self.moving_min)/(self.moving_max - self.moving_min)) + self.user_min
+            
+            update_min_max = []
+            update_min_max.append(tf.assign(self.moving_min,self.moving_min))
+            update_min_max.append(tf.assign(self.moving_max,self.moving_max))
+            return normalized_data,update_min_max
+        
+        self.output,update_min_max = tf.cond(training_phase,true_fn=training_fn,false_fn=testing_fn)
+        return self.output,update_min_max
+    
+    def backprop(self,grad):
+        grad1   = grad
+        
+        # Create Mask for min / max value for row
+        indices = tf.range(0, self.input.shape[0].value,dtype=tf.int64)
+        min_indices = tf.stack([indices, self.min_index], axis=1)
+        max_indices = tf.stack([indices, self.max_index], axis=1)
+        grad_min = tf.cast(tf.sparse_to_dense(min_indices, self.input.shape, sparse_values=1, default_value=0),dtype=tf.float64)
+        grad_max = tf.cast(tf.sparse_to_dense(max_indices, self.input.shape, sparse_values=1, default_value=0),dtype=tf.float64)
+        
+        grad_max_min = 1.0/(self.max_vec-self.min_vec)
+        grad_pass    = grad1 * (self.user_max-self.user_min) * (
+            grad_max_min + \
+            (self.input - self.max_vec)/tf.square(grad_max_min) * grad_min + \
+            (self.min_vec - self.input)/tf.square(grad_max_min) * grad_max
+        )
+        
+        # Again do not RETURN grad_magrad_passx_min correct gradient is grad_pass
+        return grad_pass        
 # ================= LAYER CLASSES =================
