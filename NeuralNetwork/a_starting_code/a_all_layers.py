@@ -160,16 +160,19 @@ def display_network(A,current_iter=None):
 # ================= LAYER CLASSES =================
 class CNN():
 
-    def __init__(self,k,inc,out,stddev=0.05,which_reg=0,act=tf_elu,d_act=d_tf_elu):
-        self.w = tf.Variable(tf.random_normal([k,k,inc,out],stddev=stddev,seed=2,dtype=tf.float64))
-        self.m,self.v = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+    def __init__(self,k,inc,out, stddev=0.05,which_reg=0,act=tf_tanh,d_act=d_tf_tanh):
+        self.w          = tf.Variable(tf.random_normal([k,k,inc,out],stddev=stddev,seed=2,dtype=tf.float64))
+        self.b          = tf.Variable(tf.zeros(out,dtype=tf.float64))
+        self.m,self.v   = tf.Variable(tf.zeros_like(self.w)),tf.Variable(tf.zeros_like(self.w))
+        self.mb,self.vb = tf.Variable(tf.zeros_like(self.b)),tf.Variable(tf.zeros_like(self.b))
         self.act,self.d_act = act,d_act
-        self.which_reg = which_reg
-    def getw(self): return self.w
+        self.which_reg  = which_reg
+        
+    def getw(self): return [self.w,self.b]
 
     def feedforward(self,input,stride=1,padding='VALID'):
         self.input  = input
-        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding)
+        self.layer  = tf.nn.conv2d(input,self.w,strides=[1,stride,stride,1],padding=padding) + self.b 
         self.layerA = self.act(self.layer)
         return self.layerA
 
@@ -179,10 +182,9 @@ class CNN():
         grad_part_3 = self.input
 
         grad_middle = grad_part_1 * grad_part_2
-
-        grad = tf.nn.conv2d_backprop_filter(input = grad_part_3,filter_sizes = self.w.shape,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding) / batch_size
-        grad_pass = tf.nn.conv2d_backprop_input(input_sizes = [batch_size] + list(grad_part_3.shape[1:]),
-        filter= self.w,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding)
+        grad_b      = tf.reduce_mean(grad_middle,(0,1,2))/batch_size
+        grad        = tf.nn.conv2d_backprop_filter(input = grad_part_3,filter_sizes = tf.shape(self.w),  out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding) / batch_size
+        grad_pass   = tf.nn.conv2d_backprop_input (input_sizes = tf.shape(self.input),filter= self.w,out_backprop = grad_middle,strides=[1,stride,stride,1],padding=padding)
 
         if self.which_reg == 0:   grad = grad
         if self.which_reg == 0.5: grad = grad + lamda * (tf.sqrt(tf.abs(self.w))) * (1.0/tf.sqrt(tf.abs(self.w)+ 10e-5)) * tf.sign(self.w)
@@ -194,11 +196,19 @@ class CNN():
         if self.which_reg == 4:   grad = grad + lamda * tf.pow(tf.pow(tf.abs(self.w),4)+ 10e-5,-0.75) * tf.pow(tf.abs(self.w),3) * tf.sign(self.w)
 
         update_w = []
+        
         update_w.append(tf.assign( self.m,self.m*beta1 + (1-beta1) * (grad)   ))
         update_w.append(tf.assign( self.v,self.v*beta2 + (1-beta2) * (grad ** 2)   ))
         m_hat = self.m / (1-beta1) ; v_hat = self.v / (1-beta2)
-        adam_middel = learning_rate/(tf.sqrt(v_hat) + adam_e)
-        update_w.append(tf.assign(self.w,tf.subtract(self.w,tf.multiply(adam_middel,m_hat)  )))
+        adam_middle = m_hat * learning_rate/(tf.sqrt(v_hat) + adam_e)
+        update_w.append(tf.assign(self.w,tf.subtract(self.w,adam_middle  )))
+        
+        update_w.append(tf.assign( self.mb,self.mb*beta1 + (1-beta1) * (grad_b)   ))
+        update_w.append(tf.assign( self.vb,self.vb*beta2 + (1-beta2) * (grad_b ** 2)   ))
+        m_hatb = self.mb / (1-beta1) ; v_hatb = self.vb / (1-beta2)
+        adam_middleb = m_hatb * learning_rate/(tf.sqrt(v_hatb) + adam_e)
+        update_w.append(tf.assign(self.b,tf.subtract(self.b,adam_middleb  )))
+        
         return grad_pass,update_w
 
 # Func: 3D Convolutional Layer
