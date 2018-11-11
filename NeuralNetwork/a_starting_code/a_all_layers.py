@@ -60,7 +60,7 @@ def d_tf_elu(x):
 
     """
 
-    return tf.cast(tf.greater_equal(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less(x,0),tf.float64) * x) + 1.0)
+    return tf.cast(tf.greater(x,0),tf.float64)  + (tf_elu(tf.cast(tf.less_equal(x,0),tf.float64) * x) + 1.0)
 
 def tf_relu(x):   return tf.nn.relu(x)
 def d_tf_relu(x): return tf.cast(tf.greater(x,0),tf.float64)
