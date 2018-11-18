@@ -1300,4 +1300,131 @@ class tf_batch_norm():
         grad_bb= grad * 1.0/tf.sqrt(self.var + eplison)
         grad   = (grad_c * grad_b + grad_bb) * (1.0-1.0/(batch_size * self.height ** 2)) 
         return grad
+
+
+
+class tf_instance_norm_layer():
+    
+    def __init__(self,batch_size,vector_shape,axis):
+        self.moving_mean = tf.Variable(tf.zeros(shape=[batch_size,1,1,vector_shape],dtype=tf.float64))
+        self.moving_vari = tf.Variable(tf.zeros(shape=[batch_size,1,1,vector_shape],dtype=tf.float64))
+        self.axis        = axis
+        
+    def feedforward(self,input,training_phase=True,eps = 1e-8):
+        self.input = input
+        self.input_size          = self.input.shape
+        self.batch,self.h,self.w,self.c = self.input_size[0].value,self.input_size[1].value,self.input_size[2].value,self.input_size[3].value
+
+        # Training Moving Average Mean         
+        def training_fn():
+            self.mean    = tf.reduce_mean(self.input,axis=self.axis ,keepdims=True)
+            self.var     = tf.reduce_mean(tf.square(self.input-self.mean),axis=self.axis,keepdims=True)
+            centered_data= (self.input - self.mean)/tf.sqrt(self.var + eps)
+            
+            update_variable = []
+            update_variable.append(tf.assign(self.moving_mean,self.moving_mean*0.9 + 0.1 * self.mean ))
+            update_variable.append(tf.assign(self.moving_vari,self.moving_vari*0.9 + 0.1 * self.var  ))
+            return centered_data,update_variable
+        
+        # Testing Moving Average Mean        
+        def  testing_fn():
+            centered_data   = (self.input - self.moving_mean)/tf.sqrt(self.moving_vari + eps)
+            update_variable = []
+            update_variable.append(tf.assign(self.moving_mean,self.moving_mean))
+            update_variable.append(tf.assign(self.moving_vari,self.moving_vari))
+            return centered_data,update_variable
+        
+        self.output,update_variable = tf.cond(training_phase,true_fn=training_fn,false_fn=testing_fn)
+        return self.output,update_variable
+    
+    def backprop(self,grad,eps = 1e-8):
+        change_parts = 1.0 /(self.h * self.w)
+        grad_sigma   = tf.reduce_sum( grad *  (self.input-self.mean)     ,axis=self.axis,keepdims=True) * -0.5 * (self.var+eps) ** -1.5
+        grad_mean    = tf.reduce_sum( grad *  (-1./tf.sqrt(self.var+eps)),axis=self.axis,keepdims=True) + grad_sigma * change_parts * 2.0 * tf.reduce_sum((self.input-self.mean),axis=self.axis,keepdims=True) * -1
+        grad_x       = grad * 1/(tf.sqrt(self.var+eps)) + grad_sigma * change_parts * 2.0 * (self.input-self.mean) + grad_mean * change_parts
+        return grad_x
+
+
+
+class tf_layer_norm_layer():
+    
+    def __init__(self,vector_shape,axis):
+        self.moving_mean = tf.Variable(tf.zeros(shape=[vector_shape,1,1,1],dtype=tf.float64))
+        self.moving_vari = tf.Variable(tf.zeros(shape=[vector_shape,1,1,1],dtype=tf.float64))
+        self.axis        = axis
+        
+    def feedforward(self,input,training_phase=True,eps = 1e-8):
+        self.input = input
+        self.input_size          = self.input.shape
+        self.batch,self.h,self.w,self.c = self.input_size[0].value,self.input_size[1].value,self.input_size[2].value,self.input_size[3].value
+
+        # Training Moving Average Mean         
+        def training_fn():
+            self.mean    = tf.reduce_mean(self.input,axis=self.axis ,keepdims=True)
+            self.var     = tf.reduce_mean(tf.square(self.input-self.mean),axis=self.axis,keepdims=True)
+            centered_data= (self.input - self.mean)/tf.sqrt(self.var + eps)
+            
+            update_variable = []
+            update_variable.append(tf.assign(self.moving_mean,self.moving_mean*0.9 + 0.1 * self.mean ))
+            update_variable.append(tf.assign(self.moving_vari,self.moving_vari*0.9 + 0.1 * self.var  ))
+            return centered_data,update_variable
+        
+        # Testing Moving Average Mean        
+        def  testing_fn():
+            centered_data   = (self.input - self.moving_mean)/tf.sqrt(self.moving_vari + eps)
+            update_variable = []
+            update_variable.append(tf.assign(self.moving_mean,self.moving_mean))
+            update_variable.append(tf.assign(self.moving_vari,self.moving_vari))
+            return centered_data,update_variable
+        
+        self.output,update_variable = tf.cond(training_phase,true_fn=training_fn,false_fn=testing_fn)
+        return self.output,update_variable
+    
+    def backprop(self,grad,eps = 1e-8):
+        change_parts = 1.0 /(self.h * self.w * self.c)
+        grad_sigma   = tf.reduce_sum( grad *  (self.input-self.mean)     ,axis=self.axis,keepdims=True) * -0.5 * (self.var+eps) ** -1.5
+        grad_mean    = tf.reduce_sum( grad *  (-1./tf.sqrt(self.var+eps)),axis=self.axis,keepdims=True) + grad_sigma * change_parts * 2.0 * tf.reduce_sum((self.input-self.mean),axis=self.axis,keepdims=True) * -1
+        grad_x       = grad * 1/(tf.sqrt(self.var+eps)) + grad_sigma * change_parts * 2.0 * (self.input-self.mean) + grad_mean * change_parts
+        return grad_x
+
+class tf_batch_norm_layer():
+    
+    def __init__(self,vector_shape,axis):
+        self.moving_mean = tf.Variable(tf.zeros(shape=[1,1,1,vector_shape],dtype=tf.float64))
+        self.moving_vari = tf.Variable(tf.zeros(shape=[1,1,1,vector_shape],dtype=tf.float64))
+        self.axis        = axis
+        
+    def feedforward(self,input,training_phase=True,eps = 1e-8):
+        self.input = input
+        self.input_size          = self.input.shape
+        self.batch,self.h,self.w,self.c = self.input_size[0].value,self.input_size[1].value,self.input_size[2].value,self.input_size[3].value
+
+        # Training Moving Average Mean         
+        def training_fn():
+            self.mean    = tf.reduce_mean(self.input,axis=self.axis ,keepdims=True)
+            self.var     = tf.reduce_mean(tf.square(self.input-self.mean),axis=self.axis,keepdims=True)
+            centered_data= (self.input - self.mean)/tf.sqrt(self.var + eps)
+            
+            update_variable = []
+            update_variable.append(tf.assign(self.moving_mean,self.moving_mean*0.9 + 0.1 * self.mean ))
+            update_variable.append(tf.assign(self.moving_vari,self.moving_vari*0.9 + 0.1 * self.var  ))
+            return centered_data,update_variable
+        
+        # Testing Moving Average Mean        
+        def  testing_fn():
+            centered_data   = (self.input - self.moving_mean)/tf.sqrt(self.moving_vari + eps)
+            update_variable = []
+            update_variable.append(tf.assign(self.moving_mean,self.moving_mean))
+            update_variable.append(tf.assign(self.moving_vari,self.moving_vari))
+            return centered_data,update_variable
+        
+        self.output,update_variable = tf.cond(training_phase,true_fn=training_fn,false_fn=testing_fn)
+        return self.output,update_variable
+    
+    def backprop(self,grad,eps = 1e-8):
+        change_parts = 1.0 /(self.batch * self.h * self.w)
+        grad_sigma   = tf.reduce_sum( grad *  (self.input-self.mean)     ,axis=self.axis,keepdims=True) * -0.5 * (self.var+eps) ** -1.5
+        grad_mean    = tf.reduce_sum( grad *  (-1./tf.sqrt(self.var+eps)),axis=self.axis,keepdims=True) + grad_sigma * change_parts * 2.0 * tf.reduce_sum((self.input-self.mean),axis=self.axis,keepdims=True) * -1
+        grad_x       = grad * 1/(tf.sqrt(self.var+eps)) + grad_sigma * change_parts * 2.0 * (self.input-self.mean) + grad_mean * change_parts
+        return grad_x
 # ================= LAYER CLASSES =================
