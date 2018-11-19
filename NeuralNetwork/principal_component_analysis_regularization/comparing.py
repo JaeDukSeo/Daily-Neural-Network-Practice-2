@@ -66,9 +66,8 @@ print(
 )
 
 fake_grad = np.ones_like(data)
-gu = fake_grad @ tf.transpose(S @ tf.transpose(VT) )
-gs = tf.diag(tf.transpose(U) @ fake_grad @ VT )
-
+gu        = fake_grad @ tf.transpose(S @ tf.transpose(VT) )
+gs        = tf.diag(tf.transpose(U) @ fake_grad @ VT )
 print(gs.eval())
 
 
