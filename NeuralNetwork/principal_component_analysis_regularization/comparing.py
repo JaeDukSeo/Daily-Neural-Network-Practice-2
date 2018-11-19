@@ -2,6 +2,9 @@
 from sklearn import  datasets
 import autograd.numpy as np
 from autograd import elementwise_grad as egrad
+import os
+import tensorflow as tf
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 np.random.seed(6789)
 n_samples   = 5
@@ -35,42 +38,34 @@ t1 = t1 + i_minus_uut @ gu @ (V /s [..., :, np.newaxis])
 t11 = t1.copy()
 i_minus_vvt = np.eye(3) - V @ V.T
 
-print(i_minus_vvt)
-print((U / s[..., np.newaxis, :]) @ gv.T @i_minus_vvt)
 t1 = t1 + (U / s[..., np.newaxis, :]) @ gv.T @i_minus_vvt
 
-
+print('-----------------------------------------------')
 print(
-    utgu
+  U
 )
 
-import tensorflow as tf
-
-def tf_svd(data):
-    S,U,VT   = tf.linalg.svd(data,full_matrices=False)
-    S = tf.diag(S)
-    data_hat = U @ S @ tf.transpose(VT)
-    return data_hat
-
-
 sess = tf.InteractiveSession()
+s,U,V   = tf.linalg.svd(data,full_matrices=False)
 
-s,U,VT   = tf.linalg.svd(data,full_matrices=False)
+
+
+VT = tf.transpose(V)
 S = tf.diag(s)
-data_hat = U @ S @ tf.transpose(VT)
+data_hat = U @ S @ VT
 data_hat = data_hat.eval()
-
-print('-----------------------------------------------')
 print(np.allclose(data_hat,data))
+print('-----------------------------------------------')
 
-fake_grad = np.ones_like(data)
-gu        = fake_grad @ tf.transpose(S @ tf.transpose(VT) )
+gu        = fake_grad @ tf.transpose( S @ V )
 gs        = tf.diag_part(tf.transpose(U) @ fake_grad @ VT )
 gv        = tf.transpose(U @ S) @ fake_grad
 
 utgu = tf.transpose(U) @ gu
 vtgv = VT  @ gv
 
-print(utgu.eval())
+print(
+    U
+.eval())
 
 # -- end code --
