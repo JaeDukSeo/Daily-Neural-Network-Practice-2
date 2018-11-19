@@ -40,7 +40,9 @@ t1 = U @ t1 @ V
 t1 = t1 + i_minus_uut @ gu @ (V / s[..., :, np.newaxis])
 
 print('-------------------------')
-print(f * (utgu - utgu.T) * s[..., np.newaxis, :])
+print(
+    utgu - utgu.T
+)
 print(
     f * (utgu * s[..., np.newaxis, :] - utgu.T* s[..., np.newaxis, :])
 )
