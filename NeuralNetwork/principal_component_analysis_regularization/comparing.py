@@ -37,6 +37,7 @@ f = 1/(s[...,np.newaxis,:]**2-s[...,:,np.newaxis]**2+i)
 t1 = (f * (utgu - utgu.T)) * s[..., np.newaxis, :]
 t1 = t1 + i * gs[..., :, np.newaxis]
 t1 = t1 + s[..., :, np.newaxis] * (f * (vtgv - vtgv.T))
+t1 = U @ t1 @ V.T
 print(t1)
 
 
