@@ -30,7 +30,6 @@ utgu = U.T @ gu
 vtgv = V @ gv
 
 i_minus_uut = np.eye(4) - U @ U.T
-
 i = np.eye(3)
 f = 1/(s[...,np.newaxis,:]**2-s[...,:,np.newaxis]**2+i)
 
