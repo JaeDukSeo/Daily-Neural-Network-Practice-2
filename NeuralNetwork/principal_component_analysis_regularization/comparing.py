@@ -46,14 +46,13 @@ print(
 print(
     f * (utgu * s[..., np.newaxis, :] - utgu.T* s[..., np.newaxis, :])
 )
-
 print('-------------------------')
 
-
+print('-------------------------')
 print(
     t1
 )
-
+print('-------------------------')
 
 
 # -- end code --
