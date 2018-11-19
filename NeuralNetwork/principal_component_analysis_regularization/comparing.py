@@ -41,7 +41,7 @@ t1 = t1 + (U / s[..., np.newaxis, :]) @ gv.T @i_minus_vvt
 
 
 print(
-    gs
+    utgu
 )
 
 import tensorflow as tf
@@ -61,17 +61,16 @@ data_hat = U @ S @ tf.transpose(VT)
 data_hat = data_hat.eval()
 
 print('-----------------------------------------------')
-print(
-    np.allclose(data_hat,data)
-)
+print(np.allclose(data_hat,data))
 
 fake_grad = np.ones_like(data)
 gu        = fake_grad @ tf.transpose(S @ tf.transpose(VT) )
-gs        = tf.diag(tf.transpose(U) @ fake_grad @ VT )
-print(gs.eval())
+gs        = tf.diag_part(tf.transpose(U) @ fake_grad @ VT )
+gv        = tf.transpose(U @ S) @ fake_grad
 
+utgu = tf.transpose(U) @ gu
+vtgv = VT  @ gv
 
-
-
+print(utgu.eval())
 
 # -- end code --
