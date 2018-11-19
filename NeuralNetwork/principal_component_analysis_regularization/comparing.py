@@ -31,12 +31,12 @@ t1 = f * (utgu - utgu.T) * s[..., np.newaxis, :] + i * gs[..., :, np.newaxis] + 
 t1 = U @ t1 @ V
 
 i_minus_uut = np.eye(5) - U @ U.T
-t1 = t1 + i_minus_uut  @ (V / s[..., :, np.newaxis])
+t1 = t1 + i_minus_uut @ gu @ (V *    (1/s)[..., :, np.newaxis])
 
 
 print('-------------------------')
 print(
-    i_minus_uut 
+    t1 
 )
 print(
     np.allclose(t1,grad_ssvd(data))
