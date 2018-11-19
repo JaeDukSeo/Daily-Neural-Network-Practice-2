@@ -38,6 +38,8 @@ t1 = (f * (utgu - utgu.T)) * s[..., np.newaxis, :]
 t1 = t1 + i * gs[..., :, np.newaxis]
 t1 = t1 + s[..., :, np.newaxis] * (f * (vtgv - vtgv.T))
 t1 = U @ t1 @ V
+t1 = t1 + i_minus_uut @ gu @ V /  s[..., :, anp.newaxis]
+
 print(t1)
 
 
