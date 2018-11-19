@@ -30,8 +30,8 @@ f = 1/(s[...,np.newaxis,:]**2-s[...,:,np.newaxis]**2+i)-i
 t1 = f * (utgu - utgu.T) * s[..., np.newaxis, :] + i * gs[..., :, np.newaxis] + s[..., :, np.newaxis] * (f * (vtgv - vtgv.T))
 t1 = U @ t1 @ V
 
-# i_minus_uut = np.eye(3) - U @ U.T
-# t1 = t1 + i_minus_uut @ gu @ (V / s[..., :, np.newaxis])
+i_minus_uut = np.eye(3) - U @ U.T
+t1 = t1 + i_minus_uut @ gu @ (V / s[..., :, np.newaxis])
 
 
 print('-------------------------')
