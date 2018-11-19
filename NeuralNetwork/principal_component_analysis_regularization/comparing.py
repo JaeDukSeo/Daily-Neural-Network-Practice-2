@@ -39,17 +39,9 @@ print(i_minus_vvt)
 print((U / s[..., np.newaxis, :]) @ gv.T @i_minus_vvt)
 t1 = t1 + (U / s[..., np.newaxis, :]) @ gv.T @i_minus_vvt
 
-print('-------------------------')
+
 print(
-    t1 
-)
-print('-------------------------')
-print(
-    t11 
-)
-print('-------------------------')
-print(
-    np.allclose(t1,grad_ssvd(data))
+    gs
 )
 
 import tensorflow as tf
@@ -62,10 +54,25 @@ def tf_svd(data):
 
 
 sess = tf.InteractiveSession()
-one  = tf_svd(data)
-one  = one.eval() 
+
+s,U,VT   = tf.linalg.svd(data,full_matrices=False)
+S = tf.diag(s)
+data_hat = U @ S @ tf.transpose(VT)
+data_hat = data_hat.eval()
+
+print('-----------------------------------------------')
 print(
-    np.allclose(one,data)
+    np.allclose(data_hat,data)
 )
+
+fake_grad = np.ones_like(data)
+gu = fake_grad @ tf.transpose(S @ tf.transpose(VT) )
+gs = tf.diag(tf.transpose(U) @ fake_grad @ VT )
+
+print(gs.eval())
+
+
+
+
 
 # -- end code --
