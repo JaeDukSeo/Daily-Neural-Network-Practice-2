@@ -31,4 +31,4 @@
 *.csv
 
 
-/preparing_papers/*.ipynb
+/preparing_papers/*/*.ipynb
