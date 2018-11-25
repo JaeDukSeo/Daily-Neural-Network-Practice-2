@@ -17,18 +17,7 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 
 **Twitter**: [@JaeDukSeo](https://twitter.com/JaeDukSeo?lang=en).
 
-[![Dashboard](docs/screenshots/dashboard.png)](docs/screenshots/dashboard.png)
-
-* [Updating](#updating)
-* [Configuring project](#configuring-project)
-* [Migrations](#migrations)
-* [Tests](#tests)
-* [Documentation](#documentation)
-* [License](#license)
-
 ## System requirements
-
-* Python 3 or 2
 * Tensorflow or numpy
 
 ## Features
