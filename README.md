@@ -32,11 +32,6 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 * Tensorflow or numpy
 
 ## Features
-
-
-* Set up and tear down database tests for [PostgreSQL](docs/en/plugins/pgsql.md), [MySQL](docs/en/plugins/mysql.md) or 
-[SQLite](docs/en/plugins/sqlite.md);
-
 * Install [Composer](docs/en/plugins/composer.md) dependencies;
 
 * Run tests for PHPUnit, Atoum, Behat, Codeception and PHPSpec;
