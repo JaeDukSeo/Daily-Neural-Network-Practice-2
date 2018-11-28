@@ -26,10 +26,6 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 * [Set up the PHP Censor Worker](docs/en/workers/worker.md) (Need configured Queue) or 
 [a cron-job](docs/en/workers/cron.md) to run PHP Censor builds;
 
-## Installing via Docker
-
-If you want to install PHP Censor as Docker container, you can use 
-[php-censor/docker-php-censor](https://github.com/php-censor/docker-php-censor) project.
 
 ## Updating
 * I am going to make thsi repo my main repo
