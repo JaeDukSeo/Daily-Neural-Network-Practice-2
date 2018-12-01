@@ -39,6 +39,4 @@ PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPU
 
 * Add project config in PHP Censor project page (And it will cancel file config from project repository);
 
-The project config should look something like this:
-More details about [configuring project](docs/en/configuring_project.md).
 
