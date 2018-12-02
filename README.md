@@ -37,6 +37,3 @@ PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPU
 * Similar to [Travis CI](https://travis-ci.org), to support PHP Censor in your project, you simply need to add a 
 `.php-censor.yml` (`phpci.yml`/`.phpci.yml` for backward compatibility with PHPCI) file to the root of your repository;
 
-* Add project config in PHP Censor project page (And it will cancel file config from project repository);
-
-
