@@ -34,6 +34,4 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 * Add project without any project config (Runs "zero-config" plugins, including: Composer, TechnicalDept, PHPLoc, 
 PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPUnit and Codeception);
 
-* Similar to [Travis CI](https://travis-ci.org), to support PHP Censor in your project, you simply need to add a 
-`.php-censor.yml` (`phpci.yml`/`.phpci.yml` for backward compatibility with PHPCI) file to the root of your repository;
 
