@@ -26,9 +26,6 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 * [Set up the PHP Censor Worker](docs/en/workers/worker.md) (Need configured Queue) or 
 
 
-## Updating
-* I am going to make thsi repo my main repo
-
 ## Configuring project
 * Add project without any project config (Runs "zero-config" plugins, including: Composer, TechnicalDept, PHPLoc, 
 PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPUnit and Codeception);
