@@ -30,4 +30,4 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 * Add project without any project config (Runs "zero-config" plugins, including: Composer, TechnicalDept, PHPLoc, 
 PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPUnit and Codeception);
 
-
+## Sample
