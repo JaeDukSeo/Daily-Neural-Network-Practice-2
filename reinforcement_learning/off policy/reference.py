@@ -6,9 +6,9 @@ import gym
 np.random.seed(6728)
 
 # hyperparameters
-H = 50 # number of hidden layer neurons
+H = 100 # number of hidden layer neurons
 batch_size = 5 # every how many episodes to do a param update?
-learning_rate = 0.00001
+learning_rate = 0.0001
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
 resume = False # resume from previous checkpoint?
@@ -19,8 +19,8 @@ D = 80 * 80
 if resume:  model = pickle.load(open('save.p', 'rb'))
 else:
   model = {}
-  model['W1'] = np.random.randn(H,D) *0.05 # "Xavier" initialization
-  model['W2'] = np.random.randn(H)   *0.05
+  model['W1'] = np.random.randn(H,D) * 0.005 # "Xavier" initialization
+  model['W2'] = np.random.randn(H)   * 0.005
   
 grad_buffer =   { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
 rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
