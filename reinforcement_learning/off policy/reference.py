@@ -34,6 +34,7 @@ def prepro(I):
   I[I == 109] = 0  # erase background (background type 2)
   I[I != 0] = 1    # everything else (paddles, ball) just set to 1
   return I.astype(np.float).ravel()
+
 def discount_rewards(r):
   """ take 1D float array of rewards and compute discounted reward """
   discounted_r = np.zeros_like(r)
@@ -43,6 +44,7 @@ def discount_rewards(r):
     running_add = running_add * gamma + r[t]
     discounted_r[t] = running_add
   return discounted_r
+
 def policy_forward(x):
   x = (x-x.min())/(x.max()-x.min() + 1e-8)
   h = np.dot(model['W1'], x)
