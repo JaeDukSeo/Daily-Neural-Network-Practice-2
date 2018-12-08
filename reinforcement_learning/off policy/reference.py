@@ -44,11 +44,13 @@ def discount_rewards(r):
     discounted_r[t] = running_add
   return discounted_r
 def policy_forward(x):
+  x = (x-x.min())/(x.max()-x.min() + 1e-8)
   h = np.dot(model['W1'], x)
   h[h<0] = 0 
   logp = np.dot(model['W2'], h)
   p = sigmoid(logp)
   return p, h # return probability of taking action 2, and hidden state
+
 def policy_backward(eph, epdlogp):
   """ backward pass. (eph is array of intermediate hidden states) """
   dW2 = np.dot(eph.T, epdlogp).ravel()
