@@ -6,9 +6,9 @@ import gym
 np.random.seed(6728)
 
 # hyperparameters
-H = 100 # number of hidden layer neurons
-batch_size = 5 # every how many episodes to do a param update?
-learning_rate = 0.0001
+H = 800 # number of hidden layer neurons
+batch_size = 10 # every how many episodes to do a param update?
+learning_rate = 0.0008
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
 resume = False # resume from previous checkpoint?
