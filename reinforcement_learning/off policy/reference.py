@@ -26,7 +26,6 @@ grad_buffer =   { k : np.zeros_like(v) for k,v in model.items() } # update buffe
 rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
 
 def sigmoid(x):  return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function to interval [0,1]
-
 def prepro(I):
   """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
   I = I[35:195]    # crop
@@ -35,7 +34,6 @@ def prepro(I):
   I[I == 109] = 0  # erase background (background type 2)
   I[I != 0] = 1    # everything else (paddles, ball) just set to 1
   return I.astype(np.float).ravel()
-
 def discount_rewards(r):
   """ take 1D float array of rewards and compute discounted reward """
   discounted_r = np.zeros_like(r)
@@ -45,14 +43,12 @@ def discount_rewards(r):
     running_add = running_add * gamma + r[t]
     discounted_r[t] = running_add
   return discounted_r
-
 def policy_forward(x):
   h = np.dot(model['W1'], x)
   h[h<0] = 0 
   logp = np.dot(model['W2'], h)
   p = sigmoid(logp)
   return p, h # return probability of taking action 2, and hidden state
-
 def policy_backward(eph, epdlogp):
   """ backward pass. (eph is array of intermediate hidden states) """
   dW2 = np.dot(eph.T, epdlogp).ravel()
@@ -80,7 +76,7 @@ while True:
 
   # forward the policy network and sample an action from the returned probability
   aprob, h = policy_forward(x)
-  action   = 2 if np.random.uniform() < aprob else 3 # roll the dice!
+  action   = 2 if np.random.uniform() < aprob  else 3 # roll the dice!
 
   # record various intermediates (needed later for backprop)
   xs.append(x) # observation
