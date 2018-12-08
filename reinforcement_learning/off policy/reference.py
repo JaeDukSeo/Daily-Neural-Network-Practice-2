@@ -6,21 +6,21 @@ import gym
 np.random.seed(6728)
 
 # hyperparameters
-H = 100 # number of hidden layer neurons
-batch_size = 10 # every how many episodes to do a param update?
+H = 50 # number of hidden layer neurons
+batch_size = 5 # every how many episodes to do a param update?
 learning_rate = 0.00001
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
 resume = False # resume from previous checkpoint?
-render = True
+render = False
 
 # model initialization input dimensionality: 80x80 grid
 D = 80 * 80 
 if resume:  model = pickle.load(open('save.p', 'rb'))
 else:
   model = {}
-  model['W1'] = np.random.randn(H,D) / np.sqrt(D) # "Xavier" initialization
-  model['W2'] = np.random.randn(H)   / np.sqrt(H)
+  model['W1'] = np.random.randn(H,D) *0.05 # "Xavier" initialization
+  model['W2'] = np.random.randn(H)   *0.05
   
 grad_buffer =   { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
 rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
@@ -29,11 +29,11 @@ def sigmoid(x):  return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function 
 
 def prepro(I):
   """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
-  I = I[35:195] # crop
+  I = I[35:195]    # crop
   I = I[::2,::2,0] # downsample by factor of 2
-  I[I == 144] = 0 # erase background (background type 1)
-  I[I == 109] = 0 # erase background (background type 2)
-  I[I != 0] = 1 # everything else (paddles, ball) just set to 1
+  I[I == 144] = 0  # erase background (background type 1)
+  I[I == 109] = 0  # erase background (background type 2)
+  I[I != 0] = 1    # everything else (paddles, ball) just set to 1
   return I.astype(np.float).ravel()
 
 def discount_rewards(r):
@@ -119,18 +119,18 @@ while True:
       for k,v in model.items():
         g = grad_buffer[k] # gradient
         rmsprop_cache[k] = decay_rate * rmsprop_cache[k] + (1 - decay_rate) * g**2
-        model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-5)
+        model[k] += learning_rate * g / (np.sqrt(rmsprop_cache[k]) + 1e-8)
         grad_buffer[k] = np.zeros_like(v) # reset batch gradient buffer
 
     # boring book-keeping
     running_reward = reward_sum if running_reward is None else running_reward * 0.99 + reward_sum * 0.01
-    print('resetting env. episode reward total was %f. running mean: %f' % (reward_sum, running_reward))
+    print('resetting env. episode reward total was %f. running mean: %f episode: %f' % (reward_sum, running_reward,episode_number))
     if episode_number % 100 == 0: pickle.dump(model, open('save.p', 'wb'))
     reward_sum = 0
     observation = env.reset() # reset env
     prev_x = None
 
-  if reward != 0: # Pong has either +1 or -1 reward exactly when game ends.
-    print(episode_number)
-    print(reward)
-    # print('ep %d: game finished, reward: %f'.format((episode_number, reward)) + ('' if reward == -1 else ' !!!!!!!!'))
+  # if reward != 0: # Pong has either +1 or -1 reward exactly when game ends.
+  #   print(episode_number)
+  #   print(reward)
+  #   # print('ep %d: game finished, reward: %f'.format((episode_number, reward)) + ('' if reward == -1 else ' !!!!!!!!'))
