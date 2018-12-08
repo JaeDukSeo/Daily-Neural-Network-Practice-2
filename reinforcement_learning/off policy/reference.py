@@ -7,16 +7,16 @@ from sklearn.decomposition import PCA
 np.random.seed(6728)
 
 # hyperparameters
-H = 10 # number of hidden layer neurons
+H = 100 # number of hidden layer neurons
 batch_size = 10 # every how many episodes to do a param update?
-learning_rate = 0.000001
-gamma = 0.99 # discount factor for reward
+learning_rate = 0.0001
+gamma = 0.009 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
 resume = False # resume from previous checkpoint?
-render = False
+render = True
 
 # model initialization input dimensionality: 80x80 grid
-D = 40*40
+D = 80*80
 if resume:  model = pickle.load(open('save.p', 'rb'))
 else:
   model = {}
@@ -30,12 +30,11 @@ def sigmoid(x):  return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function 
 def prepro(I):
   """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
   I = I[35:195]    # crop
-  I = I[::4,::4,0] # downsample by factor of 4
+  I = I[::2,::2,0] # downsample by factor of 4
   I[I == 144] = 0  # erase background (background type 1)
   I[I == 109] = 0  # erase background (background type 2)
   I[I != 0] = 1    # everything else (paddles, ball) just set to 1
   return I.astype(np.float).ravel()
-
 def discount_rewards(r):
   """ take 1D float array of rewards and compute discounted reward """
   discounted_r = np.zeros_like(r)
@@ -56,7 +55,7 @@ def policy_backward(eph, epdlogp):
   """ backward pass. (eph is array of intermediate hidden states) """
   dW2 = np.dot(eph.T, epdlogp).ravel()
   dh  = np.outer(epdlogp, model['W2'])
-  dh[eph <= 0] = 0 # backpro prelu
+  dh[eph < 0] = 0 # backpro prelu
   dW1 = np.dot(dh.T, epx)
   return {'W1':dW1, 'W2':dW2}
 
