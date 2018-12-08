@@ -2,20 +2,21 @@
 import numpy as np
 import pickle as pickle
 import gym
+from sklearn.decomposition import PCA
 
 np.random.seed(6728)
 
 # hyperparameters
-H = 800 # number of hidden layer neurons
+H = 10 # number of hidden layer neurons
 batch_size = 10 # every how many episodes to do a param update?
-learning_rate = 0.0008
+learning_rate = 0.000001
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
 resume = False # resume from previous checkpoint?
 render = False
 
 # model initialization input dimensionality: 80x80 grid
-D = 80 * 80 
+D = 40*40
 if resume:  model = pickle.load(open('save.p', 'rb'))
 else:
   model = {}
@@ -29,7 +30,7 @@ def sigmoid(x):  return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function 
 def prepro(I):
   """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
   I = I[35:195]    # crop
-  I = I[::2,::2,0] # downsample by factor of 2
+  I = I[::4,::4,0] # downsample by factor of 4
   I[I == 144] = 0  # erase background (background type 1)
   I[I == 109] = 0  # erase background (background type 2)
   I[I != 0] = 1    # everything else (paddles, ball) just set to 1
@@ -44,15 +45,13 @@ def discount_rewards(r):
     running_add = running_add * gamma + r[t]
     discounted_r[t] = running_add
   return discounted_r
-
 def policy_forward(x):
-  x = (x-x.min())/(x.max()-x.min() + 1e-8)
+  x = (x - x.mean())/(x.std()+1e-8)
   h = np.dot(model['W1'], x)
-  h[h<0] = 0 
+  h[h<=0] = 0 
   logp = np.dot(model['W2'], h)
   p = sigmoid(logp)
   return p, h # return probability of taking action 2, and hidden state
-
 def policy_backward(eph, epdlogp):
   """ backward pass. (eph is array of intermediate hidden states) """
   dW2 = np.dot(eph.T, epdlogp).ravel()
