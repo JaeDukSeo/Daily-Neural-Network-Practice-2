@@ -1,0 +1,31 @@
+# Deep Reinforcement Learning Guide (with Keras and OpenAi gym)
+
+
+Step by Step Tutorial for Deep Reinforcement Learning Policy Gradients Method with Keras and OpenAi gym. 
+
+In this short project we are gonna **train a neural network to play Pong game** using a reinforcement learning algorithm (Policy Gradients Method - REINFORCE). 
+
+### [view notebook here online](http://nbviewer.jupyter.org/github/thinkingparticle/deep_rl_pong_keras/blob/master/reinforcement_learning_pong_keras_policy_gradients.ipynb) 
+
+if you want **to run it, just clone the repo** and open the reinforcement_learning_pong_keras_policy_gradients.ipynb and read and run the notebook
+
+[click here to view on github](/reinforcement_learning_pong_keras_policy_gradients.ipynb)
+
+we train a simple 200 hidden neuron network and a convolutional model.
+
+sample playing of simple network:
+
+![](simple_network.gif)
+
+
+video of simple network playing a game (https://www.youtube.com/watch?v=Ol163jSlEPI): 
+
+video of convolutional network playing a game (https://www.youtube.com/watch?v=1goeHG_hsUo):
+
+
+Considering **limited time** and for **learning purposes** I am **not aiming for a perfect trained agent**, but i hope this project could help people get familiar with basic process of rl algorithms and keras. The above video took 3 days for agent to learn on a slow computer. to obtain production results, a lot of more training and tuning is required which is not our focus. 
+
+prerequisites:
+familiarity with neural networks,supervised learning, tensorflow and keras, openai gym
+
+

@@ -7,41 +7,38 @@ import copy
 print (open('reference.py').read())
 # hyperparameters
 H = 200 # number of hidden layer neurons
-batch_size = 300 #
-learning_rate = 1e-2
+batch_size = 100 #
+learning_rate = 1e-3
 gamma = 0.99 # discount factor for reward
 decay_rate = 0.99 # decay factor for RMSProp leaky sum of grad^2
-mom_rate = 0.99
+mom_rate = 0.9
 td_step = 30 # initial td step
 gamma_power = [gamma**i for i in range(td_step+1)]
 shrink_step = True
 rmsprop = True
 resume = False # resume from previous checkpoint?
-render = False
-
+render = True
 
 # model initialization
 D = 80 * 80 # input dimensionality: 80x80 grid
-if resume:
-  model, model_target = pickle.load(open('save.ac', 'rb'))
+if resume: model, model_target = pickle.load(open('save.ac', 'rb'))
 else:
   model = {}
   model['W1_policy'] = np.random.randn(H,D) / np.sqrt(D) # "Xavier" initialization
   model['b1_policy'] = np.random.randn(H) / np.sqrt(4*H)
   model['W2_policy'] = np.random.randn(H) / np.sqrt(H)
   model['b2_policy'] = 0.0
-  model['W1_value'] = np.random.randn(H,D) / np.sqrt(D) # "Xavier" initialization
-  model['b1_value'] = np.random.randn(H) / np.sqrt(4*H)
-  model['W2_value'] = np.random.randn(H) / np.sqrt(H)
-  model['b2_value'] = 0.0
+  model['W1_value']  = np.random.randn(H,D) / np.sqrt(D) # "Xavier" initialization
+  model['b1_value']  = np.random.randn(H) / np.sqrt(4*H)
+  model['W2_value']  = np.random.randn(H) / np.sqrt(H)
+  model['b2_value']  = 0.0
   model_target = copy.deepcopy(model)
   
-grad_buffer = { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
-momentum = { k : np.zeros_like(v) for k,v in model.items() }
+grad_buffer   = { k : np.zeros_like(v) for k,v in model.items() } # update buffers that add up gradients over a batch
+momentum      = { k : np.zeros_like(v) for k,v in model.items() }
 rmsprop_cache = { k : np.zeros_like(v) for k,v in model.items() } # rmsprop memory
 
-def sigmoid(x): 
-  return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function to interval [0,1]
+def sigmoid(x):  return 1.0 / (1.0 + np.exp(-x)) # sigmoid "squashing" function to interval [0,1]
 
 def prepro(I):
   """ prepro 210x160x3 uint8 frame into 6400 (80x80) 1D float vector """
@@ -53,6 +50,8 @@ def prepro(I):
   return I.astype(np.float).ravel()
 
 def forward(x,modelType,model=model):
+  # x = (x-x.min())/(x.max()-x.min() + 1e-8)
+  x = (x-x.mean())/(x.std() + 1e-5)
   h = np.dot(model['W1_'+modelType], x) + model['b1_'+modelType]
   h[h<0] = 0 # ReLU nonlinearity
   out = np.dot(model['W2_'+modelType], h) + model['b2_'+modelType]
