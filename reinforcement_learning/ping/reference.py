@@ -16,7 +16,7 @@ resume = False # resume from previous checkpoint?
 render = True
 
 # model initialization input dimensionality: 80x80 grid
-D = 80*80
+D = 80*5
 if resume:  model = pickle.load(open('save.p', 'rb'))
 else:
   model = {}
@@ -68,16 +68,19 @@ running_reward = None
 reward_sum = 0
 episode_number = 0
 
+from sklearn.decomposition import FastICA,PCA
+ss = PCA(5)
 while True:
   if render: env.render()
 
   # preprocess the observation, set input to network to be difference image
   cur_x  = prepro(observation)
-  x      = cur_x - prev_x if prev_x is not None else np.zeros(D)
+  x      = cur_x - prev_x if prev_x is not None else np.zeros(80*80)
   prev_x = cur_x
+  sss = ss.fit_transform(x.reshape((80,80))+0.1 ) -0.5
 
   # forward the policy network and sample an action from the returned probability
-  aprob, h = policy_forward(x)
+  aprob, h = policy_forward(sss.flatten())
   action   = 2 if np.random.uniform() < aprob  else 3 # roll the dice!
 
   # record various intermediates (needed later for backprop)
@@ -110,7 +113,11 @@ while True:
 
     epdlogp *= discounted_epr # modulate the gradient with advantage (PG magic happens right here.)
     grad     = policy_backward(eph, epdlogp)
-    for k in model: grad_buffer[k] += grad[k] # accumulate grad over batch
+    for k in model: 
+      try:
+        grad_buffer[k] += grad[k] # accumulate grad over batch
+      except:
+        pass
 
     # perform rmsprop parameter update every batch_size episodes
     if episode_number % batch_size == 0:
