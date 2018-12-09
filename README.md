@@ -27,4 +27,4 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 
 
 ## Configuring project
-PHPCpd, PHPCodeSniffer, PHPMessDetect, PHPDocblockChecker, PHPParallelLint, PHPUnit and Codeception);
+    
