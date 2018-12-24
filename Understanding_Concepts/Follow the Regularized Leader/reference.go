@@ -100,6 +100,7 @@ func opencsv(filename string, create bool) *os.File {
 	return csvfile
 }
 
+// read row
 func rowReader(filename string) (<-chan []string, map[string]int) {
 	csvfile := opencsv(filename, false)
 	reader := csv.NewReader(csvfile)
@@ -127,6 +128,7 @@ func rowReader(filename string) (<-chan []string, map[string]int) {
 	return c, column_names
 }
 
+// parse Row
 func parseRow(row []string, column_names map[string]int) Row {
 	features_n := len(row) - 1
 	_, click := column_names["click"]
