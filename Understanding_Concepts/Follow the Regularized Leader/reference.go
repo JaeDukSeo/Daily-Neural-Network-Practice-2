@@ -21,7 +21,6 @@ import (
 var train string
 var test string
 var submission string
-
 var cores int
 var holdout int
 var epoch int
