@@ -203,6 +203,7 @@ func trainModel(model *FTRL, inchannel <-chan []string, outchannel chan<- Perfor
 
 // main function
 func main() {
+	fmt.Println("start")
 	//Set up parameters
 	D = 1 << 28
 	train = "train"
