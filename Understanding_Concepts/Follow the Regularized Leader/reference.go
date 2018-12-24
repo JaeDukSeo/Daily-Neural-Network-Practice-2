@@ -34,6 +34,13 @@ type FTRL struct {
 	w                   map[uint32]float64 // tmp coefficients / weights
 }
 
+type Row struct {
+	ID       string
+	y        float64
+	date     int
+	features []uint32
+}
+
 // Predict
 func (m *FTRL) predict(x []uint32) float64 {
 	wTx := 0.0
@@ -76,13 +83,6 @@ func hash(s string) uint32 {
 	h := fnv.New32a()
 	h.Write([]byte(s))
 	return h.Sum32()
-}
-
-type Row struct {
-	ID       string
-	y        float64
-	date     int
-	features []uint32
 }
 
 func opencsv(filename string, create bool) *os.File {
