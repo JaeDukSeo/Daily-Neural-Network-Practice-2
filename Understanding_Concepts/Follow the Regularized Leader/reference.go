@@ -27,6 +27,7 @@ var holdout int
 var epoch int
 var D uint32
 
+//
 type FTRL struct {
 	alpha, beta, L1, L2 float64
 	n                   map[uint32]float64 // squared sum of past gradients
