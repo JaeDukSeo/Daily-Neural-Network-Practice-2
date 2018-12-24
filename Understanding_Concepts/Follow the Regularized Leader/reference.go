@@ -41,6 +41,11 @@ type Row struct {
 	features []uint32
 }
 
+type Performance struct {
+	loss    float64
+	l_count int
+}
+
 // Predict
 func (m *FTRL) predict(x []uint32) float64 {
 	wTx := 0.0
@@ -169,11 +174,7 @@ func logloss(p, y float64) float64 {
 	}
 }
 
-type Performance struct {
-	loss    float64
-	l_count int
-}
-
+// train the model
 func trainModel(model *FTRL, inchannel <-chan []string, outchannel chan<- Performance, column_names map[string]int, core_n int) {
 	count := 1
 	l_count := 0
