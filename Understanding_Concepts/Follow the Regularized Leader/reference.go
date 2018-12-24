@@ -205,7 +205,7 @@ func trainModel(model *FTRL, inchannel <-chan []string, outchannel chan<- Perfor
 func main() {
 	//Set up parameters
 	D = 1 << 28
-	fmt.Println(D)
+	fmt.Println(1<<2)
 	os.Exit(3)
 
 	train = "train"
