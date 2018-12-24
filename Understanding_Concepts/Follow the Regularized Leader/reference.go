@@ -201,6 +201,7 @@ func trainModel(model *FTRL, inchannel <-chan []string, outchannel chan<- Perfor
 	outchannel <- Performance{loss, l_count}
 }
 
+// main function
 func main() {
 	//Set up parameters
 	D = 1 << 28
