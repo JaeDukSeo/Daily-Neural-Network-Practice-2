@@ -7,11 +7,6 @@
 [![License](https://img.shields.io/packagist/l/php-censor/php-censor.svg?label=License&style=flat-square)](https://packagist.org/packages/php-censor/php-censor)
    
    
-<p align="center">
-    <img width="800" height="auto" src="/image/image.png" alt="PHP Censor" />
-</p>
-   
-   
 **Daily-Neural-Network-Practice-2** This is my repo for daily practice of coding as well as machine learning (Season 2)
 The cover image is from this [website](https://www.pexels.com/photo/selective-focus-photography-of-sparkler-955792/). 
 
