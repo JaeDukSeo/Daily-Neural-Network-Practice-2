@@ -1,5 +1,6 @@
 // Based on tinrtgu's Python script here:
 // https://www.kaggle.com/c/avazu-ctr-prediction/forums/t/10927/beat-the-benchmark-with-less-than-1mb-of-memory 
+// Code: https://gist.github.com/ceshine/f7f93046c58fe6ee840b
 package main
 
 import (
