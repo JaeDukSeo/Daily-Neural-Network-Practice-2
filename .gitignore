@@ -29,6 +29,7 @@
 *.h5
 *.npy
 *.csv
+*.gz
 
 
 /preparing_papers/*/*.ipynb
