@@ -1,147 +1,246 @@
-"""
-Modified from code by: https://www.kaggle.com/users/185835/tinrtgu
-Forum post: https://www.kaggle.com/c/criteo-display-ad-challenge/forums/t/10322/beat-the-benchmark-with-less-then-200mb-of-memory
-code: https://github.com/kastnerkyle/kaggle-criteo/blob/master/clf.py
-"""
+// Based on tinrtgu's Python script here:
+// https://www.kaggle.com/c/avazu-ctr-prediction/forums/t/10927/beat-the-benchmark-with-less-than-1mb-of-memory 
+package main
 
-# Authors: tinrtgu
-#          Kyle Kastner
-# License: BSD 3 Clause
+import (
+    "encoding/csv"
+    "os"
+    "strconv"
+    "hash/fnv"
+    "math"
+    "log"
+    "time"
+    "runtime"
+)
 
-from datetime import datetime
-from csv import DictReader
-from math import exp, log, sqrt
-import numpy as np
+// ###############################
+// parameters
+//################################
 
+var train string
+var test string
+var submission string
 
-# parameters #################################################################
+var cores int
+var holdout int
+var epoch int
+var D uint32
 
-train = 'train.csv'  # path to training file
-rev_train = 'rev_train.csv'
-test = 'test.csv'  # path to testing file
+type FTRL struct {
+    alpha, beta, L1, L2 float64
+    n map[uint32]float64 // squared sum of past gradients
+    z map[uint32]float64 // coefficients / weights
+    w map[uint32]float64 // tmp coefficients / weights
+}
 
-D = 2 ** 20   # number of weights use for learning
-alpha = .1    # learning rate for sgd optimization
-n_models = 11  # number of models for bagging/random subset
+func (m *FTRL) predict(x []uint32) float64{
+    wTx := 0.0
+    w := make(map[uint32]float64)
+    for i := 0; i < len(x); i++{
+        z, ok := m.z[x[i]]
+        if ok == false{
+            m.z[x[i]] = 0.0
+            m.n[x[i]] = 0.0
+        }
+        sign := 1.0
+        if z < 0 {sign = -1.0}
+        if sign * z <= m.L1{
+            w[x[i]] = 0.
+        }else{
+        w[x[i]] = (sign * m.L1 - z)  / ((m.beta + math.Sqrt(m.n[x[i]])) / m.alpha + m.L2)
+        }
+        wTx += w[x[i]]
+    }
+    m.w = w
+    return 1.0 / (1.0 + math.Exp(-math.Max(math.Min(wTx, 35.0), -35.0)))
+}
 
-# function definitions #######################################################
+func (m *FTRL) update(x []uint32, p, y float64) {
+    // gradient under logloss
+    g := p - y
+    // update z and n
+    for i := 0; i< len(x); i++ {
+        sigma := (math.Sqrt(m.n[x[i]] + g * g) - math.Sqrt(m.n[x[i]])) / m.alpha
+        m.z[x[i]] += g - sigma * m.w[x[i]]
+        m.n[x[i]] += g * g
+    }
+}
 
-# A. Bounded logloss
-# INPUT:
-#     p: our prediction
-#     y: real answer
-# OUTPUT
-#     logarithmic loss of p given y
-def logloss(p, y):
-    p = max(min(p, 1. - 1e-6), 1e-6)
-    return -log(p) if y == 1. else -log(1. - p)
+func hash(s string) uint32 {
+    h := fnv.New32a()
+    h.Write([]byte(s))
+    return h.Sum32()
+}
 
+type Row struct {
+    ID string
+    y float64
+    date int
+    features []uint32
+}
 
-# B. Apply hash trick of the original csv row
-# for simplicity, we treat both integer and categorical features as categorical
-# INPUT:
-#     csv_row: a csv dictionary, ex: {'Label': '1', 'I1': '357', 'I2': '', ...}
-#     D: the max index that we can hash to
-# OUTPUT:
-#     x: a list of indices that its value is 1
-def get_x(csv_row, D):
-    x = [0]  # 0 is the index of the bias term
-    for key, value in csv_row.items():
-        index = int(value + key[1:], 16) % D  # weakest hash ever ;)
-        x.append(index)
-    return x  # x contains indices of features that have a value of 1
+func opencsv(filename string, create bool) *os.File{
+    var err error
+    var csvfile *os.File
+    if create{
+        csvfile, err = os.Create(filename)
+    }else{
+        csvfile, err = os.Open(filename)
+    }
+    if err != nil{
+        log.Fatal(err)
+    }
+    return csvfile
+}
 
+func rowReader(filename string) (<- chan []string, map[string]int){
+    csvfile := opencsv(filename, false)
+    reader := csv.NewReader(csvfile)
+    header, _ := reader.Read() 
+    column_names := make(map[string]int)    
+    for i, name := range header {
+        column_names[name] = i
+    }
+    
+    c := make(chan []string, cores * 4)
+    go func(){
+        for {
+            row, err := reader.Read()
+            if err != nil {
+                defer csvfile.Close()
+                close(c)
+                break
+            }
+            if len(row) > 0 { c <- row }
+        }
+    }()
 
-# C. Get probability estimation on x
-# INPUT:
-#     x: features
-#     w: weights
-# OUTPUT:
-#     probability of p(y = 1 | x; w)
-def get_p(x, w):
-    wTx = 0.
-    for i in x:  # do wTx
-        wTx += w[i] * 1.  # w[i] * x[i], but if i in x we got x[i] = 1.
-    return 1. / (1. + exp(-max(min(wTx, 20.), -20.)))  # bounded sigmoid
+    return c, column_names
+}
 
+func parseRow(row []string, column_names map[string]int) Row{
+    features_n := len(row) -1
+    _, click := column_names["click"]
+    if click == true {
+        features_n -= 1 
+    }
+    ID := row[column_names["id"]]
+    //process clicks
+    y := 0.0
+    if click == true && row[column_names["click"]] == "1" {
+        y = 1.0
+    }
+    date, _ := strconv.Atoi(row[column_names["hour"]][4:6])
+    date -= 20
 
-# D. Update given model
-# INPUT:
-#     w: weights
-#     n: a counter that counts the number of times we encounter a feature
-#        this is used for adaptive learning rate
-#     x: feature
-#     p: prediction of our model
-#     y: answer
-# OUTPUT:
-#     w: updated model
-#     n: updated count
-def update_w(w, n, x, p, y):
-    for i in x:
-        # alpha / (sqrt(n) + 1) is the adaptive learning rate heuristic
-        # (p - y) * x[i] is the current gradient
-        # note that in our case, if i in x then x[i] = 1
-        w[i] -= (p - y) * alpha / (sqrt(n[i]) + 1.)
-        n[i] += 1.
+    row[column_names["hour"]] = row[column_names["hour"]][6:]
 
-    return w, n
+    features := make([]uint32, features_n)
+    count := 0
+    for i := 0; i < len(row); i++ {
+        if i != column_names["id"]{
+            if click == false || i != column_names["click"]{
+                features[count] = hash(strconv.Itoa(count) + "_" + row[i]) % D
+                count += 1
+            }
+        }
+    }
+    return Row{ID, y, date, features}
+}
 
+func logloss(p, y float64) float64{
+    p = math.Max(math.Min(p, 1.0 - 10e-15), 10e-15)
+    if y == 1. {
+        return -math.Log(p)
+    }else{
+        return -math.Log(1. - p) 
+    }
+}
 
-def training_loop(w_arr, n_arr, include_prob=.3, reverse=False):
-    loss_arr = [0.] * len(w_arr)
-    if reverse:
-        dr = DictReader(open(rev_train))
-    else:
-        dr = DictReader(open(train))
+type Performance struct {
+    loss float64
+    l_count int
+}
 
-    random_state = np.random.RandomState(1999)
-    for t, row in enumerate(dr):
-        y = 1. if row['Label'] == '1' else 0.
+func trainModel(model *FTRL, inchannel <-chan []string, outchannel chan<- Performance, column_names map[string]int, core_n int){
+    count := 1
+    l_count := 0
+    loss := 0.0
+        
+    for {
+        raw, more := <- inchannel
+        if !more {break}
+        row := parseRow(raw, column_names)
+        p := model.predict(row.features) 
+        //log.Println(p, row.y, row.features)
+        if count % holdout == 0 {
+            l_count += 1
+            loss += logloss(p, row.y)
+            if count % (holdout * 10000) == 0 {
+                log.Println(core_n, p, row.y, loss/float64(l_count))
+            }
+        }
+        count += 1
+        model.update(row.features, p, row.y)
+    }
+    outchannel <- Performance{loss, l_count}
+}
 
-        del row['Label']  # can't let the model peek the answer
-        del row['Id']  # we don't need the Id
+func main(){
+    //Set up parameters
+    D = 1 << 28
+    train = "train"
+    test = "test"
+    submission = "submission_go.csv"
+    holdout = 100
+    epoch = 1
+    cores = 4
 
-        # main training procedure
-        # step 1, get the hashed features
-        x = get_x(row, D)
+    runtime.GOMAXPROCS(cores)
 
-        for i in range(len(w_arr)):
-            if random_state.random_sample() < include_prob:
-                # step 2, get prediction
-                p = get_p(x, w_arr[i])
+    start := time.Now()
+    
+    models := make([]*FTRL, cores)
+    for i := 0; i < cores; i++ {
+        models[i] = &FTRL{alpha: 0.15, beta: 1.1, L1: 1.1, L2:1.1,
+               n: make(map[uint32]float64), z: make(map[uint32]float64)}
+    }
 
-                # for progress validation, useless for learning our model
-                loss_arr[i] += logloss(p, y)
+    var elapsed time.Duration
 
-                # step 3, update model with answer
-                w_arr[i], n_arr[i] = update_w(w_arr[i], n_arr[i], x, p, y)
+    pch := make(chan Performance)
+    loss := 0.0
+    l_count := 0
+    for r := 0; r < epoch; r++ {
+        reader, column_names := rowReader(train)
+        for i := 0; i < cores; i++ {
+            go trainModel(models[i], reader, pch, column_names, i+1)
+        }
+        for i := 0; i < cores; i++ {
+            p := <- pch
+            loss += p.loss
+            l_count += p.l_count
+        }
+        elapsed = time.Since(start)
+        log.Printf("Epoch %d took %s logloss %f", r+1, elapsed, loss/float64(l_count))
+        start = time.Now()
+    }
 
-        if t % 1000000 == 0 and t > 1:
-        # for progress validation, useless for learning our model
-            for i in range(len(w_arr)):
-                print('Model %d\t %s\tencountered: %d\tcurrent logloss: %f' % (
-                       i, datetime.now(), t, loss_arr[i]/(t * include_prob)))
-    return w_arr, n_arr
-
-
-def bag_prediction(x, w_arr):
-    return np.min([get_p(x, w) for w in w_arr])
-
-# training and testing #######################################################
-# initialize our model
-w_arr = [[0.] * D] * n_models  # weights
-n_arr = [[0.] * D] * n_models  # number of times we've encountered a feature
-
-w_arr, n_arr = training_loop(w_arr, n_arr, reverse=True)
-w_arr, n_arr = training_loop(w_arr, n_arr)
-w_arr, n_arr = training_loop(w_arr, n_arr)
-
-# testing (build kaggle's submission file)
-with open('submission.csv', 'w') as submission:
-    submission.write('Id,Predicted\n')
-    for t, row in enumerate(DictReader(open(test))):
-        Id = row['Id']
-        del row['Id']
-        x = get_x(row, D)
-        p = bag_prediction(x, w_arr)
-        submission.write('%s,%f\n' % (Id, p))
+    //Start testing
+    outfile := opencsv(submission, true)
+    writer := csv.NewWriter(outfile)
+    writer.Write([]string{"id","click"}) // add header to the submission file
+    reader, column_names := rowReader(test)
+    for raw := range reader{
+        row := parseRow(raw, column_names)
+        p := 0.0
+        for i:=0; i<cores; i++ { 
+            p += models[i].predict(row.features) / float64(cores)
+        }
+        writer.Write([]string{row.ID, strconv.FormatFloat(p, 'f', -1, 64)})
+    }
+    writer.Flush()
+    outfile.Close()
+    elapsed = time.Since(start)
+    log.Printf("Testing took %s", elapsed)
+}
