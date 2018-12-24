@@ -85,6 +85,7 @@ func hash(s string) uint32 {
 	return h.Sum32()
 }
 
+// open csv
 func opencsv(filename string, create bool) *os.File {
 	var err error
 	var csvfile *os.File
