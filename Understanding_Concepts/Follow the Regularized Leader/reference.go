@@ -204,6 +204,8 @@ func trainModel(model *FTRL, inchannel <-chan []string, outchannel chan<- Perfor
 func main() {
 	//Set up parameters
 	D = 1 << 28
+	fmt.Println(D)
+
 	train = "train"
 	test  = "test"
 	submission = "submission_go.csv"
