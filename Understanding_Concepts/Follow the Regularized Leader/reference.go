@@ -205,7 +205,7 @@ func main() {
 	//Set up parameters
 	D = 1 << 28
 	train = "train"
-	test = "test"
+	test  = "test"
 	submission = "submission_go.csv"
 	holdout = 100
 	epoch = 1
