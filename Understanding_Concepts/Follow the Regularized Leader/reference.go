@@ -1,6 +1,7 @@
 """
 Modified from code by: https://www.kaggle.com/users/185835/tinrtgu
 Forum post: https://www.kaggle.com/c/criteo-display-ad-challenge/forums/t/10322/beat-the-benchmark-with-less-then-200mb-of-memory
+code: https://github.com/kastnerkyle/kaggle-criteo/blob/master/clf.py
 """
 
 # Authors: tinrtgu
