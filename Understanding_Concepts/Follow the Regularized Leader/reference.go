@@ -205,6 +205,7 @@ func main() {
 	//Set up parameters
 	D = 1 << 28
 	fmt.Println(D)
+	os.Exit(3)
 
 	train = "train"
 	test  = "test"
