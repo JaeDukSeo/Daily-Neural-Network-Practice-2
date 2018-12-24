@@ -34,7 +34,7 @@ type FTRL struct {
 	w                   map[uint32]float64 // tmp coefficients / weights
 }
 
-//
+// Predict
 func (m *FTRL) predict(x []uint32) float64 {
 	wTx := 0.0
 	w := make(map[uint32]float64)
@@ -59,6 +59,7 @@ func (m *FTRL) predict(x []uint32) float64 {
 	return 1.0 / (1.0 + math.Exp(-math.Max(math.Min(wTx, 35.0), -35.0)))
 }
 
+// Update
 func (m *FTRL) update(x []uint32, p, y float64) {
 	// gradient under logloss
 	g := p - y
@@ -70,6 +71,7 @@ func (m *FTRL) update(x []uint32, p, y float64) {
 	}
 }
 
+// hash
 func hash(s string) uint32 {
 	h := fnv.New32a()
 	h.Write([]byte(s))
