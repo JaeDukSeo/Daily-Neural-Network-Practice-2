@@ -159,6 +159,7 @@ func parseRow(row []string, column_names map[string]int) Row {
 	return Row{ID, y, date, features}
 }
 
+// log loss (cross entropy)
 func logloss(p, y float64) float64 {
 	p = math.Max(math.Min(p, 1.0-10e-15), 10e-15)
 	if y == 1. {
