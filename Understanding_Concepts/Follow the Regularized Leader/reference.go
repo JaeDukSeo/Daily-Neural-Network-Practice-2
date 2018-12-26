@@ -210,7 +210,7 @@ func main() {
 	test  = "test.csv"
 	submission = "submission_go.csv"
 	holdout = 100
-	epoch = 1
+	epoch = 10
 	cores = 4
 
 	runtime.GOMAXPROCS(cores)
