@@ -206,8 +206,8 @@ func main() {
 	fmt.Println("start")
 	//Set up parameters
 	D = 1 << 28
-	train = "train"
-	test  = "test"
+	train = "train.csv"
+	test  = "test.csv"
 	submission = "submission_go.csv"
 	holdout = 100
 	epoch = 1
