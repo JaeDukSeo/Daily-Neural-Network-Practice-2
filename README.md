@@ -16,5 +16,4 @@ The cover image is from this [website](https://www.pexels.com/photo/selective-fo
 * Tensorflow or numpy
 
 ## Installing
-* [Add a virtual host to your web server](docs/en/virtual_host.md), pointing to the `public` directory within your new
     
