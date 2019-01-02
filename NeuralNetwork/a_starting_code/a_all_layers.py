@@ -512,6 +512,7 @@ class FNN():
 
         return grad_pass,update_w
 
+
 # Func: Fully Connected RNN Layer
 class RNN():
 
