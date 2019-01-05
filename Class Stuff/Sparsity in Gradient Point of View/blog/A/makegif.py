@@ -5,7 +5,7 @@ gif_name = 'gif'; fps = 5
 
 file_list = glob.glob('gradientp/*.png') # Get all the pngs in the current directory
 
-print(file_list[100].split('.')[0].split('\\')[1])
+print(file_list[130].split('.')[0].split('\\')[1])
 import sys
 sys.exit()
 
