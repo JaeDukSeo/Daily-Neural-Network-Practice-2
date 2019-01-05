@@ -1,6 +1,7 @@
 import glob
 import moviepy.editor as mpy
 
+# 5
 gif_name = 'gif'; fps = 25
 
 file_list = glob.glob('gradientp/*.png') # Get all the pngs in the current directory
