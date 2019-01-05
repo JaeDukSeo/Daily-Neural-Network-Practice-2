@@ -6,6 +6,8 @@ gif_name = 'gif'; fps = 5
 file_list = glob.glob('gradientp/*.png') # Get all the pngs in the current directory
 
 print(file_list[0].split('.')[0].split('\\'[2]))
+import sys
+sys.exit()
 
 list.sort(file_list, key=lambda x: int(x.split('.')[0].split('\\'[2]) )) # Sort the images by #, this may need to be tweaked for your use case
 clip = mpy.ImageSequenceClip(file_list, fps=fps)
