@@ -7,3 +7,28 @@ file_list = glob.glob('gradientp/*.png') # Get all the pngs in the current direc
 list.sort(file_list, key=lambda x: int(x.split('.')[0] )) # Sort the images by #, this may need to be tweaked for your use case
 clip = mpy.ImageSequenceClip(file_list, fps=fps)
 clip.write_gif('gradientp/{}.gif'.format(gif_name), fps=fps)
+
+file_list = glob.glob('gradientw/*.png') # Get all the pngs in the current directory
+list.sort(file_list, key=lambda x: int(x.split('.')[0] )) # Sort the images by #, this may need to be tweaked for your use case
+clip = mpy.ImageSequenceClip(file_list, fps=fps)
+clip.write_gif('gradientp/{}.gif'.format(gif_name), fps=fps)
+
+file_list = glob.glob('gradientp/*.png') # Get all the pngs in the current directory
+list.sort(file_list, key=lambda x: int(x.split('.')[0] )) # Sort the images by #, this may need to be tweaked for your use case
+clip = mpy.ImageSequenceClip(file_list, fps=fps)
+clip.write_gif('gradientp/{}.gif'.format(gif_name), fps=fps)
+
+file_list = glob.glob('gradientp/*.png') # Get all the pngs in the current directory
+list.sort(file_list, key=lambda x: int(x.split('.')[0] )) # Sort the images by #, this may need to be tweaked for your use case
+clip = mpy.ImageSequenceClip(file_list, fps=fps)
+clip.write_gif('gradientp/{}.gif'.format(gif_name), fps=fps)
+
+file_list = glob.glob('gradientp/*.png') # Get all the pngs in the current directory
+list.sort(file_list, key=lambda x: int(x.split('.')[0] )) # Sort the images by #, this may need to be tweaked for your use case
+clip = mpy.ImageSequenceClip(file_list, fps=fps)
+clip.write_gif('gradientp/{}.gif'.format(gif_name), fps=fps)
+
+file_list = glob.glob('gradientp/*.png') # Get all the pngs in the current directory
+list.sort(file_list, key=lambda x: int(x.split('.')[0] )) # Sort the images by #, this may need to be tweaked for your use case
+clip = mpy.ImageSequenceClip(file_list, fps=fps)
+clip.write_gif('gradientp/{}.gif'.format(gif_name), fps=fps)
