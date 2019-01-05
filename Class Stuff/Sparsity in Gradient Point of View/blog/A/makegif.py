@@ -28,7 +28,7 @@ list.sort(file_list, key=lambda x: int(x.split('.')[0] )) # Sort the images by #
 clip = mpy.ImageSequenceClip(file_list, fps=fps)
 clip.write_gif('moment/{}.gif'.format(gif_name), fps=fps)
 
-file_list = glob.glob('gradientp/*.png') # Get all the pngs in the current directory
+file_list = glob.glob('weights/*.png') # Get all the pngs in the current directory
 list.sort(file_list, key=lambda x: int(x.split('.')[0] )) # Sort the images by #, this may need to be tweaked for your use case
 clip = mpy.ImageSequenceClip(file_list, fps=fps)
-clip.write_gif('gradientp/{}.gif'.format(gif_name), fps=fps)
+clip.write_gif('weights/{}.gif'.format(gif_name), fps=fps)
