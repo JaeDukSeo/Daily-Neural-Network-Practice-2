@@ -1,16 +1,24 @@
-# deep-INFOMAX
-Chainer implementation of [Learning deep representations by mutual information estimation and maximization.](https://arxiv.org/abs/1808.06670)
+# Deep-INFOMAX
+This is a pytorch implementation of Deep-INFOMAX.
 
-# Example of clustering result on CIFAR10
-<p align="center"><img src="img.png" alt="CIFAR10"></p>
+original paper : [Learning deep representations by mutual information estimation and maximization.](https://arxiv.org/abs/1808.06670)
 
-Car class image was taken from the CIFAR10 test set, then the L1 distance in encoder feature space was calculated for the remaining test images. The top row shows the test image, middle row shows the 10 closest images in terms of L1 distance, and the bottom row shows the 10 furthest images.
+## reference github repositories
 
-# Usage
-To train, run:
+1. [DuaneNielsen/DeepInfomaxPytorch](https://github.com/DuaneNielsen/DeepInfomaxPytorch)
+> pytorch. model definition and training script only without clustering example. our code is mainly based on this repository. Thanks!
 
-`$ python train.py -g 0 -o output_directory --alpha X --beta Y --gamma Z`, replacing XYZ with the hyperparameters you want (see paper for more details). Training for 1000 epochs takes roughly 24 hours.
+2. [rcalland/deep-INFOMAX](https://github.com/rcalland/deep-INFOMAX)
+> chainer. model definition and traning script with (knn?) clustering example on CIFAR10. Better documentation.
 
-To perform some simple clustering, run:
+## related blogs and articles
 
-`$ python cluster.py -g 0 -i output_directory/encoder_epoch_1000`. This will output an image similar to the one above.
+1. [深度学习中的互信息：无监督提取特征](https://www.jiqizhixin.com/articles/2018-10-12-11)
+> instead Adversarial training, this blog implements gaussian distribution as prior (similar to VAE). worth a try.
+
+## sample result
+
+after training 100 epochs with `Adam(lr=1e-4)`, we see that the encoder is able to distinguish "animals" and non-living things. (among 100 test images)
+> top row : selected image; middle row : top 10 images with smallest L1 loss; bottom row : top 10 images with largest L1 loss.
+
+![sample.png](./sample_images/sample_cifar_100epoch.png)
