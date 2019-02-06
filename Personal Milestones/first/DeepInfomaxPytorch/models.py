@@ -27,7 +27,6 @@ class Encoder(nn.Module):
         encoded = self.l1(h.view(x.shape[0], -1))
         return encoded, features
 
-
 class GlobalDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
@@ -46,7 +45,6 @@ class GlobalDiscriminator(nn.Module):
         h = F.relu(self.l1(h))
         return self.l2(h)
 
-
 class LocalDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
@@ -59,7 +57,6 @@ class LocalDiscriminator(nn.Module):
         h = F.relu(self.c1(h))
         return self.c2(h)
 
-
 class PriorDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
@@ -71,7 +68,6 @@ class PriorDiscriminator(nn.Module):
         h = F.relu(self.l0(x))
         h = F.relu(self.l1(h))
         return torch.sigmoid(self.l2(h))
-
 
 class Classifier(nn.Module):
     def __init__(self):
@@ -89,7 +85,6 @@ class Classifier(nn.Module):
         clazz = F.relu(self.bn2(self.l2(clazz)))
         clazz = F.softmax(self.bn3(self.l3(clazz)), dim=1)
         return clazz
-
 
 class DeepInfoAsLatent(nn.Module):
     def __init__(self, run, epoch):
