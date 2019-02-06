@@ -48,7 +48,6 @@ class DeepInfoMaxLoss(nn.Module):
 
         return LOCAL + GLOBAL + PRIOR
 
-
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='DeepInfomax pytorch')
