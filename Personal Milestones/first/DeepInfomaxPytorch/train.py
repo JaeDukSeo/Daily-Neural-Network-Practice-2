@@ -61,7 +61,7 @@ if __name__ == '__main__':
     # batch size must be an even number
     # shuffle must be True
     cifar_10_train_dt = CIFAR10(r'c:\data\tv',  download=True, transform=ToTensor())
-    cifar_10_train_l = DataLoader(cifar_10_train_dt, batch_size=batch_size, shuffle=True, drop_last=True,
+    cifar_10_train_l  = DataLoader(cifar_10_train_dt, batch_size=batch_size, shuffle=True, drop_last=True,
                                   pin_memory=torch.cuda.is_available())
 
     encoder = Encoder().to(device)
