@@ -30,7 +30,7 @@
 *.npy
 *.csv
 *.gz
-
+*.wgt
 
 /preparing_papers/*/*.ipynb
 /preparing_papers/*/*.png
